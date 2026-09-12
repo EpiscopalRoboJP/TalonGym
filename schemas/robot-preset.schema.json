@@ -92,6 +92,16 @@
       "type": "array",
       "items": { "$ref": "#/$defs/sensor" }
     },
+    "intakes": {
+      "type": "array",
+      "description": "Capture volumes in the robot frame (+x forward). Empty or omitted keeps the omnidirectional hull fallback.",
+      "items": { "$ref": "#/$defs/intake" }
+    },
+    "launchers": {
+      "type": "array",
+      "description": "Muzzle pose, aim, and speed. Empty or omitted keeps curriculum auto-aim / teleport scoring.",
+      "items": { "$ref": "#/$defs/launcher" }
+    },
     "mechanisms": {
       "type": "object",
       "additionalProperties": false,
@@ -113,6 +123,58 @@
     }
   },
   "$defs": {
+    "poseOnRobot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number", "description": "Inches, robot +x forward" },
+        "y": { "type": "number", "description": "Inches, robot +y left" },
+        "z": { "type": "number", "description": "Inches above tile" },
+        "headingDeg": { "type": "number" },
+        "pitchDeg": { "type": "number" }
+      }
+    },
+    "intake": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "poseOnRobot"],
+      "properties": {
+        "id": { "type": "string" },
+        "poseOnRobot": { "$ref": "#/$defs/poseOnRobot" },
+        "widthIn": { "type": "number", "exclusiveMinimum": 0, "description": "Mouth width, perpendicular to heading" },
+        "reachIn": { "type": "number", "minimum": 0, "description": "Capture depth in front of the pose, along heading" },
+        "heightIn": { "type": "number", "exclusiveMinimum": 0 },
+        "cycleTimeS": { "type": "number", "minimum": 0 },
+        "maxSpeedInPerS": { "type": "number", "minimum": 0 },
+        "canRunWhileMoving": { "type": "boolean" }
+      }
+    },
+    "launcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "poseOnRobot", "muzzleSpeedInPerS"],
+      "properties": {
+        "id": { "type": "string" },
+        "poseOnRobot": { "$ref": "#/$defs/poseOnRobot" },
+        "aimMode": { "type": "string", "enum": ["chassis_fixed", "turret"], "default": "chassis_fixed" },
+        "yawRangeDeg": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "number" }
+        },
+        "pitchRangeDeg": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "number" }
+        },
+        "muzzleSpeedInPerS": { "type": "number", "exclusiveMinimum": 0 },
+        "spinupTimeS": { "type": "number", "minimum": 0 },
+        "cycleTimeS": { "type": "number", "minimum": 0 },
+        "canLaunchWhileMoving": { "type": "boolean" }
+      }
+    },
     "sensor": {
       "type": "object",
       "additionalProperties": false,
@@ -123,16 +185,7 @@
           "type": "string",
           "enum": ["apriltag_camera", "distance", "color", "beam_break", "touch", "imu"]
         },
-        "poseOnRobot": {
-          "type": "object",
-          "properties": {
-            "x": { "type": "number" },
-            "y": { "type": "number" },
-            "z": { "type": "number" },
-            "headingDeg": { "type": "number" },
-            "pitchDeg": { "type": "number" }
-          }
-        },
+        "poseOnRobot": { "$ref": "#/$defs/poseOnRobot" },
         "fovDeg": { "type": "number" },
         "rangeIn": { "type": "number" },
         "falseNegativeRate": { "type": "number", "minimum": 0, "maximum": 1 },

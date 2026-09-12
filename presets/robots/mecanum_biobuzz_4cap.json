@@ -55,6 +55,31 @@
       "kind": "imu"
     }
   ],
+  "intakes": [
+    {
+      "id": "front_intake",
+      "poseOnRobot": { "x": 9, "y": 0, "z": 2, "headingDeg": 0 },
+      "widthIn": 14,
+      "reachIn": 5,
+      "heightIn": 4,
+      "cycleTimeS": 0.4,
+      "maxSpeedInPerS": 24,
+      "canRunWhileMoving": true
+    }
+  ],
+  "launchers": [
+    {
+      "id": "hood",
+      "poseOnRobot": { "x": 3, "y": 0, "z": 12, "headingDeg": 0, "pitchDeg": 52 },
+      "aimMode": "chassis_fixed",
+      "yawRangeDeg": [-90, 90],
+      "pitchRangeDeg": [25, 70],
+      "muzzleSpeedInPerS": 220,
+      "spinupTimeS": 0.35,
+      "cycleTimeS": 0.6,
+      "canLaunchWhileMoving": true
+    }
+  ],
   "mechanisms": {
     "capacity": 4,
     "intakeCycleTimeS": 0.4,

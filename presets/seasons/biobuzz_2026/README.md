@@ -1,6 +1,8 @@
 # BIOBUZZ 2026–2027 — Competition Manual V1
 
-Game: **BIOBUZZ™ presented by RTX**, FIRST CANOPY™. Preset ids `biobuzz_2026_field_v1` / `biobuzz_2026_scoring_v1`. Provenance: Competition Manual **V1** (2026-09-12). Geometry is `hand_authored` schematic until CAD is extracted.
+Game: **BIOBUZZ™ presented by RTX**, FIRST CANOPY™. Preset ids `biobuzz_2026_field_v1` / `biobuzz_2026_scoring_v1`. Provenance: Competition Manual **V1** (2026-09-12). Geometry is `hand_authored` schematic AABBs tessellated into `assets/seasons/biobuzz_2026/field.glb` + MuJoCo colliders. Re-run `python -m talongym import-field-cad` when the official STEP URL is reachable.
+
+GARDEN tape sits in the **same alliance corner as the LOADING ZONE** (audience-left for red).
 
 ## Encoded facts (§8–11, 16)
 
@@ -13,7 +15,7 @@ Game: **BIOBUZZ™ presented by RTX**, FIRST CANOPY™. Preset ids `biobuzz_2026
 
 ## Placeholders (`verifyAgainstManual: true`)
 
-- Exact FLOWER / LOADING ZONE / GARDEN corner assignment and hive x-offsets (figures/CAD not in the text extract).
+- Exact FLOWER / hive x-offsets (figures/CAD STEP not committed; HubSpot hides the direct file).
 - HIVE TIP threshold: scoring uses `red_up_cell_load ≥ 7` (3 staged NECTAR + 4 launched). Confirm against CAD / Field Setup Guide.
 - The same `red_cell_up` volume stays the “up” cell after a tip; spilled pieces are consumed rather than dumped to the floor.
 - AprilTag IDs 1–3, 4–6, and 42–45 are inferred. Manual extract only confirmed 0, 7, and 38–41.

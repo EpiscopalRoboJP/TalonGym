@@ -71,6 +71,10 @@
       "type": "string",
       "description": "Render-only field image or glTF. Physics ignores this."
     },
+    "collisionAsset": {
+      "type": "string",
+      "description": "MuJoCo MJCF or mesh used when mesh_field_collision is required. FTC inches, Y-up (x=ftc.x, y=height, z=-ftc.y)."
+    },
     "elements": {
       "type": "array",
       "items": { "$ref": "#/$defs/fieldElement" }
@@ -122,7 +126,8 @@
         "retained_queue",
         "scripted_mechanism_fsm",
         "multi_robot_collision",
-        "phase_clock"
+        "phase_clock",
+        "mesh_field_collision"
       ]
     },
     "provenance": {
@@ -157,7 +162,7 @@
         "x": { "type": "number" },
         "y": { "type": "number" },
         "headingDeg": { "type": "number" },
-        "z": { "type": "number", "description": "Render / vision height only; 2.5D physics ignores except as mechanism metadata." }
+        "z": { "type": "number", "description": "Height above tile (inches). Planar backends ignore; mesh_field_collision uses Z for elevated volumes and launches." }
       }
     },
     "shape": {
@@ -169,6 +174,7 @@
         "width": { "type": "number" },
         "depth": { "type": "number" },
         "radius": { "type": "number" },
+        "height": { "type": "number", "description": "Vertical half-extent or full height in inches for 3D volumes." },
         "vertices": {
           "type": "array",
           "items": {

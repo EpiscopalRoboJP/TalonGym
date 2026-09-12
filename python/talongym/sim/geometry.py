@@ -88,6 +88,27 @@ def point_in_shape(shape: AABB | Circle | None, x: float, y: float) -> bool:
     return shape.contains(x, y)
 
 
+def volume_needs_z(el: dict[str, Any]) -> bool:
+    tags = set(el.get("tags") or [])
+    kind = str(el.get("type") or "")
+    return bool(tags.intersection({"cell", "flower", "goal", "up_cell", "down_cell"})) or kind in {
+        "goal",
+        "cell",
+        "flower",
+    }
+
+
+def point_in_volume(el: dict[str, Any], shape: AABB | Circle | None, x: float, y: float, z: float = 0.0, radius: float = 0.0) -> bool:
+    if not point_in_shape(shape, x, y):
+        return False
+    if not volume_needs_z(el):
+        return True
+    pose = el.get("pose") or {}
+    ez = float(pose.get("z") or 0.0)
+    hh = float((el.get("shape") or {}).get("height") or 16.0) / 2.0
+    return abs(z - ez) <= hh + radius + 2.0
+
+
 def ray_hits_aabb(ox: float, oy: float, dx: float, dy: float, box: AABB, max_t: float) -> bool:
     invx = 1.0 / dx if abs(dx) > 1e-9 else 1e9
     invy = 1.0 / dy if abs(dy) > 1e-9 else 1e9

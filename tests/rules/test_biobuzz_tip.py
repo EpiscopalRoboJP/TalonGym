@@ -6,7 +6,7 @@ from talongym.sim.world import World
 
 def test_four_launches_tip_once():
     bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
-    world = World(bundle, seed=1)
+    world = World(bundle, seed=1, allow_missing_mesh=True)
     world.reset(seed=1, static_teammate=False)
     rs = world.actor()
     rs.body.x, rs.body.y = -9.4, 9.4

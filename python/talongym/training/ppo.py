@@ -18,6 +18,7 @@ from talongym.env.ftc_auto import (
 from talongym.eval.harness import bootstrap_ci
 from talongym.presets.loader import LoadedPresets, load_bundle
 from talongym.training.curriculum import (
+    ballistic_launch,
     full_noise,
     motif_known_at_t0,
     objective_value,
@@ -66,6 +67,7 @@ class CurriculumEnv(gym.Wrapper):
         opts["teammate_policy"] = teammate_for(self._training, frac)
         opts["opponent_policy"] = opponent_for(self._training, frac)
         opts["full_noise"] = full_noise(self._training, frac)
+        opts["ballistic_launch"] = ballistic_launch(self._training, frac)
         kwargs["options"] = opts
         return super().reset(**kwargs)
 
@@ -110,6 +112,20 @@ def train_ppo(
     """Train RecurrentPPO with Dict observations and a live curriculum."""
     emit = log or (lambda m: None)
     bundle = bundle or load_bundle()
+    algo_cfg = (bundle.training or {}).get("algorithm") or {}
+    algo_name = str(algo_cfg.get("name") or "recurrent_ppo")
+    if algo_name == "grpo":
+        from talongym.training.grpo import train_grpo
+
+        return train_grpo(
+            bundle=bundle,
+            total_steps=total_steps,
+            log=log,
+            on_metrics=on_metrics,
+            on_rollout=on_rollout,
+            save_dir=save_dir,
+            should_stop=should_stop,
+        )
     total_steps = max(1, int(total_steps))
     progress = _Progress(total_steps)
     training = bundle.training
@@ -137,7 +153,10 @@ def train_ppo(
                 frozen_policy=frozen_policy,
             )
             wrapped = EncoderOnlyObsAssertWrapper(env)
-            boxed = BoxActionDictObsEnv(wrapped)
+            from talongym.training.privileged import PrivilegedObsWrapper
+
+            priv = PrivilegedObsWrapper(wrapped)
+            boxed = BoxActionDictObsEnv(priv)
             return CurriculumEnv(boxed, progress, training)
 
         return _init
@@ -184,6 +203,8 @@ def train_ppo(
     while batch > 1 and rollout_len % batch != 0:
         batch -= 1
     lstm_hidden = int(algo_cfg.get("lstmHiddenSize") or 256)
+    from talongym.training.asymmetric import AsymmetricLstmPolicy
+
     policy_kwargs = {"lstm_hidden_size": lstm_hidden}
 
     save_dir = Path(save_dir) if save_dir is not None else (paths.VAR_DIR / "ckpts")
@@ -202,7 +223,7 @@ def train_ppo(
 
     if not loaded:
         model = RecurrentPPO(
-            "MultiInputLstmPolicy",
+            AsymmetricLstmPolicy,
             venv,
             verbose=0,
             n_steps=n_steps,
@@ -215,7 +236,18 @@ def train_ppo(
             ent_coef=float(algo_cfg.get("entCoef") or 0.01),
             policy_kwargs=policy_kwargs,
         )
-    emit("Using sb3-contrib RecurrentPPO (MultiInputLstmPolicy)")
+        bc_steps = int(algo_cfg.get("bcWarmupSteps") or 0)
+        if algo_name == "bc_then_ppo" and bc_steps <= 0:
+            bc_steps = 1024
+        if bc_steps > 0:
+            from talongym.training.distill import bc_warmup
+
+            try:
+                mse = bc_warmup(model, bundle, min(bc_steps, 4096), log=emit)
+                emit(f"BC warmup done mse={mse:.4f}")
+            except Exception as exc:
+                emit(f"BC warmup skipped: {exc}")
+    emit("Using sb3-contrib RecurrentPPO (AsymmetricLstmPolicy)")
 
     true_hist: list[float] = []
     obj_hist: list[float] = []
@@ -280,7 +312,7 @@ def train_ppo(
             "objectiveMean": float(np.mean(obj_hist[-200:])) if obj_hist else None,
             "trueScoreMean": float(np.mean(true_hist[-32:])) if true_hist else None,
             "shapingMean": float(np.mean(shape_hist[-200:])) if shape_hist else None,
-            "algo": "recurrent_ppo",
+            "algo": algo_name,
             "progressFrac": progress.frac,
             "curriculumStage": stage.get("index"),
             "curriculumUnlock": stage.get("unlock"),
@@ -341,7 +373,7 @@ def train_ppo(
     if cancelled:
         venv.close()
         return {
-            "algo": "recurrent_ppo",
+            "algo": algo_name,
             "frames": [],
             "steps": done,
             "cancelled": True,
@@ -357,7 +389,7 @@ def train_ppo(
     frames = record_policy_episode(adapter, bundle=bundle, seed=7)
     venv.close()
     return {
-        "algo": "recurrent_ppo",
+        "algo": algo_name,
         "frames": frames,
         "steps": done,
         "model": model,
@@ -390,7 +422,12 @@ class RecurrentPolicyAdapter:
 
     def __call__(self, obs, info=None):
         if self._dict_obs and isinstance(obs, dict):
-            inp = obs
+            inp = dict(obs)
+            spaces = getattr(self.model, "observation_space", None)
+            if spaces is not None and hasattr(spaces, "spaces") and "_privileged" in spaces.spaces and "_privileged" not in inp:
+                from talongym.training.privileged import PRIV_DIM, PRIV_KEY
+
+                inp[PRIV_KEY] = np.zeros(PRIV_DIM, dtype=np.float32)
         else:
             inp = flatten_obs(obs) if isinstance(obs, dict) else np.asarray(obs, dtype=np.float32)
         action, self.state = self.model.predict(
@@ -405,6 +442,10 @@ class RecurrentPolicyAdapter:
 
 def load_trained_policy(path: str | Path) -> RecurrentPolicyAdapter:
     from sb3_contrib import RecurrentPPO
+    from talongym.training.asymmetric import AsymmetricLstmPolicy
 
-    model = RecurrentPPO.load(str(path))
+    try:
+        model = RecurrentPPO.load(str(path), custom_objects={"AsymmetricLstmPolicy": AsymmetricLstmPolicy})
+    except Exception:
+        model = RecurrentPPO.load(str(path))
     return RecurrentPolicyAdapter(model)

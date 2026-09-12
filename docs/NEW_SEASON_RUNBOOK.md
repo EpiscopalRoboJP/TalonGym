@@ -30,7 +30,8 @@ Do **not** invent scoring numbers. Leave `verifyAgainstManual: true` on every po
    - `collisionShape`, `isOccluder`, `isTrigger`, `tags`
 3. Place scoring-element spawns as `GamePieceSpawn` records (type, pose list, physical properties).
 4. Add alliance start slots. Use MeepMeep-sane Cartesian poses in inches.
-5. Import an official field image as `backgroundAsset` for the 3D viewer (render-only).
+5. Import an official field image or glTF as `backgroundAsset` for the 3D viewer. For mesh seasons, also set `collisionAsset` (MJCF) and `mesh_field_collision`.
+6. `python -m talongym import-field-cad` downloads Field CAD (STEP) when the archive page exposes a URL; otherwise it tessellates the field preset AABBs into `assets/seasons/<slug>/field.glb` + `field_mjcf.xml`. Raw STEP stays in `var/cad/` and is not committed.
 
 If CAD extraction is slow, a tape-measure practice field is acceptable for a *rough* preset; mark `geometryProvenance: "practice-field-approximate"` so the UI shows a stale/approximate banner.
 

@@ -109,12 +109,14 @@ class FTCAutoEnv(gym.Env):
         if opts.get("opponent_mode"):
             opp_mode = opts["opponent_mode"]
         full_noise = bool(opts.get("full_noise", True))
+        ballistic = opts.get("ballistic_launch")
         self.world.reset(
             seed=seed,
             static_teammate=static,
             opponent_mode=opp_mode,
             live_teammate=live or bool(opts.get("live_teammate")),
             full_noise=full_noise,
+            ballistic_launch=None if ballistic is None else bool(ballistic),
         )
         if opts.get("action_tier"):
             self.action_tier = opts["action_tier"]
@@ -323,8 +325,17 @@ class FTCAutoEnv(gym.Env):
             "privileged": {
                 "matchVars": dict(self.world.match_vars),
                 "pose": [rs.body.x, rs.body.y, rs.body.heading],
+                "pose3": [rs.body.x, rs.body.y, float(getattr(rs.body, "z", 5.0)), rs.body.heading],
                 "season": (self.bundle.field.get("season") or {}).get("slug"),
                 "restrictedEntry": bool(self.world.accumulators.get("restricted_entry")),
+                "held": list(rs.held),
+                "cellLoad": float(self.world.accumulators.get("red_up_cell_load") or 0),
+                "trueScore": self.world.true_score,
+                "timeS": self.world.time_s,
+                "pieces": [
+                    [p.x, p.y, p.z, 1.0 if p.scored else 0.0]
+                    for p in list(self.world.pieces.values())[:12]
+                ],
             },
             "waypoint_log": list(self._waypoint_log),
         }

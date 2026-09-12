@@ -33,6 +33,15 @@ def test_biobuzz_auto_volumes():
     assert "hive_tip" in nodes
     assert "leave_at_auto_end" in nodes
     assert "park_at_auto_end" in nodes
+    red = next(el for el in field["elements"] if el["id"] == "red_garden")
+    blue = next(el for el in field["elements"] if el["id"] == "blue_garden")
+    assert red["pose"]["y"] < -60
+    assert blue["pose"]["y"] > 60
+    assert red["pose"]["x"] < 0
+    assert blue["pose"]["x"] > 0
+    assert field.get("backgroundAsset")
+    assert field.get("collisionAsset")
+    assert "mesh_field_collision" in field["requiredCapabilities"]
 
 
 def test_centerstage_three_spikes():

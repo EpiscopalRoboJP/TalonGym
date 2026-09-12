@@ -4,23 +4,23 @@
 **Flagship season:** DECODE™ presented by RTX, 2025–2026, Competition Manual **TU32** (updated 2026-04-16).  
 **This document is the source of truth for implementation.** JSON Schema files in [`../schemas/`](../schemas/) are normative for preset files.
 
-Intended-use boundary, hardware modes, and official source links: [README.md](../README.md). Kickoff procedure: [NEW_SEASON_RUNBOOK.md](NEW_SEASON_RUNBOOK.md).
+**Deployment path (always and only):** train offline → export a trajectory → paste into an AUTO OpMode → Control Hub runs that OpMode. Intended-use boundary, hardware modes, and official source links: [README.md](../README.md). Kickoff procedure: [NEW_SEASON_RUNBOOK.md](NEW_SEASON_RUNBOOK.md).
 
 ---
 
 ## 1. Executive summary
 
-TalonGym is a **2.5D, season-plugin, Gymnasium-first** FTC Autonomous trainer with a React/Three.js viewer that never runs physics. A team loads a field + robot + scoring-rules preset, trains a policy, inspects rollouts, and exports Road Runner 1.0 Actions. “Best” is a **pre-registered statistical objective** over ≥500 held-out trials, never a single lucky episode.
+TalonGym is a **season-plugin, Gymnasium-first** FTC Autonomous trainer with a React/Three.js viewer that never runs physics. Default physics is **2.5D** (DECODE / ITD / CENTERSTAGE). BIOBUZZ AUTO uses an **opt-in MuJoCo mesh field** because launches into elevated CELLs must arc. A team loads a field + robot + scoring-rules preset, trains a policy offline, inspects rollouts, and exports Road Runner 1.0 Actions to paste into an AUTO OpMode. The Control Hub runs that OpMode; TalonGym does not command a robot during a MATCH. “Best” is a **pre-registered statistical objective** over ≥500 held-out trials, never a single lucky episode.
 
 ### Decisions (not a menu)
 
 | Decision | Choice | Why |
 |----------|--------|-----|
-| Physics | **2.5D**: Rapier2D (Rust) for planar contacts; **scripted FSMs + trigger volumes** for intake / launch / classify / retain / release | AUTO is planar driving plus a handful of vertical scoring events. Full 3D ball-in-goal physics is slow, noisy, and a worse match to how the manual defines “scored.” |
+| Physics | **2.5D default** (Rapier2D / planar contacts + scoring volumes). BIOBUZZ sets `mesh_field_collision` and runs **MuJoCo 3D** (Y-up inches) against CAD-derived colliders. | DECODE AUTO is planar classify. BIOBUZZ AUTO is launch-into-cell; robots must drive under the hive. Missing MuJoCo **refuses** a mesh-field training run — no silent planar fallback. |
 | Rapier vs Box2D | **Project-owned Rapier2D batched PyO3 ABI**, with a **Phase 0 benchmark gate** and Box2D v3 subprocess fallback | Off-the-shelf Box2D v3 Python bindings are early and one-world-per-call. Official Rapier Python packages are unpublished. A narrow batched `step(n_worlds)` is the only path to the throughput budget. If the Rust spike slips, drop to Box2D workers rather than inventing a third engine. |
-| 3D physics | **MuJoCo validation adapter only** (slow, not for bulk RL) | Revisit 2.5D only if a mechanism a team cares about cannot be represented (e.g. a shot that must arc in 3D over an obstacle). |
+| 3D physics | **Opt-in `MujocoFieldBackend`** when the field declares `collisionAsset` / `mesh_field_collision`. The old chassis-only adapter remains for `talongym validate-3d`. | Required for ballistic CELL launches. Viewer still does not run physics. |
 | Action space MVP | **High-level waypoint / spline** executed by a Road Runner-like follower | Trains faster; maps onto exportable RR 1.0 segments. Low-level `(vx, vy, ω)` is Phase 5 transfer/validation. |
-| Algorithm | **sb3-contrib RecurrentPPO** (LSTM) for MVP; RLlib/Ray documented for scale | Motif/randomization is partial observability. Feed-forward PPO will cheat via “drive in a circle until the sentinel flips” more slowly and less reliably. RecurrentPPO is the smallest memory-capable PPO that still runs on a laptop. |
+| Algorithm | **DECODE:** scratch RecurrentPPO. **BIOBUZZ:** `bc_then_ppo` (scripted clone, then asymmetric-critic PPO). Optional `grpo` for sparse TIP. Actor stays encoder-only. | Scratch LSTM PPO does not learn a 30s +20 TIP. 2025–26 robot RL is BC then on-policy RL, often with a privileged critic or group baseline. Not a VLA. |
 | Frontend | React + react-three-fiber; FastAPI BFF; **no localStorage** | Matches the product requirement. Persistence is SQLite (MVP) → Postgres (Phase 5). |
 | Multi-agent | Gymnasium single-agent MVP; **PettingZoo parallel API** from Phase 4 | Two robots per alliance is real; it is not the first learning problem. |
 | Export | **Road Runner 1.0 `TrajectoryActionBuilder` / Actions** default; 0.5.x `TrajectorySequence` as compatibility | RR 1.0 replaced trajectory sequences. Emitting deprecated APIs as the primary path would strand teams. |
@@ -59,7 +59,9 @@ talongym/
     robots/
       mecanum_meepmeep_defaults.json
     training/
-      decode_auto_lightweight.json
+      decode_auto_{lightweight,workstation,cloud,easy}.json
+  assets/
+    seasons/biobuzz_2026/    # field.glb (Lab) + field_mjcf.xml (MuJoCo); no raw STEP
   engine/                    # Rust crate: Rapier2D batched worlds
     Cargo.toml
     src/lib.rs
@@ -136,6 +138,7 @@ The engine implements only these capabilities. Seasons declare which they need. 
 | `scripted_mechanism_fsm` | Named FSMs parameterized by robot/field data |
 | `multi_robot_collision` | 2–4 chassis contacts + penalty hooks |
 | `phase_clock` | AUTO / TRANSITION / TELEOP timers |
+| `mesh_field_collision` | 3D CAD/MJCF colliders + ballistic pieces (BIOBUZZ). Requires MuJoCo. |
 
 ---
 
@@ -154,7 +157,7 @@ Instance data lives under `presets/`. Example instances:
 - [`presets/seasons/decode_2025/scoring.json`](../presets/seasons/decode_2025/scoring.json)
 - [`presets/seasons/into_the_deep_2024/field.json`](../presets/seasons/into_the_deep_2024/field.json)
 - [`presets/robots/mecanum_meepmeep_defaults.json`](../presets/robots/mecanum_meepmeep_defaults.json)
-- [`presets/training/decode_auto_lightweight.json`](../presets/training/decode_auto_lightweight.json)
+- [`presets/training/decode_auto_lightweight.json`](../presets/training/decode_auto_lightweight.json) (workstation / cloud / easy siblings per season)
 
 **Rule:** season nouns (ARTIFACT, MOTIF, POLLEN, SAMPLE, PIXEL) appear only in instance `type` / `id` / `explain` strings, never as Python/Rust identifiers in `engine/` or `python/talongym/sim/`.
 
@@ -400,7 +403,7 @@ Stale preset: if `provenance.manualRevision` is older than `engine.latestKnownMa
 - SQLite jobs, WS telemetry, `/replay` + `/train`.
 - Evaluation report: n=500, bootstrap 95% CI, objective `mean_true_score`.
 - RR 1.0 Actions export from a decimated waypoint log.
-- **Done:** a student can train overnight on a desktop, scrub the best mean-score rollout, and paste Java into `MeepMeepTesting`.
+- **Done:** a student can train overnight on a desktop, scrub the best mean-score rollout, and paste Java into an AUTO OpMode for the Control Hub.
 
 Time-to-useful-policy is a **measured** number after Phase 1, not a promise. Planning target to hold the design honest: workstation reaches mean AUTO score **strictly above a scripted “leave + one classify” baseline** within **4 hours** wall clock at the workstation env count. If missed, cut shaping bugs and n_envs before adding 3D physics.
 
@@ -433,7 +436,7 @@ Keep the plan-file numbering mapped as:
 2. **Policy cheats motif.** Mitigation: unit tests that mutate privileged motif without moving the robot/camera and assert obs unchanged; curriculum that starts with `motif_known_at_t0` then disables it.
 3. **Shaping optimizes the wrong game.** Mitigation: leaderboard binds to `true_score`; freeze shaping coefficients in the run config hash; abort train if true_score and objective diverge past a threshold for 1e6 steps.
 4. **Sim-to-real gap on launch/classify.** Mitigation: 2.5D classify is rules-accurate by construction; launch success is a Bernoulli + heading/range model fit from team logs (`calibrate/`). MuJoCo mode only for teams who live and die by ballistics.
-5. **LSTM ONNX / in-browser demo is lossy.** Mitigation: export (a) follower waypoint sequence as the **deployment** artifact, (b) ONNX of a distilled feed-forward policy as a demo. Do not claim on-robot NN inference.
+5. **LSTM ONNX / in-browser demo is lossy.** Mitigation: the only field path is (a) follower waypoint sequence pasted into an AUTO OpMode the Control Hub runs; (b) ONNX of a distilled feed-forward policy is a demo only. Do not claim on-robot NN inference.
 6. **Multi-robot collisions ignored in MVP then surprise in quals.** Mitigation: even single-agent MVP spawns a **static** teammate bounding box by default (configurable off) and penalizes contact.
 7. **Mid-season Team Updates silently desync.** Mitigation: `manualRevision` + hash on every preset; UI stale banner; evaluations store preset hash immutably.
 8. **Laptop cannot train.** Mitigation: lightweight profile + “import a run the mentor trained” via SQLite file copy; cloud path documented, not required.
@@ -467,7 +470,7 @@ Do not treat the following as engine work. They are **preset sign-off** question
 | Classify / overflow | Trigger path + retained queue length 9 |
 | Pattern | End-of-AUTO sequence match + gate closed |
 | Vision / motif | FOV, range, occluder rays, false-negative rate |
-| Launch ballistics | Success probability + time-of-flight timer, not 3D flight |
+| Launch ballistics | DECODE: success probability + time-of-flight. BIOBUZZ: 3D muzzle velocity vs mesh field when `ballistic_launch` is unlocked |
 | Foam tile compliance | Optional friction DR, not FEM |
 | Battery sag | Optional; off in lightweight |
 
@@ -519,6 +522,8 @@ Engine identifiers are capability names and geometry kinds (`aabb`, `volumeEnter
 
 ## Road Runner export (required, not stretch)
 
+This is the only match-bound artifact. Teams paste the Java into an AUTO OpMode; the Control Hub runs it. Do not stream the policy or load a neural net onto the robot.
+
 From a rollout of high-level targets, decimate to a polyline with heading, then emit Java:
 
 ```java
@@ -557,5 +562,5 @@ BIOBUZZ acceptance: a contributor adds `presets/seasons/biobuzz_2026/` plus scor
 1. Implement `PhysicsBackend` and a stub `KinematicBackend` only for CI without Rust; production default is Rapier.
 2. Compile scoring JSON to a contiguous struct-of-arrays DAG; evaluate in Rust or Cython-free Python first, profile, then move hot loops.
 3. Write `tests/presets/test_no_season_leak.py` and `tests/env/test_motif_not_leaked.py` before any PPO run.
-4. Pin `sb3-contrib` RecurrentPPO; flatten only the boxes SB3 cannot digest, keep Dict via `MultiInputLstmPolicy`.
+4. Pin `sb3-contrib` RecurrentPPO; flatten only the boxes SB3 cannot digest, keep Dict via `MultiInputLstmPolicy`. BIOBUZZ uses `AsymmetricLstmPolicy` so the critic may read `_privileged` while the actor cannot.
 5. SQLite schema: `presets`, `runs`, `evaluations`, `artifacts`, `replays` — WAL mode, files under `var/talongym.db`.

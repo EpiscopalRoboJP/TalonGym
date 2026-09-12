@@ -12,7 +12,15 @@ def test_health_and_presets():
     client = TestClient(app)
     h = client.get("/api/v1/health")
     assert h.status_code == 200
-    assert h.json()["ok"] is True
+    body = h.json()
+    assert body["ok"] is True
+    assert body["computeProfile"] in {"lightweight_cpu", "workstation", "cloud"}
+    assert body["nEnvs"] >= 1
+    compute = client.get("/api/v1/compute")
+    assert compute.status_code == 200
+    info = compute.json()
+    assert info["profile"] == body["computeProfile"]
+    assert info["easyTrainingId"].endswith("_easy")
     fields = client.get("/api/v1/presets/field")
     assert fields.status_code == 200
     ids = {row["id"] for row in fields.json()}
@@ -39,6 +47,9 @@ def test_defaults_get_and_put():
     bundle = load_bundle()
     assert bundle.field["id"] == "biobuzz_2026_field_v1"
     assert bundle.scoring["id"] == "biobuzz_2026_scoring_v1"
+    restore = client.put("/api/v1/defaults", json={"trainingId": "decode_auto_lightweight"})
+    assert restore.status_code == 200
+    assert restore.json()["season"] == "decode"
 
 
 def test_demo_replay_and_export():
@@ -165,3 +176,45 @@ def test_cancel_run(monkeypatch):
     row = _wait_run(client, run_id, {"cancelled", "failed", "succeeded"})
     assert row["state"] == "cancelled"
     time.sleep(0.3)
+
+
+def test_easy_run_uses_autodetect_training_id(monkeypatch):
+    captured: dict = {}
+
+    def fake_train(**kwargs):
+        captured["bundle"] = kwargs.get("bundle")
+        captured["n_envs"] = kwargs.get("n_envs")
+        on_metrics = kwargs.get("on_metrics")
+        if on_metrics:
+            on_metrics({"envSteps": 32, "trueScoreMean": 3.0, "algo": "recurrent_ppo", "nEnvs": kwargs.get("n_envs")})
+        return {"algo": "recurrent_ppo", "frames": [_frame()], "steps": 32, "metrics": {"envSteps": 32}}
+
+    monkeypatch.setattr("talongym.api.jobs.train_ppo", fake_train)
+    monkeypatch.setenv("TALONGYM_COMPUTE_PROFILE", "lightweight_cpu")
+    client = TestClient(app)
+    res = client.post(
+        "/api/v1/runs",
+        json={
+            "demo": False,
+            "easy": True,
+            "computeProfile": "auto",
+            "presets": {"trainingId": "decode_auto_lightweight"},
+        },
+    )
+    assert res.status_code == 202
+    run_id = res.json()["runId"]
+    row = _wait_run(client, run_id, {"succeeded", "failed"})
+    assert row["state"] == "succeeded"
+    assert captured["bundle"].training["id"] == "decode_auto_easy"
+    assert captured["n_envs"] >= 1
+
+
+def test_field_asset_glb_served():
+    client = TestClient(app)
+    res = client.get("/api/v1/field-assets/seasons/biobuzz_2026/field.glb")
+    assert res.status_code == 200
+    assert res.content[:4] == b"glTF"
+    missing = client.get("/api/v1/field-assets/seasons/nope/missing.glb")
+    assert missing.status_code == 404
+    traversal = client.get("/api/v1/field-assets/../pyproject.toml")
+    assert traversal.status_code in {400, 404}

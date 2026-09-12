@@ -8,9 +8,10 @@ import numpy as np
 
 from talongym.presets.loader import LoadedPresets
 from talongym.robot.drivetrain import clip_twist
+from talongym.robot.mechanisms import chassis_moving, launcher_aim, muzzle_velocity, piece_in_intake, pose_world
 from talongym.robot.sensors import camera_world_pose, detect_tags
 from talongym.rules.engine import MECHANISM_VERBS, RuleContext, RuleEngine, TickEvent
-from talongym.sim.geometry import AABB, deg_to_rad, point_in_shape, rad_to_deg, shape_from_element, wrap_angle
+from talongym.sim.geometry import AABB, deg_to_rad, point_in_shape, point_in_volume, rad_to_deg, shape_from_element, wrap_angle
 from talongym.sim.physics import Body, WorldStep, default_backend, perimeter_walls
 
 
@@ -31,6 +32,10 @@ class Piece:
     vy: float = 0.0
     restitution: float = 0.3
     mass: float = 0.1
+    z: float = 1.4
+    vz: float = 0.0
+    ballistic: bool = False
+    kick: bool = False
 
 
 @dataclass
@@ -40,6 +45,7 @@ class RobotState:
     intake_timer: float = 0.0
     score_timer: float = 0.0
     last_verb: str = "idle"
+    spinup_timer: float = 0.0
     collision_time_s: float = 0.0
     first_contact_s: float | None = None
     entered_restricted: bool = False
@@ -47,7 +53,7 @@ class RobotState:
 
 
 class World:
-    def __init__(self, bundle: LoadedPresets, seed: int = 0, control_hz: int = 25, substeps: int = 2) -> None:
+    def __init__(self, bundle: LoadedPresets, seed: int = 0, control_hz: int = 25, substeps: int = 2, allow_missing_mesh: bool = False) -> None:
         self.bundle = bundle
         self.field = bundle.field
         self.robot = bundle.robot
@@ -59,7 +65,8 @@ class World:
         self.engine = RuleEngine(self.scoring)
         fw = float(self.field["fieldSizeIn"]["width"])
         fd = float(self.field["fieldSizeIn"]["depth"])
-        self.backend = default_backend(fw / 2.0, fd / 2.0)
+        self.allow_missing_mesh = allow_missing_mesh
+        self.ballistic_launch = False
         self.walls = perimeter_walls(fw / 2.0, fd / 2.0)
         self.elements = list(self.field.get("elements") or [])
         self.element_shapes = {el["id"]: shape_from_element(el) for el in self.elements}
@@ -93,10 +100,18 @@ class World:
         chassis = self.robot.get("chassis") or {}
         self.robot_hx = float(chassis.get("widthIn", 18)) / 2.0
         self.robot_hy = float(chassis.get("lengthIn", 18)) / 2.0
+        self.robot_hz = 5.0
+        self.backend = self._make_backend(fw / 2.0, fd / 2.0)
+        if getattr(self.backend, "name", "") == "mujoco_field":
+            self.obstacles = []
         mech = self.robot.get("mechanisms") or {}
         self.capacity = int(mech.get("capacity", 3))
         self.intake_time = float(mech.get("intakeCycleTimeS", 0.4))
         self.score_time = float(mech.get("scoreCycleTimeS", 0.6))
+        self.can_intake_moving = bool(mech.get("canIntakeWhileMoving", True))
+        self.can_score_moving = bool(mech.get("canScoreWhileMoving", True))
+        self.intakes = list(self.robot.get("intakes") or [])
+        self.launchers = list(self.robot.get("launchers") or [])
         odo = self.robot.get("odometry") or {}
         self._base_pos_noise = float(odo.get("positionNoiseStdIn", 0.3))
         self._base_heading_noise = math.radians(float(odo.get("headingNoiseStdDeg", 1.0)))
@@ -141,6 +156,30 @@ class World:
         self.last_events: list[TickEvent] = []
         self.pending_piece_ops: list[tuple[str, str | None, str | None]] = []
 
+    def needs_mesh(self) -> bool:
+        caps = self.field.get("requiredCapabilities") or []
+        return "mesh_field_collision" in caps or bool(self.field.get("collisionAsset"))
+
+    def _make_backend(self, half_w: float, half_d: float):
+        if not self.needs_mesh():
+            return default_backend(half_w, half_d)
+        from talongym.sim.mujoco_backend import MeshFieldRequiredError, MujocoFieldBackend, available
+
+        if not available():
+            if self.allow_missing_mesh:
+                return default_backend(half_w, half_d)
+            raise MeshFieldRequiredError(
+                "This field requires mesh_field_collision; pip install -e '.[mujoco]'"
+            )
+        xml = self._collision_xml()
+        return MujocoFieldBackend(xml, half_w, half_d, robot_hz=self.robot_hz)
+
+    def _collision_xml(self) -> str:
+        from talongym.assets.mjcf_field import build_mjcf
+
+        # Rebuild so chassis size matches this robot. Field AABBs match collisionAsset.
+        return build_mjcf(self.field, robot_hx=self.robot_hx, robot_hy=self.robot_hy, robot_hz=self.robot_hz)
+
     def _domain_randomization(self) -> dict[str, Any]:
         return ((self.bundle.training or {}).get("domainRandomization") or {})
 
@@ -172,9 +211,12 @@ class World:
         opponent_mode: str = "none",
         live_teammate: bool = False,
         full_noise: bool = True,
+        ballistic_launch: bool | None = None,
     ) -> None:
         if seed is not None:
             self.rng = np.random.default_rng(seed)
+        if ballistic_launch is not None:
+            self.ballistic_launch = bool(ballistic_launch)
         self.apply_episode_randomization(full_noise=full_noise)
         self.time_s = 0.0
         self.phase = "AUTO"
@@ -214,6 +256,7 @@ class World:
                     attrs={"color": color, "passed_goal_top": False, "passed_archway": False},
                     restitution=float(spec.get("restitution") or 0.3),
                     mass=float(spec.get("massKg") or 0.1),
+                    z=float(pose.get("z") or rad),
                 )
                 self.pieces[name] = piece
         self.robots = {}
@@ -252,6 +295,7 @@ class World:
                 wrap_angle(deg_to_rad(float(pose["headingDeg"])) + jh),
                 hx=self.robot_hx,
                 hy=self.robot_hy,
+                z=self.robot_hz,
                 dynamic=dynamic,
                 alliance=alliance,
             ),
@@ -286,12 +330,14 @@ class World:
         for tid, el in self.triggers.items():
             sh = self.element_shapes[el["id"]]
             for rid, rs in self.robots.items():
-                if point_in_shape(sh, rs.body.x, rs.body.y):
+                if point_in_volume(el, sh, rs.body.x, rs.body.y, getattr(rs.body, "z", self.robot_hz), 0.0):
                     occ[tid].add(rid)
             for p in self.pieces.values():
-                if p.held_by or p.scored or p.in_flight:
+                if p.held_by or p.scored:
                     continue
-                if point_in_shape(sh, p.x, p.y):
+                if p.in_flight and p.flight:
+                    continue
+                if point_in_volume(el, sh, p.x, p.y, p.z, p.radius):
                     occ[tid].add(p.id)
         return occ
 
@@ -376,70 +422,113 @@ class World:
         speed = float(action.get("speed_frac", 0.8))
         self._apply_follower(rs, target, speed, dt)
 
+    def _piece_in_reach(self, rs: RobotState, p: Piece) -> tuple[bool, dict[str, Any] | None]:
+        if self.intakes:
+            for intake in self.intakes:
+                if piece_in_intake(p.x, p.y, p.z, p.radius, rs.body.x, rs.body.y, rs.body.heading, intake):
+                    return True, intake
+            return False, None
+        hull = self.robot_hx + p.radius + 4.0
+        return math.hypot(p.x - rs.body.x, p.y - rs.body.y) <= hull, None
+
     def _mechanisms(self, rs: RobotState, verb: str, dt: float, events: list[TickEvent]) -> None:
+        moving = chassis_moving(rs.body.vx, rs.body.vy)
+        if verb != "score":
+            rs.spinup_timer = 0.0
         rs.last_verb = verb
         if verb == "intake" and len(rs.held) < self.capacity:
             grabbed = False
+            cycle = self.intake_time
             for p in self.pieces.values():
                 if p.held_by or p.in_flight or p.scored:
                     continue
-                if math.hypot(p.x - rs.body.x, p.y - rs.body.y) <= (self.robot_hx + p.radius + 4.0):
-                    rs.intake_timer += dt
-                    if rs.intake_timer >= self.intake_time:
-                        p.held_by = rs.body.id
-                        p.vx = p.vy = 0.0
-                        p.x, p.y = rs.body.x, rs.body.y
-                        rs.held.append(p.id)
-                        rs.intake_timer = 0.0
-                    grabbed = True
-                    break
+                hit, intake = self._piece_in_reach(rs, p)
+                if not hit:
+                    continue
+                can_move = self.can_intake_moving
+                if intake is not None:
+                    can_move = bool(intake.get("canRunWhileMoving", can_move))
+                    cycle = float(intake.get("cycleTimeS") if intake.get("cycleTimeS") is not None else cycle)
+                if moving and not can_move:
+                    continue
+                rs.intake_timer += dt
+                if rs.intake_timer >= cycle:
+                    p.held_by = rs.body.id
+                    p.vx = p.vy = 0.0
+                    p.x, p.y = rs.body.x, rs.body.y
+                    rs.held.append(p.id)
+                    rs.intake_timer = 0.0
+                grabbed = True
+                break
             if not grabbed:
                 rs.intake_timer = 0.0
         else:
             rs.intake_timer = 0.0
-        if verb == "score" and rs.held and rs.score_timer <= 0:
-            pid = rs.held.pop(0)
-            p = self.pieces[pid]
-            p.held_by = None
-            p.vx = p.vy = 0.0
-            p.attrs["passed_goal_top"] = False
-            p.attrs["passed_archway"] = False
-            waypoints: list[tuple[str, float, float]] = []
-            for tag in ("open_top", "archway", "square"):
-                el = next(
-                    (
-                        e
-                        for e in self.elements
-                        if tag in (e.get("tags") or []) and e.get("alliance") == rs.body.alliance
-                    ),
-                    None,
-                )
-                if el:
-                    pose = el["pose"]
-                    waypoints.append((el.get("triggerId") or el["id"], float(pose["x"]), float(pose["y"])))
-            if waypoints:
-                p.in_flight = True
-                p.flight = waypoints
-                p.flight_i = 0
-            else:
-                target = self._nearest_score_volume(rs)
-                if target:
-                    pose = target["pose"]
-                    p.x, p.y = float(pose["x"]), float(pose["y"])
-                    p.in_flight = False
-                    p.scored = False
-                    events.append(
-                        TickEvent(
-                            "volumeEnter",
-                            volume_id=target.get("triggerId") or target["id"],
-                            piece_id=p.id,
-                            piece_type=p.type_id,
-                            piece_attrs=dict(p.attrs),
-                        )
+        launcher = self.launchers[0] if self.launchers else None
+        if verb == "score":
+            can_launch_moving = self.can_score_moving
+            spinup = 0.0
+            cycle = self.score_time
+            if launcher is not None:
+                can_launch_moving = bool(launcher.get("canLaunchWhileMoving", can_launch_moving))
+                spinup = float(launcher.get("spinupTimeS") or 0.0)
+                if launcher.get("cycleTimeS") is not None:
+                    cycle = float(launcher["cycleTimeS"])
+            blocked = moving and not can_launch_moving
+            if blocked:
+                rs.spinup_timer = 0.0
+            elif rs.spinup_timer < spinup:
+                rs.spinup_timer += dt
+            elif rs.held and rs.score_timer <= 0:
+                pid = rs.held.pop(0)
+                p = self.pieces[pid]
+                p.held_by = None
+                p.vx = p.vy = 0.0
+                p.vz = 0.0
+                p.attrs["passed_goal_top"] = False
+                p.attrs["passed_archway"] = False
+                waypoints: list[tuple[str, float, float]] = []
+                for tag in ("open_top", "archway", "square"):
+                    el = next(
+                        (
+                            e
+                            for e in self.elements
+                            if tag in (e.get("tags") or []) and e.get("alliance") == rs.body.alliance
+                        ),
+                        None,
                     )
+                    if el:
+                        pose = el["pose"]
+                        waypoints.append((el.get("triggerId") or el["id"], float(pose["x"]), float(pose["y"])))
+                if self.ballistic_launch:
+                    self._launch_ballistic(rs, p, launcher)
+                elif waypoints:
+                    p.in_flight = True
+                    p.flight = waypoints
+                    p.flight_i = 0
+                    p.ballistic = False
                 else:
-                    p.x, p.y = rs.body.x, rs.body.y
-            rs.score_timer = self.score_time
+                    target = self._nearest_score_volume(rs)
+                    if target:
+                        pose = target["pose"]
+                        p.x, p.y = float(pose["x"]), float(pose["y"])
+                        p.z = float(pose.get("z") or p.z)
+                        p.in_flight = False
+                        p.ballistic = False
+                        p.scored = False
+                        events.append(
+                            TickEvent(
+                                "volumeEnter",
+                                volume_id=target.get("triggerId") or target["id"],
+                                piece_id=p.id,
+                                piece_type=p.type_id,
+                                piece_attrs=dict(p.attrs),
+                            )
+                        )
+                    else:
+                        p.x, p.y = rs.body.x, rs.body.y
+                        p.z = p.radius
+                rs.score_timer = cycle
         if verb == "open_gate":
             gate_el = next(
                 (e for e in self.elements if e.get("type") == "gate" or "gate" in (e.get("tags") or [])),
@@ -477,9 +566,67 @@ class World:
                 best = el
         return best
 
+    def _launch_ballistic(self, rs: RobotState, p: Piece, launcher: dict[str, Any] | None = None) -> None:
+        p.in_flight = True
+        p.ballistic = True
+        p.flight = []
+        p.flight_i = 0
+        p.scored = False
+        p.kick = True
+        if launcher is not None:
+            pose = dict(launcher.get("poseOnRobot") or {})
+            yaw_deg, pitch_deg = launcher_aim(launcher)
+            pose["headingDeg"] = yaw_deg
+            pose["pitchDeg"] = pitch_deg
+            mx, my, mz, yaw, pitch = pose_world(rs.body.x, rs.body.y, rs.body.heading, pose)
+            speed = float(launcher.get("muzzleSpeedInPerS") or 180.0)
+            p.x, p.y, p.z = mx, my, max(mz, p.radius)
+            p.vx, p.vy, p.vz = muzzle_velocity(speed, yaw, pitch)
+            return
+        target = next(
+            (
+                e
+                for e in self.elements
+                if "up_cell" in (e.get("tags") or []) and e.get("alliance") == rs.body.alliance
+            ),
+            self._nearest_score_volume(rs),
+        )
+        p.x, p.y = rs.body.x, rs.body.y
+        p.z = max(self.robot_hz * 2.0 + p.radius + 4.0, 14.0)
+        tx = ty = tz = 0.0
+        if target:
+            pose = target.get("pose") or {}
+            tx, ty, tz = float(pose.get("x") or 0), float(pose.get("y") or 0), float(pose.get("z") or 36)
+        dx, dy, dz = tx - p.x, ty - p.y, tz - p.z
+        horiz = math.hypot(dx, dy)
+        g = 386.0886
+        t = max(0.25, horiz / 70.0)
+        p.vx = dx / t
+        p.vy = dy / t
+        p.vz = dz / t + 0.5 * g * t
+
+    def _advance_ballistic(self, dt: float) -> None:
+        if getattr(self.backend, "name", "") == "mujoco_field":
+            return
+        g = 386.0886
+        for p in self.pieces.values():
+            if not p.ballistic or p.held_by or p.scored:
+                continue
+            p.vz -= g * dt
+            p.x += p.vx * dt
+            p.y += p.vy * dt
+            p.z += p.vz * dt
+            if p.z <= p.radius:
+                p.z = p.radius
+                p.vz *= -0.25
+                p.vx *= 0.6
+                p.vy *= 0.6
+                p.ballistic = abs(p.vz) > 8.0
+                p.in_flight = p.ballistic
+
     def _advance_flights(self, events: list[TickEvent], dt: float) -> None:
         for p in self.pieces.values():
-            if not p.in_flight or p.scored:
+            if not p.in_flight or p.scored or p.ballistic or not p.flight:
                 continue
             if p.flight_i >= len(p.flight):
                 p.in_flight = False
@@ -657,7 +804,9 @@ class World:
             floor_bodies: list[Body] = []
             floor_index: dict[str, Piece] = {}
             for p in self.pieces.values():
-                if p.held_by or p.in_flight or p.scored:
+                if p.held_by or p.scored:
+                    continue
+                if p.in_flight and p.flight:
                     continue
                 body = Body(
                     p.id,
@@ -672,7 +821,11 @@ class World:
                     radius=p.radius,
                     restitution=p.restitution,
                     mass=p.mass,
+                    z=p.z,
+                    vz=p.vz,
+                    kick=p.kick,
                 )
+                p.kick = False
                 floor_bodies.append(body)
                 floor_index[p.id] = p
             flags = self.backend.step_world(
@@ -694,15 +847,21 @@ class World:
             for body in floor_bodies:
                 p = floor_index[body.id]
                 p.x, p.y, p.vx, p.vy = body.x, body.y, body.vx, body.vy
+                p.z = float(getattr(body, "z", p.z))
+                p.vz = float(getattr(body, "vz", p.vz))
             self._advance_flights(events, self.dt)
+            self._advance_ballistic(self.dt)
             for p in self.pieces.values():
                 if p.held_by and p.held_by in self.robots:
                     holder = self.robots[p.held_by]
                     p.x, p.y = holder.body.x, holder.body.y
-                    p.vx = p.vy = 0.0
+                    p.z = getattr(holder.body, "z", self.robot_hz)
+                    p.vx = p.vy = p.vz = 0.0
             self.time_s += self.dt
             occ_mid = self._occupancy()
+            events.extend(self._events_from_occupancy(occ_mid))
             self._update_contacts_and_restricted(self.dt, occ_mid)
+            self.prev_occupancy = occ_mid
         self._sense()
         rs = self.actor()
         if end_phase or self.time_s >= self.auto_s - 1e-9:
@@ -734,12 +893,18 @@ class World:
                 }
                 for r in self.robots.values()
             ],
+            "robotDesign": {
+                "chassis": dict(self.robot.get("chassis") or {}),
+                "intakes": list(self.intakes),
+                "launchers": list(self.launchers),
+            },
             "pieces": [
                 {
                     "id": p.id,
                     "typeId": p.type_id,
                     "x": p.x,
                     "y": p.y,
+                    "z": p.z,
                     "color": p.attrs.get("color"),
                     "heldBy": p.held_by,
                     "inFlight": p.in_flight,
@@ -763,6 +928,9 @@ class World:
                 "enteredRestricted": rs.entered_restricted,
             },
             "fieldSizeIn": self.field["fieldSizeIn"],
+            "backgroundAsset": self.field.get("backgroundAsset"),
+            "collisionAsset": self.field.get("collisionAsset"),
+            "physicsBackend": getattr(self.backend, "name", None),
             "elements": [
                 {
                     "id": el["id"],

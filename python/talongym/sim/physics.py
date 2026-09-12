@@ -25,6 +25,9 @@ class Body:
     radius: float = 0.0
     restitution: float = 0.2
     mass: float = 1.0
+    z: float = 5.0
+    vz: float = 0.0
+    kick: bool = False
 
     def aabb(self) -> AABB:
         if self.kind == "circle" and self.radius > 0:
