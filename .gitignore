@@ -1,13 +1,43 @@
+# Virtualenvs and caches
 .venv/
+venv/
+env/
+ENV/
 __pycache__/
 *.pyc
 *.egg-info/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime data — never publish
 var/
+logs/
 outputs/
+*.log
+*.db
+*.onnx
+MUJOCO_LOG.TXT
+
+# Official FIRST CAD downloads (import writes under var/cad/)
+*.step
+*.stp
+*.STEP
+*.STP
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Web / Rust build
 web/node_modules/
 web/dist/
 engine/target/
-*.db
+
+# OS / IDE
 .DS_Store
-MUJOCO_LOG.TXT
+Thumbs.db
+.idea/

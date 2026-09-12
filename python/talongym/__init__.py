@@ -1,4 +1,8 @@
-"""TalonGym — FTC Autonomous RL trainer."""
+"""TalonGym — FTC Autonomous RL trainer.
+
+Copyright (C) 2026 TalonGym contributors
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 
 from talongym.paths import REPO_ROOT
 

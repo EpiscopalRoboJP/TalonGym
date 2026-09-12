@@ -7,8 +7,23 @@ name = "talongym"
 version = "0.1.0"
 description = "Season-agnostic FTC Autonomous RL trainer and 3D strategy lab"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12"
-authors = [{ name = "TalonGym" }]
+authors = [{ name = "TalonGym contributors" }]
+keywords = [
+  "ftc",
+  "first-tech-challenge",
+  "reinforcement-learning",
+  "robotics",
+  "simulation",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
   "numpy>=1.26",
   "gymnasium>=0.29",
@@ -21,6 +36,11 @@ dependencies = [
   "websockets>=12.0",
   "httpx>=0.27",
 ]
+
+[project.urls]
+Homepage = "https://github.com/TalonStrikeJP/TalonGym"
+Issues = "https://github.com/TalonStrikeJP/TalonGym/issues"
+Documentation = "https://github.com/TalonStrikeJP/TalonGym/tree/main/docs"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "httpx>=0.27"]

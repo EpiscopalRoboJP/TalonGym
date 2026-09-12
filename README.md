@@ -2,6 +2,8 @@
 
 A **training and strategy-discovery aid** for FIRST Tech Challenge (FTC) autonomous periods. Teams configure a field, robot, and scoring-rules preset; train a control policy in a 2.5D simulator (DECODE) or a MuJoCo 3D mesh field (BIOBUZZ); inspect *why* a strategy scored; and export a Road Runner 1.0 Actions snippet they paste into an AUTO OpMode.
 
+**Status:** 0.1.0 alpha. APIs and presets still move. Licensed **GPL-3.0-or-later**. TalonGym is not affiliated with, endorsed by, or sponsored by FIRST.
+
 **Always and only this deployment path:** train offline → export a trajectory → paste into an AUTO OpMode → the Control Hub runs that OpMode. TalonGym never talks to a robot during a MATCH.
 
 ## What it does
@@ -88,3 +90,19 @@ How-to index: **[docs/README.md](docs/README.md)**.
 | [docs/MENTOR_SIGNOFF.md](docs/MENTOR_SIGNOFF.md) | DECODE TU32 freeze questions |
 
 JSON Schema files live in [`schemas/`](schemas/).
+
+## Contributing
+
+Setup, PR checklist, and the steps to flip the GitHub repo from private to public: **[CONTRIBUTING.md](CONTRIBUTING.md)**. Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Security reports: [SECURITY.md](SECURITY.md).
+
+Do not commit `var/` (logs, SQLite, checkpoints), virtualenvs, or official FIRST STEP/CAD. Preset geometry in-repo is schematic; `python -m talongym import-field-cad` writes raw STEP under `var/cad/` (gitignored).
+
+## License
+
+Copyright (C) 2026 TalonGym contributors.
+
+TalonGym is free software: you can redistribute it and/or modify it under the terms of the [GNU General Public License](LICENSE) as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+**Additional permission (export snippets):** Java emitted by `python -m talongym` export / Lab export is generated output for pasting into *your* AUTO OpMode. Those snippets are dedicated to the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). Your robot code does not become GPL just because you pasted a trajectory.
+
+FIRST®, FIRST® Tech Challenge, FTC®, DECODE™, INTO THE DEEP℠, CENTERSTAGE℠, BIOBUZZ™, and FIRST CANOPY™ are trademarks or service marks of FIRST. Road Runner and MeepMeep are third-party projects; we are not affiliated with them. Point values and field facts in presets come from public Competition Manuals — if a Team Update changes them, bump `manualRevision` rather than treating this repo as rules authority.

@@ -1,0 +1,22 @@
+---
+description: Never search the whole repo with a catch-all * glob or regex
+alwaysApply: true
+---
+
+# No catch-all file searches
+
+Never use a `*` / `**/*` glob, or an unscoped regex, that walks the entire repository. That pull includes `.venv/`, `venv/`, `var/` (logs, SQLite, checkpoints, CAD downloads), `web/node_modules/`, `__pycache__/`, and other generated junk.
+
+## Do not
+
+- Glob tool: `glob_pattern: "*"` or `"**/*"` from the repo root
+- Grep/ripgrep from the repo root with no `path` and no tight `glob`
+- `Get-ChildItem -Recurse` (or `rg` / `dir /s`) from the repo root without excludes
+
+## Do
+
+- List only the directory you need (`Get-ChildItem -Name`, no recurse)
+- Scope searches: `python/talongym/**/*.py`, `web/src/**/*.{ts,tsx}`, `docs/*.md`, `tests/**/*.py`
+- Open known paths (`README.md`, `pyproject.toml`) instead of discovering them with `*`
+
+Stay out of `.venv/`, `venv/`, `var/`, `logs/`, `outputs/`, `web/node_modules/`, `web/dist/`, `engine/target/`, `.pytest_cache/`, and `__pycache__/`.

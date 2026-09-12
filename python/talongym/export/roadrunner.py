@@ -1,3 +1,10 @@
+"""Road Runner Java export.
+
+TalonGym is GPL-3.0-or-later. Strings returned by ``to_roadrunner_java`` and
+``export_from_replay`` are generated OpMode snippets and are CC0-1.0, so a team
+pasting them into robot code does not GPL that OpMode.
+"""
+
 from __future__ import annotations
 
 import math
