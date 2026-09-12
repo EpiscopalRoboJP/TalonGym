@@ -48,7 +48,11 @@ Optional extras: `[scale]` Ray/RLlib, `[mujoco]` 3D validation only, `[postgres]
 
 Open http://127.0.0.1:8765 after `cd web && npm install && npm run build`, or use Vite (`npm run dev` in `web/`, API on :8765). State lives in `var/talongym.db` — not in the browser.
 
+Train, evaluate, replay, and export (full flags and Lab budgets): **[docs/TRAINING.md](docs/TRAINING.md)** and **[docs/README.md](docs/README.md)**.
+
 ```bash
+python -m talongym defaults --training decode_auto_lightweight
+python -m talongym train --steps 8192
 python -m talongym replay
 python -m talongym evaluate --trials 32
 python -m talongym distill
@@ -57,4 +61,19 @@ python -m pytest
 
 ## Docs
 
-The architecture, schemas, Gymnasium contract, API, roadmap, risks, Kickoff runbook, and mentor sign-off questions live in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. JSON Schema files live in [`schemas/`](schemas/).
+How-to index: **[docs/README.md](docs/README.md)**.
+
+| Doc | Contents |
+|-----|----------|
+| [docs/INSTALL.md](docs/INSTALL.md) | Python extras, Lab build, SQLite / Postgres |
+| [docs/TRAINING.md](docs/TRAINING.md) | RecurrentPPO from CLI and `/train` |
+| [docs/CLI.md](docs/CLI.md) | Every `python -m talongym` command |
+| [docs/LAB.md](docs/LAB.md) | Replay, Train, Field, Robot, Compare |
+| [docs/PRESETS.md](docs/PRESETS.md) | Season bundles, lint, training JSON |
+| [docs/EVALUATION.md](docs/EVALUATION.md) | Held-out trials, CIs, “best” rules |
+| [docs/EXPORT.md](docs/EXPORT.md) | Road Runner, distill ONNX, log calibration |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Gymnasium contract, API, roadmap, risks |
+| [docs/NEW_SEASON_RUNBOOK.md](docs/NEW_SEASON_RUNBOOK.md) | Kickoff preset without an engine PR |
+| [docs/MENTOR_SIGNOFF.md](docs/MENTOR_SIGNOFF.md) | DECODE TU32 freeze questions |
+
+JSON Schema files live in [`schemas/`](schemas/).
