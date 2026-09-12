@@ -179,76 +179,46 @@ export function TrainPage() {
   const liveFrame = rollout[rolloutI] || null;
   const fieldOptions = useMemo(() => fields, [fields]);
 
+  function fmt(n: unknown) {
+    return typeof n === "number" ? n.toFixed(3).replace(/\.?0+$/, "") : "—";
+  }
+
+  function pillClass(state: string) {
+    if (state === "succeeded") return "pill ok";
+    if (state === "failed" || state === "cancelled") return "pill bad";
+    if (state === "running" || state === "queued") return "pill warn";
+    return "pill";
+  }
+
   return (
     <div className="page">
       <div className="scene">
+        <div className="scene-label">{current ? `Rollout — ${current.id}` : "Rollout"}</div>
         {liveFrame ? (
           <FieldScene frame={liveFrame} showFov={false} />
         ) : (
-          <div className="empty-scene note">Live rollout appears here when the run emits frames.</div>
+          <div className="empty-scene note">No rollout frames yet.</div>
         )}
       </div>
       <aside className="side">
-        <h2>Training dashboard</h2>
-        <p className="note">
-          True score is the leaderboard. Shaping is an auxiliary curve only — never compare or rank by it.
-        </p>
-        <label htmlFor="train-field">Field preset</label>
-        <select id="train-field" value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
-          {fieldOptions.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.displayName || p.id}
-            </option>
-          ))}
-        </select>
-        <label htmlFor="train-robot">Robot preset</label>
-        <select id="train-robot" value={robotId} onChange={(e) => setRobotId(e.target.value)}>
-          {robots.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.displayName || p.id}
-            </option>
-          ))}
-        </select>
-        <label htmlFor="train-scoring">Scoring preset</label>
-        <select id="train-scoring" value={scoringId} onChange={(e) => setScoringId(e.target.value)}>
-          {scoring.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.displayName || p.id}
-            </option>
-          ))}
-        </select>
-        <p className="note">Default bundle{defaultSeason ? ` (${defaultSeason})` : ""} — used when a run omits preset ids.</p>
-        <label htmlFor="train-bundle">Training preset</label>
-        <select id="train-bundle" value={trainingId} onChange={(e) => setTrainingId(e.target.value)}>
-          {training.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.displayName || p.id}
-            </option>
-          ))}
-        </select>
-        <div className="row">
-          <button type="button" onClick={() => applyDefaults({ trainingId })}>
-            Set as default
-          </button>
-          <button type="button" onClick={() => applyDefaults({ fieldId, robotId, scoringId })}>
-            Use current selection
-          </button>
+        <div className="page-head">
+          <h2>Training dashboard</h2>
+          <p className="note">True score is the leaderboard. Shaping is never ranked.</p>
         </div>
-        <label className="stat">
-          <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} /> demo budget (scripted
-          fallback allowed)
-        </label>
-        <div className="row">
-          <button className="primary" type="button" onClick={start}>
-            Start run
-          </button>
-          <button type="button" onClick={cancel} disabled={!current}>
-            Cancel
-          </button>
+        <div className="card">
+          <h3>True score (leaderboard)</h3>
+          <Sparkline values={trueSeries} label="True score mean over time" color="#6fbfa3" />
+          <div className="stat">mean {fmt(metrics.trueScoreMean)}</div>
+        </div>
+        <div className="card">
+          <h3>Shaping (not leaderboard)</h3>
+          <Sparkline values={shapeSeries} label="Shaping mean over time" color="#e0c36a" />
+          <div className="stat">mean {fmt(metrics.shapingMean)}</div>
         </div>
         {current && (
           <div className="banner">
-            Run {current.id} · {current.state} · algo {String(metrics.algo || "—")} · env steps {metrics.envSteps ?? 0}
+            <span className={pillClass(current.state)}>{current.state}</span> {current.id} · algo{" "}
+            {String(metrics.algo || "—")} · steps {metrics.envSteps ?? 0}
             {metrics.replayId ? (
               <>
                 {" "}
@@ -257,33 +227,79 @@ export function TrainPage() {
             ) : null}
           </div>
         )}
-        <div className="stat">true score (leaderboard)</div>
-        <Sparkline values={trueSeries} label="True score mean over time" color="#6fbfa3" />
-        <div className="stat">mean {metrics.trueScoreMean ?? "pending"}</div>
-        <div className="stat">shaping (not leaderboard)</div>
-        <Sparkline values={shapeSeries} label="Shaping mean over time" color="#e0c36a" />
-        <div className="stat">mean {metrics.shapingMean ?? "pending"}</div>
+        <div className="row">
+          <button className="primary" type="button" onClick={start}>
+            Start run
+          </button>
+          <button type="button" onClick={cancel} disabled={!current}>
+            Cancel
+          </button>
+        </div>
+        <details open={!current}>
+          <summary>Run configuration</summary>
+          <label htmlFor="train-field">Field preset</label>
+          <select id="train-field" value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
+            {fieldOptions.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.displayName || p.id}
+              </option>
+            ))}
+          </select>
+          <label htmlFor="train-robot">Robot preset</label>
+          <select id="train-robot" value={robotId} onChange={(e) => setRobotId(e.target.value)}>
+            {robots.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.displayName || p.id}
+              </option>
+            ))}
+          </select>
+          <label htmlFor="train-scoring">Scoring preset</label>
+          <select id="train-scoring" value={scoringId} onChange={(e) => setScoringId(e.target.value)}>
+            {scoring.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.displayName || p.id}
+              </option>
+            ))}
+          </select>
+          <p className="note">Default bundle{defaultSeason ? ` (${defaultSeason})` : ""} — used when a run omits preset ids.</p>
+          <label htmlFor="train-bundle">Training preset</label>
+          <select id="train-bundle" value={trainingId} onChange={(e) => setTrainingId(e.target.value)}>
+            {training.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.displayName || p.id}
+              </option>
+            ))}
+          </select>
+          <div className="row">
+            <button type="button" onClick={() => applyDefaults({ trainingId })}>
+              Set as default
+            </button>
+            <button type="button" onClick={() => applyDefaults({ fieldId, robotId, scoringId })}>
+              Use current selection
+            </button>
+          </div>
+          <label className="check">
+            <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} /> demo budget (scripted
+            fallback allowed)
+          </label>
+        </details>
         <p className="note">{log}</p>
         <h2>Runs</h2>
-        <ul className="list">
-          {runs.map((r) => {
-            const m = r.metrics as Metrics;
-            return (
-              <li key={r.id}>
-                <button type="button" onClick={() => openRun(r.id)}>
-                  {r.id}
-                </button>{" "}
-                {r.state} · true {m.trueScoreMean ?? "—"} · shaping {m.shapingMean ?? "—"} · {String(m.algo || "—")}
-                {m.replayId ? (
-                  <>
-                    {" "}
-                    <Link to={`/replay/${m.replayId}`}>replay</Link>
-                  </>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
+        {runs.map((r) => {
+          const m = r.metrics as Metrics;
+          return (
+            <div key={r.id} className="card run-card">
+              <button type="button" onClick={() => openRun(r.id)}>
+                {r.id}
+              </button>
+              <span className={pillClass(r.state)}>{r.state}</span>
+              <span className="stat" style={{ margin: 0 }}>
+                true {fmt(m.trueScoreMean)} · shaping {fmt(m.shapingMean)} · {String(m.algo || "—")}
+              </span>
+              {m.replayId ? <Link to={`/replay/${m.replayId}`}>replay</Link> : null}
+            </div>
+          );
+        })}
       </aside>
     </div>
   );

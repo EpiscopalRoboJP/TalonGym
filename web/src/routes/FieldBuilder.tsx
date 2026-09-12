@@ -70,18 +70,49 @@ export function FieldBuilderPage() {
 
   const meta = list.find((x) => x.id === id);
   const size = doc?.fieldSizeIn || { width: 144, depth: 144 };
-  const elements = doc?.elements || [];
+  const elements = useMemo(() => {
+    const seen = new Set<string>();
+    const out: NonNullable<FieldDoc["elements"]> = [];
+    for (const el of doc?.elements || []) {
+      const k = `${el.id}|${el.pose?.x ?? 0}|${el.pose?.y ?? 0}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(el);
+    }
+    return out;
+  }, [doc]);
   const current = elements.find((e) => e.id === selected);
+  const fieldArea = size.width * size.depth;
 
   function seasonName(row: PresetMeta) {
     return SEASON_LABEL[row.season || ""] || row.displayName || row.id;
+  }
+
+  function elSize(el: NonNullable<FieldDoc["elements"]>[number]) {
+    return {
+      w: el.shape?.width || el.shape?.radius || 8,
+      d: el.shape?.depth || el.shape?.radius || 8,
+    };
+  }
+
+  function isLarge(el: NonNullable<FieldDoc["elements"]>[number]) {
+    const { w, d } = elSize(el);
+    return w * d > 0.15 * fieldArea;
+  }
+
+  function elColor(el: NonNullable<FieldDoc["elements"]>[number]) {
+    const tags = el.tags || [];
+    if (tags.some((t) => t.includes("restricted"))) return "#d16b6b";
+    if (el.type === "tape" || tags.some((t) => t.includes("launch"))) return "#e0c36a";
+    if (el.alliance === "blue") return "#3d6b8a";
+    return "#6fbfa3";
   }
 
   function updatePose(partial: { x?: number; y?: number; headingDeg?: number }) {
     if (!doc || !selected) return;
     const next: FieldDoc = {
       ...doc,
-      elements: elements.map((el) =>
+      elements: (doc.elements || []).map((el) =>
         el.id === selected ? { ...el, pose: { x: 0, y: 0, headingDeg: 0, ...(el.pose || {}), ...partial } } : el,
       ),
     };
@@ -96,14 +127,16 @@ export function FieldBuilderPage() {
     const x = nx * size.width - size.width / 2;
     const y = size.depth / 2 - ny * size.depth;
     let best = "";
-    let bestD = 18;
+    let bestD = Infinity;
     for (const el of elements) {
       if (el.type === "wall") continue;
       const px = el.pose?.x ?? 0;
       const py = el.pose?.y ?? 0;
-      const d = Math.hypot(px - x, py - y);
-      if (d < bestD) {
-        bestD = d;
+      const { w, d: dep } = elSize(el);
+      const hit = Math.max(8, Math.min(w, dep) / 2 + 4);
+      const dist = Math.hypot(px - x, py - y);
+      if (dist < hit && dist < bestD) {
+        bestD = dist;
         best = el.id;
       }
     }
@@ -143,23 +176,25 @@ export function FieldBuilderPage() {
   return (
     <div className="page single">
       <div>
-        <h2>Field / scoring builder</h2>
-        <div className="row">
-          <button type="button" className={tab === "field" ? "primary" : ""} onClick={() => setTab("field")}>
+        <div className="page-head">
+          <h2>Field / scoring builder</h2>
+          <p className="note">Click an element on the inch grid, then edit pose. Origin is field center.</p>
+        </div>
+        <div className="seg" role="tablist" aria-label="Builder">
+          <button type="button" className={tab === "field" ? "on" : ""} onClick={() => setTab("field")}>
             Field
           </button>
-          <button type="button" className={tab === "scoring" ? "primary" : ""} onClick={() => setTab("scoring")}>
+          <button type="button" className={tab === "scoring" ? "on" : ""} onClick={() => setTab("scoring")}>
             Scoring JSON
           </button>
         </div>
         {tab === "field" && (
           <>
-            {meta?.stale && (
-              <div className="banner">This season template is stale versus the latest known game manual revision.</div>
-            )}
-            {meta?.verifyAgainstManual && (
+            {(meta?.stale || meta?.verifyAgainstManual) && (
               <div className="banner">
-                verifyAgainstManual is true — confirm poses against the official manual and CAD before a tournament.
+                {seasonName(meta)} · {meta.manualRevision || "rev?"}
+                {meta.stale ? " · stale vs latest known manual" : ""}
+                {meta.verifyAgainstManual ? " · verifyAgainstManual — confirm CAD poses before a tournament" : ""}
               </div>
             )}
             <div className="form-grid">
@@ -172,51 +207,109 @@ export function FieldBuilderPage() {
                 ))}
               </select>
             </div>
-            <p className="note">Click an element on the inch grid, then edit pose. Origin is field center.</p>
             <div className="field-work">
-              <svg
-                className="field-grid"
-                viewBox={`${-size.width / 2} ${-size.depth / 2} ${size.width} ${size.depth}`}
-                role="img"
-                aria-label="Field inch grid"
-                onClick={(e) => pickAt(e.clientX, e.clientY, e.currentTarget)}
-              >
-                <rect
-                  x={-size.width / 2}
-                  y={-size.depth / 2}
-                  width={size.width}
-                  height={size.depth}
-                  fill="#1c4a38"
-                />
-                {gridTicks.map((v) => (
-                  <g key={v}>
-                    <line x1={v} y1={-size.depth / 2} x2={v} y2={size.depth / 2} stroke="#2a4a3c" strokeWidth="0.6" />
-                    <line x1={-size.width / 2} y1={v} x2={size.width / 2} y2={v} stroke="#2a4a3c" strokeWidth="0.6" />
-                  </g>
-                ))}
-                {elements
-                  .filter((el) => el.type !== "wall")
-                  .map((el, idx) => {
-                    const x = el.pose?.x ?? 0;
-                    const y = -(el.pose?.y ?? 0);
-                    const w = el.shape?.width || el.shape?.radius || 8;
-                    const d = el.shape?.depth || el.shape?.radius || 8;
-                    const on = el.id === selected;
-                    return (
-                      <rect
-                        key={`${el.id}-${idx}`}
-                        x={x - w / 2}
-                        y={y - d / 2}
-                        width={w}
-                        height={d}
-                        fill={on ? "#d4a574" : "#6fbfa3"}
-                        opacity={0.85}
-                        stroke={on ? "#e6eef3" : "transparent"}
-                        strokeWidth={on ? 1.4 : 0}
-                      />
-                    );
-                  })}
-              </svg>
+              <div>
+                <svg
+                  className="field-grid"
+                  viewBox={`${-size.width / 2} ${-size.depth / 2} ${size.width} ${size.depth}`}
+                  role="img"
+                  aria-label="Field inch grid"
+                  onClick={(e) => pickAt(e.clientX, e.clientY, e.currentTarget)}
+                >
+                  <rect
+                    x={-size.width / 2}
+                    y={-size.depth / 2}
+                    width={size.width}
+                    height={size.depth}
+                    fill="#1c4a38"
+                  />
+                  {gridTicks.map((v) => (
+                    <g key={v}>
+                      <line x1={v} y1={-size.depth / 2} x2={v} y2={size.depth / 2} stroke="#2a4a3c" strokeWidth="0.6" />
+                      <line x1={-size.width / 2} y1={v} x2={size.width / 2} y2={v} stroke="#2a4a3c" strokeWidth="0.6" />
+                    </g>
+                  ))}
+                  {[-size.width / 2, 0, size.width / 2].map((v) => (
+                    <text key={`x-${v}`} x={v + 1} y={size.depth / 2 - 2} fill="#8aa0ae" fontSize="4">
+                      {v}
+                    </text>
+                  ))}
+                  {elements
+                    .filter((el) => el.type !== "wall" && isLarge(el))
+                    .map((el, idx) => {
+                      const x = el.pose?.x ?? 0;
+                      const y = -(el.pose?.y ?? 0);
+                      const { w, d } = elSize(el);
+                      const on = el.id === selected;
+                      return (
+                        <rect
+                          key={`lg-${el.id}-${idx}`}
+                          x={x - w / 2}
+                          y={y - d / 2}
+                          width={w}
+                          height={d}
+                          fill={elColor(el)}
+                          fillOpacity={0.06}
+                          stroke={on ? "#e6eef3" : elColor(el)}
+                          strokeWidth={on ? 1.6 : 0.9}
+                        />
+                      );
+                    })}
+                  {elements
+                    .filter((el) => el.type === "tape")
+                    .map((el, idx) => {
+                      const x = el.pose?.x ?? 0;
+                      const y = -(el.pose?.y ?? 0);
+                      const { w, d } = elSize(el);
+                      return (
+                        <rect
+                          key={`tape-${el.id}-${idx}`}
+                          x={x - w / 2}
+                          y={y - d / 2}
+                          width={w}
+                          height={d}
+                          fill="#e0c36a"
+                          opacity={0.9}
+                        />
+                      );
+                    })}
+                  {elements
+                    .filter((el) => el.type !== "wall" && el.type !== "tape" && !isLarge(el))
+                    .map((el, idx) => {
+                      const x = el.pose?.x ?? 0;
+                      const y = -(el.pose?.y ?? 0);
+                      const { w, d } = elSize(el);
+                      const on = el.id === selected;
+                      return (
+                        <rect
+                          key={`sm-${el.id}-${idx}`}
+                          x={x - w / 2}
+                          y={y - d / 2}
+                          width={w}
+                          height={d}
+                          fill={on ? "#d4a574" : elColor(el)}
+                          opacity={0.9}
+                          stroke={on ? "#e6eef3" : "transparent"}
+                          strokeWidth={on ? 1.6 : 0}
+                        />
+                      );
+                    })}
+                </svg>
+                <div className="legend">
+                  <span>
+                    <i style={{ background: "#d16b6b" }} /> restricted
+                  </span>
+                  <span>
+                    <i style={{ background: "#e0c36a" }} /> tape
+                  </span>
+                  <span>
+                    <i style={{ background: "#6fbfa3" }} /> element
+                  </span>
+                  <span>
+                    <i style={{ background: "#d4a574" }} /> selected
+                  </span>
+                </div>
+              </div>
               <div>
                 <label htmlFor="el-select">Selected element</label>
                 <select id="el-select" value={selected} onChange={(e) => setSelected(e.target.value)}>

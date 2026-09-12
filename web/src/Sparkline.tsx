@@ -56,7 +56,9 @@ export function Whisker({
   const mid = ((mean - min) / span) * 100;
   return (
     <div className="whisker" aria-hidden="true">
+      <div className="whisker-cap" style={{ left: `${left}%` }} />
       <div className="whisker-range" style={{ left: `${left}%`, width: `${Math.max(width, 1)}%` }} />
+      <div className="whisker-cap" style={{ left: `calc(${left}% + ${Math.max(width, 1)}% - 2px)` }} />
       <div className="whisker-mean" style={{ left: `${mid}%` }} />
     </div>
   );
