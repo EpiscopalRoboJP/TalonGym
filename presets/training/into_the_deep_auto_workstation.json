@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "into_the_deep_auto_workstation",
+  "displayName": "INTO THE DEEP AUTO workstation",
+  "presets": {
+    "fieldId": "into_the_deep_2024_field",
+    "robotId": "mecanum_meepmeep_defaults",
+    "scoringId": "into_the_deep_2024_scoring",
+    "teammatePolicy": "none",
+    "opponentPolicy": "static"
+  },
+  "algorithm": {
+    "name": "recurrent_ppo",
+    "learningRate": 0.0003,
+    "gamma": 0.99,
+    "gaeLambda": 0.95,
+    "clipRange": 0.2,
+    "nSteps": 128,
+    "batchSize": 2048,
+    "nEpochs": 4,
+    "entCoef": 0.01,
+    "lstmHiddenSize": 256
+  },
+  "actionTier": "high_level_waypoint",
+  "computeProfile": "workstation",
+  "nEnvs": 256,
+  "episode": {
+    "controlHz": 25,
+    "durationS": 30,
+    "physicsSubsteps": 2
+  },
+  "domainRandomization": {
+    "poseJitterIn": 2.0,
+    "headingJitterDeg": 4.0,
+    "motorStrengthRange": [
+      0.9,
+      1.1
+    ],
+    "sensorNoiseScale": 1.0,
+    "fieldBuildToleranceIn": 1.0,
+    "curriculum": [
+      {
+        "untilFrac": 1.0,
+        "unlock": [
+          "full_noise"
+        ]
+      }
+    ]
+  },
+  "budget": {
+    "totalEnvSteps": 20000000,
+    "wallClockLimitS": 14400,
+    "earlyStopNoImproveSteps": 1000000
+  },
+  "evaluation": {
+    "nTrials": 500,
+    "confidence": 0.95,
+    "heldOutSeedStart": 10000000,
+    "pairCommonRandomNumbers": true
+  },
+  "objective": "mean_true_score",
+  "export": {
+    "onnx": false,
+    "roadRunnerDialect": "rr1_actions"
+  }
+}

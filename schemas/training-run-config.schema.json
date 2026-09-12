@@ -37,7 +37,7 @@
       "additionalProperties": false,
       "required": ["name"],
       "properties": {
-        "name": { "type": "string", "enum": ["ppo", "recurrent_ppo", "rllib_ppo"] },
+        "name": { "type": "string", "enum": ["ppo", "recurrent_ppo", "rllib_ppo", "bc_then_ppo", "grpo"] },
         "learningRate": { "type": "number", "default": 0.0003 },
         "gamma": { "type": "number", "default": 0.99 },
         "gaeLambda": { "type": "number", "default": 0.95 },
@@ -46,7 +46,9 @@
         "batchSize": { "type": "integer", "default": 256 },
         "nEpochs": { "type": "integer", "default": 10 },
         "entCoef": { "type": "number", "default": 0.01 },
-        "lstmHiddenSize": { "type": "integer", "default": 256 }
+        "lstmHiddenSize": { "type": "integer", "default": 256 },
+        "bcWarmupSteps": { "type": "integer", "minimum": 0, "default": 0 },
+        "groupSize": { "type": "integer", "minimum": 2, "default": 4, "description": "GRPO rollouts per seed." }
       }
     },
     "actionTier": {
@@ -55,7 +57,8 @@
     },
     "computeProfile": {
       "type": "string",
-      "enum": ["lightweight_cpu", "workstation", "cloud"]
+      "enum": ["lightweight_cpu", "workstation", "cloud", "auto"],
+      "description": "auto resolves at train time from CPU, RAM, and CUDA (override with TALONGYM_COMPUTE_PROFILE)."
     },
     "nEnvs": { "type": "integer", "minimum": 1 },
     "episode": {
@@ -96,7 +99,9 @@
                     "motif_must_sense",
                     "scripted_teammate",
                     "scripted_opponent",
-                    "full_noise"
+                    "full_noise",
+                    "scripted_launch",
+                    "ballistic_launch"
                   ]
                 }
               }

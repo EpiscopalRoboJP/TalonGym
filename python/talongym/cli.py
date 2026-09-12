@@ -24,26 +24,60 @@ def lab(host: str = "127.0.0.1", port: int = 8765) -> None:
 
 @app.command()
 def train(
-    steps: int = 8192,
-    n_envs: int | None = None,
+    steps: int | None = typer.Option(None, "--steps", help="Total env steps. Default 8192, or the easy budget with --easy"),
+    n_envs: int | None = typer.Option(None, "--n-envs"),
     allow_scripted: bool = False,
-    algo: str = "recurrent_ppo",
+    algo: str | None = typer.Option(None, "--algo", help="recurrent_ppo or rllib_ppo; default comes from the training preset"),
+    easy: bool = typer.Option(False, "--easy", help="Autodetect hardware and use the season's easy run config"),
+    training: str | None = typer.Option(None, "--training", help="Training preset id for this invocation"),
 ) -> None:
-    bundle = load_bundle()
-    n = n_envs if n_envs is not None else min(int((bundle.training or {}).get("nEnvs") or 4), 8)
-    if algo == "rllib_ppo":
+    from talongym.presets.defaults import get_defaults
+    from talongym.presets.loader import load_preset
+    from talongym.training.compute import easy_training_id, resolve_training
+
+    training_id = training
+    if easy:
+        training_id = easy_training_id(training or get_defaults().get("trainingId"))
+        doc = load_preset("training", training_id)
+        block = doc.get("presets") or {}
+        bundle = load_bundle(block.get("fieldId"), block.get("robotId"), block.get("scoringId"), training_id)
+    elif training_id:
+        bundle = load_bundle(training_id=training_id)
+    else:
+        bundle = load_bundle()
+    resolved = resolve_training(bundle.training, easy=easy)
+    if bundle.training is not None:
+        bundle.training = {**bundle.training, **resolved}
+    n = n_envs if n_envs is not None else int(resolved.get("nEnvs") or 4)
+    algo_name = algo or str((resolved.get("algorithm") or {}).get("name") or "recurrent_ppo")
+    if easy and algo is None and algo_name == "rllib_ppo":
+        algo_name = "recurrent_ppo"
+    total = steps if steps is not None else (int((resolved.get("budget") or {}).get("totalEnvSteps") or 8192) if easy else 8192)
+    typer.echo(
+        f"compute={resolved.get('computeProfile')} nEnvs={n} training={(bundle.training or {}).get('id')} steps={total}"
+    )
+    if algo_name == "rllib_ppo":
         from talongym.training.rllib import train_rllib
 
-        result = train_rllib(total_steps=steps, log=typer.echo)
+        result = train_rllib(total_steps=total, log=typer.echo)
     else:
         result = train_ppo(
             bundle=bundle,
-            total_steps=steps,
+            total_steps=total,
             n_envs=n,
             log=typer.echo,
             allow_scripted=allow_scripted,
         )
     typer.echo(f"algo={result.get('algo')} steps={result.get('steps')} ckpt={result.get('checkpoint')}")
+
+
+@app.command()
+def detect() -> None:
+    """Print CPU/RAM/CUDA and the recommended compute profile."""
+    from talongym.presets.defaults import get_defaults
+    from talongym.training.compute import describe_compute
+
+    typer.echo(json.dumps(describe_compute(get_defaults().get("trainingId")), indent=2))
 
 
 @app.command()
@@ -126,6 +160,17 @@ def validate_3d(steps: int = 40) -> None:
         pa.append((bot_a.x, bot_a.y))
         pb.append((bot_b.x, bot_b.y))
     typer.echo(f"rmse={pose_rmse(pa, pb):.4f} engine=mujoco")
+
+
+@app.command("import-field-cad")
+def import_field_cad_cmd(
+    field: Path | None = typer.Option(None, "--field", help="Field preset JSON"),
+    page: str = typer.Option("https://ftc-resources.firstinspires.org/ftc/archive/2027/field", "--page"),
+) -> None:
+    from talongym.assets.import_field_cad import import_field_cad
+
+    result = import_field_cad(field_path=field, page_url=page)
+    typer.echo(json.dumps(result, indent=2))
 
 
 @app.command()

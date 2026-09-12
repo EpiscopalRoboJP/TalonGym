@@ -43,7 +43,9 @@ class RunBody(BaseModel):
     nEnvs: int | None = None
     demo: bool = True
     resume: bool = False
-    algorithm: dict[str, Any] = Field(default_factory=lambda: {"name": "recurrent_ppo"})
+    easy: bool = False
+    computeProfile: str | None = None
+    algorithm: dict[str, Any] | None = None
 
 
 class EvalBody(BaseModel):
@@ -73,6 +75,8 @@ class DefaultsBody(BaseModel):
 
 @app.get(f"{API}/health")
 def health() -> dict[str, Any]:
+    from talongym.training.compute import detect_compute_profile, recommended_n_envs
+
     engine = default_backend(72.0, 72.0)
     return {
         "ok": True,
@@ -80,8 +84,18 @@ def health() -> dict[str, Any]:
         "db": db.backend_name(),
         "capabilityVersion": 1,
         "version": __version__,
+        "computeProfile": detect_compute_profile(),
+        "nEnvs": recommended_n_envs(),
         "note": "planar2d is the Phase 0 Rapier fallback when the Rust crate is a stub.",
     }
+
+
+@app.get(f"{API}/compute")
+def compute_info() -> dict[str, Any]:
+    from talongym.presets.defaults import get_defaults
+    from talongym.training.compute import describe_compute
+
+    return describe_compute(get_defaults().get("trainingId"))
 
 
 @app.get(f"{API}/defaults")
@@ -374,6 +388,28 @@ async def ws_run(websocket: WebSocket, run_id: str) -> None:
         pass
     finally:
         jobs.unsubscribe(run_id, push)
+
+
+@app.get(f"{API}/field-assets/{{asset_path:path}}")
+def field_asset(asset_path: str) -> FileResponse:
+    from talongym.paths import ASSETS_DIR
+
+    rel = Path(asset_path)
+    if rel.is_absolute() or ".." in rel.parts:
+        raise HTTPException(400, {"error": {"code": "BAD_ASSET", "message": asset_path}})
+    dest = (ASSETS_DIR / rel).resolve()
+    try:
+        dest.relative_to(ASSETS_DIR.resolve())
+    except ValueError as exc:
+        raise HTTPException(400, {"error": {"code": "BAD_ASSET", "message": asset_path}}) from exc
+    if not dest.is_file():
+        raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": asset_path}})
+    media = "model/gltf-binary" if dest.suffix.lower() == ".glb" else "application/octet-stream"
+    if dest.suffix.lower() in {".gltf", ".json"}:
+        media = "model/gltf+json"
+    if dest.suffix.lower() in {".xml", ".mjcf"}:
+        media = "application/xml"
+    return FileResponse(dest, media_type=media)
 
 
 def mount_frontend(application: FastAPI) -> None:

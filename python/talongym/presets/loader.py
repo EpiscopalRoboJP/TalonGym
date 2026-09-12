@@ -28,6 +28,7 @@ ENGINE_CAPABILITIES = frozenset(
         "scripted_mechanism_fsm",
         "multi_robot_collision",
         "phase_clock",
+        "mesh_field_collision",
     }
 )
 
@@ -129,6 +130,7 @@ def list_presets(kind: str) -> list[dict[str, Any]]:
                 "manualRevision": revision,
                 "stale": stale,
                 "verifyAgainstManual": (data.get("provenance") or {}).get("verifyAgainstManual", False),
+                "computeProfile": data.get("computeProfile"),
                 "path": str(path),
             }
         )

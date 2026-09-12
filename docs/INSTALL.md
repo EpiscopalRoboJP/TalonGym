@@ -17,7 +17,8 @@ That extra set is the laptop/workstation path: tests (`dev`) plus RecurrentPPO (
 | `dev` | Always for contributors | pytest |
 | `rl` | Training a policy | RecurrentPPO |
 | `scale` | Optional Ray trainer | `python -m talongym train --algo rllib_ppo` |
-| `mujoco` | 3D pose-check only | `python -m talongym validate-3d` |
+| `mujoco` | BIOBUZZ 3D mesh physics (and `validate-3d`) | `MujocoFieldBackend` |
+| `cad` | Official STEP conversion | trimesh + cascadio |
 | `postgres` | Shared DB | used if `TALONGYM_DATABASE_URL` starts with `postgres` |
 
 Entry points after install: `talongym` and `python -m talongym`.
@@ -71,12 +72,12 @@ python -m pytest
 
 ## Hardware modes
 
-Starting points from the training presets (`nEnvs`). CLI `train` caps parallel envs at 8 unless you pass `--n-envs`.
+`python -m talongym detect` classifies this machine. Starting points also live on the training JSON (`nEnvs`). CLI `train --easy` uses the detected count; an explicit preset keeps its JSON `nEnvs` unless you pass `--n-envs`.
 
 | Profile | Typical n_envs | Notes |
 |---------|----------------|-------|
 | Lightweight / local | 8 | CPU laptop; still reports true score |
-| Workstation | 128–512 in the spec; shipped presets use 8 | Raise `nEnvs` in the training JSON |
-| Cloud | Ray via `[scale]` | Optional; laptop default stays RecurrentPPO |
+| Workstation | 256 in the spec; autodetect scales with cores | Overnight desktop path |
+| Cloud | 1024 via Ray (`*_cloud` + `[scale]`) | Optional; easy/autodetect stays RecurrentPPO |
 
 The 2.5D engine is the production path. Health may report `planar2d` when the Rapier crate is a stub.

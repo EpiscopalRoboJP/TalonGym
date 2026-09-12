@@ -20,19 +20,30 @@ Serves FastAPI (`/api/v1/…`) and, if `web/dist` exists, the Lab SPA. See [LAB.
 
 ```bash
 python -m talongym train
-python -m talongym train --steps 8192 --n-envs 4
+python -m talongym train --easy
+python -m talongym train --training decode_auto_workstation --steps 8192 --n-envs 16
 python -m talongym train --allow-scripted
 python -m talongym train --algo rllib_ppo --steps 2048
 ```
 
 | Option | Type | Default |
 |--------|------|---------|
-| `--steps` | int | 8192 |
-| `--n-envs` | int | min(training preset `nEnvs` or 4, 8) |
+| `--easy` | flag | false |
+| `--training` | id | active default |
+| `--steps` | int | 8192, or the easy preset budget with `--easy` |
+| `--n-envs` | int | training preset `nEnvs` (easy: autodetected) |
 | `--allow-scripted` | flag | false |
-| `--algo` | `recurrent_ppo` \| `rllib_ppo` | `recurrent_ppo` |
+| `--algo` | `recurrent_ppo` \| `rllib_ppo` | from the training preset |
 
-Prints `algo=… steps=… ckpt=…`. How-to: [TRAINING.md](TRAINING.md).
+Prints `compute=… nEnvs=… training=… steps=…` then `algo=… steps=… ckpt=…`. How-to: [TRAINING.md](TRAINING.md).
+
+## `detect`
+
+```bash
+python -m talongym detect
+```
+
+Prints CPU count, RAM, CUDA, the resolved `lightweight_cpu` / `workstation` / `cloud` profile, recommended `nEnvs`, and the matching `*_easy` training id. Override with `TALONGYM_COMPUTE_PROFILE`.
 
 ## `evaluate`
 

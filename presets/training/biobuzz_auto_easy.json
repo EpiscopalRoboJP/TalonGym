@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "biobuzz_auto_easy",
+  "displayName": "BIOBUZZ AUTO easy (autodetect hardware)",
+  "presets": {
+    "fieldId": "biobuzz_2026_field_v1",
+    "robotId": "mecanum_biobuzz_4cap",
+    "scoringId": "biobuzz_2026_scoring_v1",
+    "teammatePolicy": "none",
+    "opponentPolicy": "static"
+  },
+  "algorithm": {
+    "name": "bc_then_ppo",
+    "learningRate": 0.0003,
+    "gamma": 0.99,
+    "gaeLambda": 0.95,
+    "clipRange": 0.2,
+    "nSteps": 128,
+    "batchSize": 256,
+    "nEpochs": 10,
+    "entCoef": 0.01,
+    "lstmHiddenSize": 256,
+    "bcWarmupSteps": 2048,
+    "groupSize": 4
+  },
+  "actionTier": "high_level_waypoint",
+  "computeProfile": "auto",
+  "nEnvs": 8,
+  "episode": {
+    "controlHz": 25,
+    "durationS": 30,
+    "physicsSubsteps": 2
+  },
+  "domainRandomization": {
+    "poseJitterIn": 1.0,
+    "headingJitterDeg": 2.0,
+    "motorStrengthRange": [
+      0.9,
+      1.1
+    ],
+    "sensorNoiseScale": 1.0,
+    "fieldBuildToleranceIn": 1.0,
+    "curriculum": [
+      {
+        "untilFrac": 0.25,
+        "unlock": [
+          "scripted_launch"
+        ]
+      },
+      {
+        "untilFrac": 0.7,
+        "unlock": [
+          "ballistic_launch"
+        ]
+      },
+      {
+        "untilFrac": 1.0,
+        "unlock": [
+          "ballistic_launch",
+          "full_noise"
+        ]
+      }
+    ]
+  },
+  "budget": {
+    "totalEnvSteps": 250000,
+    "wallClockLimitS": 3600,
+    "earlyStopNoImproveSteps": 100000
+  },
+  "evaluation": {
+    "nTrials": 500,
+    "confidence": 0.95,
+    "heldOutSeedStart": 10000000,
+    "pairCommonRandomNumbers": true
+  },
+  "objective": "mean_true_score",
+  "export": {
+    "onnx": true,
+    "roadRunnerDialect": "rr1_actions"
+  }
+}

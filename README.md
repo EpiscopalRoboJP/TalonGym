@@ -27,8 +27,10 @@ That is the only supported way a TalonGym result may be used at an event. It mat
 | Mode | Audience | Parallel envs (starting point) | Notes |
 |------|----------|--------------------------------|-------|
 | Lightweight / local | Typical FTC laptop, CPU-only | 8–32 | Reduced randomization; still reports true score + CIs |
-| Workstation | Mentor / school desktop | 128–512 | Default training path |
+| Workstation | Mentor / school desktop | 128–512 | Default overnight training path |
 | Cloud (optional, Phase 5) | Club with a rented GPU/CPU box | 1024+ via Ray | Documented upgrade; not required |
+
+`python -m talongym detect` prints which mode this machine is. `python -m talongym train --easy` loads that season’s easy run config and fills `nEnvs` from the detection (override with `TALONGYM_COMPUTE_PROFILE=lightweight_cpu|workstation|cloud`).
 
 Throughput and time-to-policy numbers are **Phase 0 benchmark gates**, not claimed facts. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -57,7 +59,9 @@ Open http://127.0.0.1:8765 after `cd web && npm install && npm run build`, or us
 Train, evaluate, replay, and export (full flags and Lab budgets): **[docs/TRAINING.md](docs/TRAINING.md)** and **[docs/README.md](docs/README.md)**.
 
 ```bash
-python -m talongym defaults --training decode_auto_lightweight
+python -m talongym detect
+python -m talongym defaults --training decode_auto_easy
+python -m talongym train --easy
 python -m talongym train --steps 8192
 python -m talongym replay
 python -m talongym evaluate --trials 32

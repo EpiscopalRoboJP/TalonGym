@@ -13,6 +13,14 @@ paths:
       responses:
         "200":
           description: OK
+  /defaults:
+    get:
+      summary: Active field/robot/scoring/training bundle
+    put:
+      summary: Set the active bundle
+  /compute:
+    get:
+      summary: Detected hardware mode and recommended nEnvs / easy training id
   /presets/field:
     get:
       summary: List field presets

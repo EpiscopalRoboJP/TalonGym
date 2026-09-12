@@ -61,7 +61,7 @@ def ws_rollout_frames(frames: list[dict[str, Any]] | None) -> list[dict[str, Any
     """Downsample and JSON-sanitize frames so Lab WebSocket payloads stay small."""
     if not frames:
         return []
-    keep = ("t", "trueScore", "robots", "pieces", "elements", "fieldSizeIn", "vision", "aprilTags")
+    keep = ("t", "trueScore", "robots", "pieces", "elements", "fieldSizeIn", "vision", "aprilTags", "backgroundAsset")
     step = max(1, len(frames) // 48)
     out: list[dict[str, Any]] = []
     for fr in frames[::step][:48]:
@@ -97,37 +97,57 @@ def start_training(config: dict[str, Any] | None = None) -> str:
     return run_id
 
 
-def _resolved_budget(config: dict[str, Any], training: dict[str, Any] | None) -> tuple[int, int, bool]:
-    training = training or {}
+def _resolved_budget(config: dict[str, Any], training: dict[str, Any] | None) -> tuple[int, int, bool, dict[str, Any]]:
+    from talongym.training.compute import resolve_training
+
+    resolved = resolve_training(
+        training,
+        easy=bool(config.get("easy")),
+        profile=config.get("computeProfile"),
+    )
     demo = bool(config.get("demo", False))
     body_budget = config.get("budget") if isinstance(config.get("budget"), dict) else None
     if body_budget and body_budget.get("totalEnvSteps"):
         total = int(body_budget["totalEnvSteps"])
     else:
-        total = int((training.get("budget") or {}).get("totalEnvSteps") or 8192)
+        total = int((resolved.get("budget") or {}).get("totalEnvSteps") or 8192)
     if config.get("nEnvs") is not None:
         n_envs = int(config["nEnvs"])
     else:
-        n_envs = int(training.get("nEnvs") or 4)
+        n_envs = int(resolved.get("nEnvs") or 4)
     if demo:
         total = min(total, 4096)
         n_envs = min(max(1, n_envs), 4)
-    return max(1, total), max(1, n_envs), demo
+    return max(1, total), max(1, n_envs), demo, resolved
 
 
 def _train_worker(run_id: str, config: dict[str, Any]) -> None:
     db.save_run(run_id, config, "running", {"envSteps": 0})
     emit(run_id, {"type": "status", "payload": {"state": "running", "step": 0}})
-    presets = config.get("presets") or {}
+    presets = dict(config.get("presets") or {})
+    training_id = presets.get("trainingId") or None
+    if config.get("easy"):
+        from talongym.training.compute import easy_training_id
+
+        training_id = easy_training_id(training_id)
+        presets["trainingId"] = training_id
+        config = {**config, "presets": presets}
     bundle = load_bundle(
         presets.get("fieldId") or None,
         presets.get("robotId") or None,
         presets.get("scoringId") or None,
-        presets.get("trainingId") or None,
+        training_id,
     )
-    total, n_envs, demo = _resolved_budget(config, bundle.training)
+    total, n_envs, demo, resolved = _resolved_budget(config, bundle.training)
+    if bundle.training is not None:
+        bundle.training = {**bundle.training, **resolved}
     logs: list[str] = []
-    last_metrics: dict[str, Any] = {"envSteps": 0, "nEnvs": n_envs, "algo": "recurrent_ppo"}
+    last_metrics: dict[str, Any] = {
+        "envSteps": 0,
+        "nEnvs": n_envs,
+        "algo": "recurrent_ppo",
+        "computeProfile": resolved.get("computeProfile"),
+    }
 
     def log(msg: str) -> None:
         logs.append(msg)
@@ -142,6 +162,11 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
         emit(run_id, {"type": "rollout", "payload": {"frames": frames[::5] if frames else []}})
 
     try:
+        log(
+            f"computeProfile={resolved.get('computeProfile')} nEnvs={n_envs} "
+            f"training={(bundle.training or {}).get('id')} "
+            f"requested={resolved.get('requestedComputeProfile')}"
+        )
         frozen = None
         if (config.get("presets") or {}).get("opponentPolicy") == "frozen_policy" or (
             (bundle.training or {}).get("presets") or {}
@@ -151,7 +176,12 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
             ckpt = paths.VAR_DIR / "ckpts" / "recurrent_ppo.zip"
             if ckpt.exists():
                 frozen = load_trained_policy(ckpt)
-        result = train_ppo(
+        algo_name = str(
+            ((config.get("algorithm") or {}).get("name") if config.get("algorithm") else None)
+            or ((bundle.training or {}).get("algorithm") or {}).get("name")
+            or "recurrent_ppo"
+        )
+        train_kwargs = dict(
             bundle=bundle,
             total_steps=total,
             n_envs=n_envs,
@@ -165,6 +195,17 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
             resume=bool(config.get("resume")),
             demo=demo,
         )
+        if algo_name == "rllib_ppo" and not demo:
+            try:
+                from talongym.training.rllib import train_rllib
+
+                result = train_rllib(total_steps=total, log=log)
+            except RuntimeError as exc:
+                log(f"{exc}; falling back to RecurrentPPO")
+                train_kwargs["n_envs"] = min(n_envs, 64)
+                result = train_ppo(**train_kwargs)
+        else:
+            result = train_ppo(**train_kwargs)
         if result.get("cancelled") or is_cancelled(run_id):
             db.save_run(run_id, config, "cancelled", last_metrics, "\n".join(logs))
             emit(run_id, {"type": "status", "payload": {"state": "cancelled", "step": result.get("steps")}})

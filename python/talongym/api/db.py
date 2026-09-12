@@ -191,6 +191,7 @@ def list_kind(kind: str) -> list[dict[str, Any]]:
                 "manualRevision": revision,
                 "verifyAgainstManual": (doc.get("provenance") or {}).get("verifyAgainstManual", False),
                 "stale": stale,
+                "computeProfile": doc.get("computeProfile"),
             }
         )
     if not out:

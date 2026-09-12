@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FieldScene } from "../scene/FieldScene";
 import { Sparkline } from "../Sparkline";
-import { getJson, loadReplayFrames, postJson, putJson, type DefaultsBundle, type Frame, type PresetMeta, type RunRow } from "../api";
+import { getJson, loadReplayFrames, postJson, putJson, type ComputeInfo, type DefaultsBundle, type Frame, type PresetMeta, type RunRow } from "../api";
 
-type Profile = "demo" | "short" | "preset";
+type Profile = "demo" | "short" | "easy" | "preset";
 
 type Metrics = {
   envSteps?: number;
@@ -39,6 +39,7 @@ export function TrainPage() {
   const [trainingId, setTrainingId] = useState("decode_auto_lightweight");
   const [defaultSeason, setDefaultSeason] = useState("");
   const [profile, setProfile] = useState<Profile>("demo");
+  const [compute, setCompute] = useState<ComputeInfo | null>(null);
   const [trueSeries, setTrueSeries] = useState<number[]>([]);
   const [evalSeries, setEvalSeries] = useState<number[]>([]);
   const [shapeSeries, setShapeSeries] = useState<number[]>([]);
@@ -59,6 +60,7 @@ export function TrainPage() {
     getJson<PresetMeta[]>("/presets/robot").then(setRobots);
     getJson<PresetMeta[]>("/presets/scoring").then(setScoring);
     getJson<PresetMeta[]>("/presets/training").then(setTraining);
+    getJson<ComputeInfo>("/compute").then(setCompute).catch(() => undefined);
     getJson<DefaultsBundle>("/defaults")
       .then((d) => {
         if (d.fieldId) setFieldId(d.fieldId);
@@ -187,11 +189,25 @@ export function TrainPage() {
     setLog(`Default bundle is ${d.season || d.fieldId} (${d.fieldId}).`);
   }
 
+  function familyTrainingId(id: string, suffix: "lightweight" | "workstation" | "cloud" | "easy") {
+    const base = id.replace(/_(lightweight|workstation|cloud|easy)$/, "");
+    return `${base}_${suffix}`;
+  }
+
+  function selectBudget(next: Profile) {
+    setProfile(next);
+    if (next === "easy") {
+      const easyId = familyTrainingId(trainingId, "easy");
+      if (training.some((p) => p.id === easyId)) setTrainingId(easyId);
+    }
+  }
+
   async function start() {
     setLog("Queueing training…");
     const body: Record<string, unknown> = {
       demo: profile === "demo",
-      presets: { fieldId, robotId, scoringId, trainingId },
+      easy: profile === "easy",
+      presets: { fieldId, robotId, scoringId, trainingId: profile === "easy" ? familyTrainingId(trainingId, "easy") : trainingId },
     };
     if (profile === "demo") {
       body.nEnvs = 2;
@@ -199,6 +215,8 @@ export function TrainPage() {
     } else if (profile === "short") {
       body.nEnvs = 4;
       body.budget = { totalEnvSteps: 16384 };
+    } else if (profile === "easy") {
+      body.computeProfile = "auto";
     }
     const res = await postJson<{ runId: string }>("/runs", body);
     openRun(res.runId);
@@ -291,20 +309,27 @@ export function TrainPage() {
         </div>
         <label>Budget</label>
         <div className="seg" role="group" aria-label="Training budget">
-          <button type="button" className={profile === "demo" ? "on" : ""} onClick={() => setProfile("demo")}>
+          <button type="button" className={profile === "demo" ? "on" : ""} onClick={() => selectBudget("demo")}>
             Demo
           </button>
-          <button type="button" className={profile === "short" ? "on" : ""} onClick={() => setProfile("short")}>
+          <button type="button" className={profile === "short" ? "on" : ""} onClick={() => selectBudget("short")}>
             Short
           </button>
-          <button type="button" className={profile === "preset" ? "on" : ""} onClick={() => setProfile("preset")}>
+          <button type="button" className={profile === "easy" ? "on" : ""} onClick={() => selectBudget("easy")}>
+            Easy
+          </button>
+          <button type="button" className={profile === "preset" ? "on" : ""} onClick={() => selectBudget("preset")}>
             Preset
           </button>
         </div>
         <p className="note">
           {profile === "demo" && "4,096 steps, 2 envs, scripted fallback if RL extras are missing."}
           {profile === "short" && "16,384-step RecurrentPPO on 4 envs. No scripted fallback."}
-          {profile === "preset" && "Uses the training preset budget and nEnvs (can be millions of steps)."}
+          {profile === "easy" &&
+            (compute
+              ? `Autodetect ${compute.profile} · ${compute.hardware.cpuCount} cores · ${compute.hardware.ramGb != null ? `${compute.hardware.ramGb.toFixed(0)} GB` : "RAM n/a"} · ${compute.nEnvs} envs${compute.hardware.cuda ? " · CUDA" : ""}. Uses the season easy run config.`
+              : "Autodetects laptop / workstation / cloud and uses that machine's easy run config.")}
+          {profile === "preset" && "Uses the training preset budget and nEnvs (lightweight, workstation, or cloud)."}
         </p>
         <details open={!current}>
           <summary>Run configuration</summary>

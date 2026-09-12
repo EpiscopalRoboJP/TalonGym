@@ -68,7 +68,18 @@ export async function postText(path: string, body: unknown = {}): Promise<string
   return res.text();
 }
 
-export type Health = { ok: boolean; engine: string; db?: string; version?: string };
+export type Health = { ok: boolean; engine: string; db?: string; version?: string; computeProfile?: string; nEnvs?: number };
+
+export type ComputeInfo = {
+  hardware: { cpuCount: number; ramGb: number | null; cuda: boolean; platform: string };
+  profile: string;
+  nEnvs: number;
+  override: string | null;
+  trainingId: string;
+  easyTrainingId: string;
+  profileTrainingId: string;
+  envVar: string;
+};
 
 export type DefaultsBundle = {
   fieldId: string;
@@ -85,13 +96,52 @@ export type PresetMeta = {
   manualRevision?: string;
   verifyAgainstManual?: boolean;
   stale?: boolean;
+  computeProfile?: string;
+};
+
+export type PoseOnRobot = {
+  x?: number;
+  y?: number;
+  z?: number;
+  headingDeg?: number;
+  pitchDeg?: number;
+};
+
+export type IntakeSpec = {
+  id: string;
+  poseOnRobot?: PoseOnRobot;
+  widthIn?: number;
+  reachIn?: number;
+  heightIn?: number;
+  cycleTimeS?: number;
+  maxSpeedInPerS?: number;
+  canRunWhileMoving?: boolean;
+};
+
+export type LauncherSpec = {
+  id: string;
+  poseOnRobot?: PoseOnRobot;
+  aimMode?: "chassis_fixed" | "turret";
+  yawRangeDeg?: number[];
+  pitchRangeDeg?: number[];
+  muzzleSpeedInPerS?: number;
+  spinupTimeS?: number;
+  cycleTimeS?: number;
+  canLaunchWhileMoving?: boolean;
+};
+
+export type RobotDesign = {
+  chassis?: { lengthIn?: number; widthIn?: number; heightIn?: number; massKg?: number };
+  intakes?: IntakeSpec[];
+  launchers?: LauncherSpec[];
 };
 
 export type Frame = {
   t: number;
   trueScore: number;
   robots: { id: string; x: number; y: number; headingDeg: number; held: string[]; dynamic: boolean; alliance?: string }[];
-  pieces: { id: string; x: number; y: number; color?: string; heldBy?: string | null; inFlight?: boolean; scored?: boolean }[];
+  robotDesign?: RobotDesign;
+  pieces: { id: string; x: number; y: number; z?: number; color?: string; heldBy?: string | null; inFlight?: boolean; scored?: boolean }[];
   elements: {
     id: string;
     type?: string;
@@ -105,6 +155,7 @@ export type Frame = {
   matchVarsPrivileged: Record<string, string>;
   observedMatchVars: Record<string, string | null>;
   fieldSizeIn: { width: number; depth: number };
+  backgroundAsset?: string | null;
   explains: { id: string; explain: string; points: number }[];
   queues: Record<string, string[]>;
   gate: Record<string, string>;

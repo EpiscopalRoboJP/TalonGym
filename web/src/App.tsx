@@ -19,7 +19,8 @@ export function App() {
         const h = await getJson<Health>("/health");
         if (cancelled) return;
         setOk(Boolean(h.ok));
-        setHealth(`${h.engine}${h.db ? " · " + h.db : ""} · ok`);
+        const profile = h.computeProfile ? ` · ${h.computeProfile}` : "";
+        setHealth(`${h.engine}${h.db ? " · " + h.db : ""}${profile} · ok`);
       } catch {
         if (cancelled) return;
         setOk(false);

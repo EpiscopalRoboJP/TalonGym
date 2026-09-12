@@ -1,6 +1,6 @@
 # Train a policy
 
-TalonGym trains a **RecurrentPPO** (LSTM) policy on a 30-second AUTO episode. The policy sees noisy sensors only. The leaderboard uses **true score** (official AUTO points). Shaping is plotted separately and never ranked.
+TalonGym trains an LSTM policy on a 30-second AUTO episode. DECODE uses scratch RecurrentPPO. BIOBUZZ uses **`bc_then_ppo`**: clone `scripted_biobuzz`, then asymmetric-critic PPO (actor encoder-only, critic sees privileged 3D state). Optional **`grpo`** is a value-free group baseline for sparse HIVE TIP. The leaderboard uses **true score** only.
 
 Algorithm and observation contract: [ARCHITECTURE.md](ARCHITECTURE.md) §4. This page is the operator path.
 
@@ -15,38 +15,52 @@ python -m talongym defaults
 
 `--training` copies that preset’s `fieldId` / `robotId` / `scoringId` into `var/defaults.json`. CLI `train` / `evaluate` / `replay` and Lab jobs that omit ids all load this bundle.
 
-Shipped training ids:
+Shipped training ids (each season has four compute variants):
 
-| Training preset | Field / scoring |
-|-----------------|-----------------|
-| `decode_auto_lightweight` | DECODE TU32 |
-| `into_the_deep_auto_lightweight` | INTO THE DEEP |
-| `centerstage_auto_lightweight` | CENTERSTAGE |
-| `biobuzz_auto_lightweight` | BIOBUZZ V1 (`mecanum_biobuzz_4cap`) |
+| Family | lightweight | workstation | cloud (Ray) | easy (autodetect) |
+|--------|-------------|-------------|-------------|-------------------|
+| DECODE TU32 | `decode_auto_lightweight` | `decode_auto_workstation` | `decode_auto_cloud` | `decode_auto_easy` |
+| INTO THE DEEP | `into_the_deep_auto_lightweight` | `into_the_deep_auto_workstation` | `into_the_deep_auto_cloud` | `into_the_deep_auto_easy` |
+| CENTERSTAGE | `centerstage_auto_lightweight` | `centerstage_auto_workstation` | `centerstage_auto_cloud` | `centerstage_auto_easy` |
+| BIOBUZZ V1 | `biobuzz_auto_lightweight` | `biobuzz_auto_workstation` | `biobuzz_auto_cloud` | `biobuzz_auto_easy` |
+
+BIOBUZZ lightweight/workstation/easy keep `bc_then_ppo`. Cloud presets set `rllib_ppo` (Lab/CLI fall back to RecurrentPPO if `[scale]` is missing).
+
+`computeProfile: "auto"` (the `*_easy` files) resolves at train time from CPU count, RAM, and CUDA. Override with `TALONGYM_COMPUTE_PROFILE=lightweight_cpu|workstation|cloud`. Print the detection:
+
+```bash
+python -m talongym detect
+python -m talongym train --easy
+```
 
 More: [PRESETS.md](PRESETS.md).
 
 ## 2. Train from the CLI
 
 ```bash
-python -m pip install -e ".[rl]"
+python -m pip install -e ".[rl,mujoco]"
+python -m talongym detect
+python -m talongym train --easy
 python -m talongym train --steps 8192
 ```
 
 | Flag | Default | Meaning |
 |------|---------|---------|
-| `--steps` | 8192 | Total env steps this invocation |
-| `--n-envs` | `min(preset nEnvs or 4, 8)` | Parallel `DummyVecEnv` workers |
-| `--algo` | `recurrent_ppo` | `rllib_ppo` needs `pip install -e ".[scale]"` |
+| `--easy` | off | Load the season `*_easy` preset and autodetect `nEnvs` |
+| `--training` | active default | Training-run id for this invocation |
+| `--steps` | 8192 (easy: preset budget) | Total env steps this invocation |
+| `--n-envs` | preset `nEnvs` (easy: detected) | Parallel `DummyVecEnv` workers |
+| `--algo` | from the training preset | `rllib_ppo` needs `pip install -e ".[scale]"` |
 | `--allow-scripted` | off | If sb3 is missing, run the scripted AUTO instead of failing |
 
 The loop:
 
-1. Builds `FTCAutoEnv` with Dict observations and an LSTM (`MultiInputLstmPolicy`).
-2. Wraps with `EncoderOnlyObsAssertWrapper` so privileged motif/match vars cannot leak into `learn`.
-3. Applies curriculum unlocks on each reset from `domainRandomization.curriculum`.
-4. Saves `var/ckpts/latest.zip` every chunk and `var/ckpts/best.zip` when the held-out **objective** improves.
-5. Prints `true=` (episode true-score mean) and `eval=` (held-out true-score mean). Use `eval`, not shaping.
+1. Builds `FTCAutoEnv` with Dict observations and `AsymmetricLstmPolicy` (actor drops `_privileged`).
+2. Optional BC warmup (`algorithm.bcWarmupSteps`) from the scripted AUTO.
+3. Wraps with `EncoderOnlyObsAssertWrapper` so privileged motif/match vars cannot leak into the actor.
+4. Applies curriculum unlocks on each reset (`scripted_launch` / `ballistic_launch` on BIOBUZZ; motif keys on DECODE).
+5. Saves `var/ckpts/latest.zip` every chunk and `var/ckpts/best.zip` when the held-out **objective** improves.
+6. Prints `true=` (episode true-score mean) and `eval=` (held-out true-score mean). Use `eval`, not shaping.
 
 A short run is a smoke test. Lightweight presets declare `budget.totalEnvSteps` of 5e6 and a 4-hour wall-clock cap; pass a larger `--steps` for an overnight CLI job.
 
@@ -60,6 +74,7 @@ A short run is a smoke test. Lightweight presets declare `budget.totalEnvSteps` 
 |--------|-----------|--------|-------------------------------------|
 | Demo | 4096 | 2 | Yes |
 | Short | 16384 | 4 | No |
+| Easy | From `*_easy` JSON (250k) | Autodetected | No |
 | Preset | From JSON (`totalEnvSteps` / `nEnvs`) | From JSON | No |
 
 The dashboard shows:
@@ -117,7 +132,7 @@ BIOBUZZ lightweight unlocks `full_noise` for the whole run (no motif in AUTO).
 
 ## Action tier
 
-Shipped presets use `high_level_waypoint`: target pose (inches / rad), speed fraction, discrete mechanism. That maps onto Road Runner export. `low_level_velocity` exists on the env (`vx, vy, ω`) for transfer work; do not use it if you need a pasteable AUTO.
+Shipped presets use `high_level_waypoint`: target pose (inches / rad), speed fraction, discrete mechanism. That maps onto Road Runner export — the only field path (paste into an AUTO OpMode; Control Hub runs it). `low_level_velocity` exists on the env (`vx, vy, ω`) for transfer work; do not use it if you need a pasteable AUTO.
 
 ## Scripted baseline
 

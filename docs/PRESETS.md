@@ -11,10 +11,10 @@ presets/
     mecanum_meepmeep_defaults.json
     mecanum_biobuzz_4cap.json
   training/
-    decode_auto_lightweight.json
-    into_the_deep_auto_lightweight.json
-    centerstage_auto_lightweight.json
-    biobuzz_auto_lightweight.json
+    decode_auto_{lightweight,workstation,cloud,easy}.json
+    into_the_deep_auto_*.json
+    centerstage_auto_*.json
+    biobuzz_auto_*.json
   seasons/
     decode_2025/                # field.json, scoring.json
     into_the_deep_2024/
@@ -29,10 +29,15 @@ schemas/                        # Draft 2020-12, normative
 
 Kind is inferred from JSON shape (`fieldSizeIn`, `drivetrain`, scoring `nodes`+`scoreChannels`, training `algorithm`). Ids are the document `id` field, not the filename.
 
+Robot presets may include optional `intakes[]` and `launchers[]` (pose on the robot, capture volume, muzzle speed/aim). Omitting them keeps the omnidirectional hull intake and curriculum teleport / auto-aim launch. Edit them in Lab **Robot** (`/build/robot`).
+
 ## Switch the active bundle
 
 ```bash
+python -m talongym defaults --training decode_auto_easy
 python -m talongym defaults --training decode_auto_lightweight
+python -m talongym defaults --training decode_auto_workstation
+python -m talongym defaults --training decode_auto_cloud
 python -m talongym defaults --training into_the_deep_auto_lightweight
 python -m talongym defaults --training centerstage_auto_lightweight
 python -m talongym defaults --training biobuzz_auto_lightweight
@@ -77,7 +82,7 @@ Important keys:
 - `presets.opponentPolicy`: `none` \| `static` \| `scripted` \| `frozen_policy` (loads `var/ckpts/recurrent_ppo.zip` if present)
 - `algorithm.name`: `recurrent_ppo` (Lab/CLI default), `ppo`, `rllib_ppo`
 - `actionTier`: `high_level_waypoint` or `low_level_velocity`
-- `computeProfile`: `lightweight_cpu` \| `workstation` \| `cloud`
+- `computeProfile`: `lightweight_cpu` \| `workstation` \| `cloud` \| `auto` (`auto` is the easy run config; resolved from CPU/RAM/CUDA unless `TALONGYM_COMPUTE_PROFILE` is set)
 - `nEnvs`, `episode.controlHz` (25), `episode.durationS` (30)
 - `domainRandomization` + `curriculum` unlocks — [TRAINING.md](TRAINING.md)#curriculum
 - `budget.totalEnvSteps`, `wallClockLimitS`, `earlyStopNoImproveSteps`

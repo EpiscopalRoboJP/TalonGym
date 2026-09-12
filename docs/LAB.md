@@ -47,7 +47,7 @@ Training and evaluation jobs also store replays; pick them from the dropdown (id
 
 See [TRAINING.md](TRAINING.md)#3-train-from-the-lab.
 
-- Demo / Short / Preset budgets.
+- Demo / Short / Easy / Preset budgets. Easy autodetects laptop vs workstation vs cloud (`GET /compute`) and loads `*_easy`.
 - Live rollout of the current run (downsampled WebSocket frames).
 - **Set as default** writes the training preset bundle; **Use current selection** writes the three ids without requiring a training preset.
 - Cancel requests `POST /runs/{id}/cancel`.
@@ -63,7 +63,9 @@ Saves go to the API/SQLite row, not a silent browser blob.
 
 ## Robot builder
 
-Sliders for track width, chassis, MeepMeep-style vel/accel, intake/score cycle times, capacity, AprilTag FOV/range. Save with PUT `/presets/robot/{id}`. Fit real logs with CLI `calibrate` and merge the overlay ([EXPORT.md](EXPORT.md)) rather than guessing constraints.
+Visual design editor: top-down robot-frame inch grid (+x forward, +y left) plus a 3D preview. Place intake mouths and launcher muzzles, then set cycle times, muzzle speed, hood pitch/yaw, and MeepMeep vel/accel. Chassis length/width/height drive both the canvas and replay meshes.
+
+Save with PUT `/presets/robot/{id}` after `POST /presets/validate`. **Save as new** POSTs a copy so shipped presets stay intact. Fit real logs with CLI `calibrate` and merge the overlay ([EXPORT.md](EXPORT.md)) rather than guessing constraints.
 
 ## Compare
 
@@ -79,6 +81,6 @@ Sliders for track width, chassis, MeepMeep-style vel/accel, intake/score cycle t
 
 Base: `/api/v1`. No auth on local MVP. Error envelope: `{ "error": { "code", "message", "details" } }`.
 
-Common calls: `/health`, `/defaults`, `/presets/{kind}`, `POST /runs`, `GET /runs/{id}`, WebSocket `/ws/runs/{runId}`, `/replays`, `/evaluations`, `/comparisons/latest`, `POST /replays/{id}/export/roadrunner`.
+Common calls: `/health`, `/compute`, `/defaults`, `/presets/{kind}`, `POST /runs`, `GET /runs/{id}`, WebSocket `/ws/runs/{runId}`, `/replays`, `/evaluations`, `/comparisons/latest`, `POST /replays/{id}/export/roadrunner`.
 
 Full contract: [ARCHITECTURE.md](ARCHITECTURE.md) §5. LSTM ONNX is HTTP 501 unless `distill=true` (feed-forward demo).
