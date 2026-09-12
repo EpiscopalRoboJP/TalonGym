@@ -1,0 +1,15 @@
+# Rapier2D batched world (Phase 0 spike)
+# Python currently uses talongym.sim.physics.Planar2DBackend as the production fallback.
+
+[package]
+name = "talongym-engine"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "talongym_engine"
+crate-type = ["cdylib"]
+
+[dependencies]
+# rapier2d = "0.22"
+# pyo3 = { version = "0.23", features = ["extension-module"] }

@@ -1,0 +1,197 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "centerstage_2023_scoring",
+  "displayName": "CENTERSTAGE AUTO scoring (archived one-pager)",
+  "fieldPresetId": "centerstage_2023_field",
+  "provenance": {
+    "manualRevision": "archive-2024",
+    "sourceUrl": "https://ftc-resources.firstinspires.org/ftc/archive/2024/game-one-page",
+    "effectiveDate": "2024-04-01",
+    "verifyAgainstManual": true,
+    "pointTableRef": "AUTO scoring one-pager"
+  },
+  "requiredCapabilities": [
+    "randomized_match_variable",
+    "partial_observability_sentinel",
+    "trigger_volumes",
+    "n_stage_scoring",
+    "end_of_phase_scoring"
+  ],
+  "phases": [{ "id": "AUTO", "durationS": 30, "policyActive": true }],
+  "matchVariables": [
+    {
+      "id": "spike_location",
+      "domain": { "enum": ["left", "center", "right"] },
+      "observeVia": {
+        "sensorId": "front_camera",
+        "tagRole": "randomization",
+        "requiresLineOfSight": true,
+        "sentinel": "not_yet_observed"
+      }
+    },
+    {
+      "id": "indicator",
+      "domain": { "enum": ["white", "team_prop"] }
+    }
+  ],
+  "accumulators": [
+    { "id": "true_score", "valueType": "float", "scope": "alliance", "init": 0 },
+    { "id": "restricted_entry", "valueType": "bool", "scope": "robot", "init": false }
+  ],
+  "nodes": [
+    {
+      "id": "purple_left_white",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [
+        { "op": "matchVarEquals", "matchVar": "spike_location", "equals": "left" },
+        { "op": "matchVarEquals", "matchVar": "indicator", "equals": "white" },
+        { "op": "volumeHasPieceType", "volumeId": "red_spike_left", "pieceType": "token_purple" }
+      ],
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 10, "accumulator": "true_score" }],
+      "maxFires": 1,
+      "fireScope": "episode",
+      "explain": "Purple token on left spike (white indicator): 10 AUTO. VERIFY."
+    },
+    {
+      "id": "purple_center_white",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [
+        { "op": "matchVarEquals", "matchVar": "spike_location", "equals": "center" },
+        { "op": "matchVarEquals", "matchVar": "indicator", "equals": "white" },
+        { "op": "volumeHasPieceType", "volumeId": "red_spike_center", "pieceType": "token_purple" }
+      ],
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 10, "accumulator": "true_score" }],
+      "maxFires": 1,
+      "fireScope": "episode",
+      "explain": "Purple token on center spike (white indicator): 10 AUTO. VERIFY."
+    },
+    {
+      "id": "purple_right_white",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [
+        { "op": "matchVarEquals", "matchVar": "spike_location", "equals": "right" },
+        { "op": "matchVarEquals", "matchVar": "indicator", "equals": "white" },
+        { "op": "volumeHasPieceType", "volumeId": "red_spike_right", "pieceType": "token_purple" }
+      ],
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 10, "accumulator": "true_score" }],
+      "maxFires": 1,
+      "fireScope": "episode",
+      "explain": "Purple token on right spike (white indicator): 10 AUTO. VERIFY."
+    },
+    {
+      "id": "purple_left_prop",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [
+        { "op": "matchVarEquals", "matchVar": "spike_location", "equals": "left" },
+        { "op": "matchVarEquals", "matchVar": "indicator", "equals": "team_prop" },
+        { "op": "volumeHasPieceType", "volumeId": "red_spike_left", "pieceType": "token_purple" }
+      ],
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 20, "accumulator": "true_score" }],
+      "maxFires": 1,
+      "fireScope": "episode",
+      "explain": "Purple token on left spike (team prop): 20 AUTO. VERIFY."
+    },
+    {
+      "id": "purple_center_prop",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [
+        { "op": "matchVarEquals", "matchVar": "spike_location", "equals": "center" },
+        { "op": "matchVarEquals", "matchVar": "indicator", "equals": "team_prop" },
+        { "op": "volumeHasPieceType", "volumeId": "red_spike_center", "pieceType": "token_purple" }
+      ],
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 20, "accumulator": "true_score" }],
+      "maxFires": 1,
+      "fireScope": "episode",
+      "explain": "Purple token on center spike (team prop): 20 AUTO. VERIFY."
+    },
+    {
+      "id": "purple_right_prop",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [
+        { "op": "matchVarEquals", "matchVar": "spike_location", "equals": "right" },
+        { "op": "matchVarEquals", "matchVar": "indicator", "equals": "team_prop" },
+        { "op": "volumeHasPieceType", "volumeId": "red_spike_right", "pieceType": "token_purple" }
+      ],
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 20, "accumulator": "true_score" }],
+      "maxFires": 1,
+      "fireScope": "episode",
+      "explain": "Purple token on right spike (team prop): 20 AUTO. VERIFY."
+    },
+    {
+      "id": "yellow_left",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_backdrop_left", "filterPieceType": "token_yellow" },
+      "conditions": [{ "op": "matchVarEquals", "matchVar": "spike_location", "equals": "left" }],
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 10, "accumulator": "true_score" }],
+      "maxFires": 1,
+      "fireScope": "episode",
+      "explain": "Yellow token on matching left backdrop column: 10 (white) — VERIFY. Team-prop 20 is a separate node if indicator is team_prop."
+    },
+    {
+      "id": "yellow_center",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_backdrop_center", "filterPieceType": "token_yellow" },
+      "conditions": [{ "op": "matchVarEquals", "matchVar": "spike_location", "equals": "center" }],
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 10, "accumulator": "true_score" }],
+      "maxFires": 1,
+      "fireScope": "episode",
+      "explain": "Yellow token on matching center backdrop column: 10. VERIFY."
+    },
+    {
+      "id": "yellow_right",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_backdrop_right", "filterPieceType": "token_yellow" },
+      "conditions": [{ "op": "matchVarEquals", "matchVar": "spike_location", "equals": "right" }],
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 10, "accumulator": "true_score" }],
+      "maxFires": 1,
+      "fireScope": "episode",
+      "explain": "Yellow token on matching right backdrop column: 10. VERIFY."
+    },
+    {
+      "id": "token_on_backdrop",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_backdrop", "filterPieceType": "token_purple,token_yellow,token_white" },
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 5, "accumulator": "true_score" }],
+      "fireScope": "piece",
+      "explain": "Any token on backdrop recessed area: 5 AUTO. VERIFY."
+    },
+    {
+      "id": "token_in_backstage",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_backstage", "filterPieceType": "token_purple,token_yellow,token_white" },
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 3, "accumulator": "true_score" }],
+      "fireScope": "piece",
+      "explain": "Token in backstage: 3 AUTO. VERIFY."
+    },
+    {
+      "id": "park_backstage",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [{ "op": "actorInVolume", "volumeId": "red_backstage" }],
+      "actions": [{ "kind": "addScore", "channel": "trueScore", "points": 5, "accumulator": "true_score" }],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "Park in alliance backstage: 5 AUTO. VERIFY."
+    },
+    {
+      "id": "restricted_entry",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "restricted_for_red" },
+      "actions": [{ "kind": "setFlag", "accumulator": "restricted_entry" }],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "AUTO restricted-volume entry recorded (0 points; eval metric)."
+    }
+  ],
+  "scoreChannels": {
+    "trueScore": "true_score",
+    "rankingPointsProxy": "true_score"
+  },
+  "optimizationObjectives": ["mean_true_score"]
+}

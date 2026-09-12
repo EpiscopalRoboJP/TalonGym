@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://talongym.dev/schemas/field-preset.schema.json",
+  "title": "FieldPreset",
+  "description": "Season-agnostic FTC field. DECODE-specific nouns (ARTIFACT, OBELISK, RAMP) appear only as type/tag strings in instance data, never as schema enums that would force an engine change.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "displayName",
+    "season",
+    "provenance",
+    "coordinateSystem",
+    "fieldSizeIn",
+    "requiredCapabilities",
+    "elements",
+    "gamePieces",
+    "startSlots"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_\\-.]{1,63}$" },
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "season": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "officialName", "competitionYear"],
+      "properties": {
+        "slug": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" },
+        "officialName": { "type": "string" },
+        "competitionYear": { "type": "string", "description": "e.g. 2025-2026" }
+      }
+    },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "coordinateSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["convention", "units", "origin", "xIncreases", "yIncreases", "headingPositive"],
+      "properties": {
+        "convention": {
+          "type": "string",
+          "const": "ftc_official_red_wall",
+          "description": "Origin at field center; X parallel to Red Wall increasing to the right; Y increasing away from Red Wall; +heading CCW. Matches official FTC coords and MeepMeep's non-rotated Cartesian field. Viewer may yaw the camera; it must not rewrite stored poses."
+        },
+        "units": { "type": "string", "enum": ["inch"] },
+        "origin": { "type": "string", "const": "field_center_tile_surface" },
+        "xIncreases": { "type": "string", "const": "right_when_facing_from_red_wall" },
+        "yIncreases": { "type": "string", "const": "away_from_red_wall" },
+        "headingPositive": { "type": "string", "const": "ccw" },
+        "notes": { "type": "string" }
+      }
+    },
+    "fieldSizeIn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "depth"],
+      "properties": {
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "depth": { "type": "number", "exclusiveMinimum": 0 },
+        "wallHeight": { "type": "number", "minimum": 0 },
+        "tileSize": { "type": "number", "default": 24 }
+      }
+    },
+    "requiredCapabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability" },
+      "uniqueItems": true
+    },
+    "backgroundAsset": {
+      "type": "string",
+      "description": "Render-only field image or glTF. Physics ignores this."
+    },
+    "elements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fieldElement" }
+    },
+    "gamePieces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/gamePieceType" }
+    },
+    "spawns": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/spawnDef" }
+    },
+    "startSlots": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/startSlot" }
+    },
+    "aprilTags": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/aprilTag" }
+    },
+    "domainRandomizationDefaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "poseJitterIn": { "type": "number", "minimum": 0 },
+        "headingJitterDeg": { "type": "number", "minimum": 0 },
+        "buildToleranceIn": { "type": "number", "minimum": 0, "description": "Official CAD general tolerance is +/- 1 in. Use as DR default, not as a hard collision shrink." }
+      }
+    }
+  },
+  "$defs": {
+    "capability": {
+      "type": "string",
+      "enum": [
+        "planar_drive",
+        "static_colliders",
+        "dynamic_game_pieces",
+        "trigger_volumes",
+        "occluders",
+        "apriltag_vision",
+        "randomized_match_variable",
+        "partial_observability_sentinel",
+        "n_stage_scoring",
+        "end_of_phase_scoring",
+        "alliance_aggregate_scoring",
+        "ranking_point_thresholds",
+        "mid_episode_geometry_change",
+        "retained_queue",
+        "scripted_mechanism_fsm",
+        "multi_robot_collision",
+        "phase_clock"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manualRevision", "sourceUrl", "effectiveDate"],
+      "properties": {
+        "manualRevision": { "type": "string", "description": "e.g. TU32" },
+        "sectionVersions": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "cadUrl": { "type": "string", "format": "uri" },
+        "cadVersion": { "type": "string" },
+        "contentSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "effectiveDate": { "type": "string", "format": "date" },
+        "geometryProvenance": {
+          "type": "string",
+          "enum": ["official_cad", "official_drawing", "practice_field_approximate", "hand_authored"]
+        },
+        "verifyAgainstManual": { "type": "boolean" },
+        "supersedes": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "pose2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "headingDeg"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "headingDeg": { "type": "number" },
+        "z": { "type": "number", "description": "Render / vision height only; 2.5D physics ignores except as mechanism metadata." }
+      }
+    },
+    "shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["aabb", "circle", "capsule", "polygon", "none"] },
+        "width": { "type": "number" },
+        "depth": { "type": "number" },
+        "radius": { "type": "number" },
+        "vertices": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      }
+    },
+    "fieldElement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "pose", "shape"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "description": "Free string: wall, goal, ramp, gate, spike_mark, obelisk, submersible, backdrop, … Season nouns live here." },
+        "alliance": { "type": "string", "enum": ["red", "blue", "neutral"] },
+        "pose": { "$ref": "#/$defs/pose2" },
+        "shape": { "$ref": "#/$defs/shape" },
+        "isCollider": { "type": "boolean", "default": true },
+        "isOccluder": { "type": "boolean", "default": false },
+        "isTrigger": { "type": "boolean", "default": false },
+        "triggerId": { "type": "string" },
+        "renderMesh": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "gamePieceType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["typeId", "shape", "massKg"],
+      "properties": {
+        "typeId": { "type": "string", "description": "e.g. artifact_purple, pollen, sample_yellow" },
+        "displayName": { "type": "string" },
+        "shape": { "$ref": "#/$defs/shape" },
+        "massKg": { "type": "number", "exclusiveMinimum": 0 },
+        "restitution": { "type": "number", "minimum": 0, "maximum": 1 },
+        "color": { "type": "string" },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Opaque extras (color enum, clip-able, …) consumed only by the scoring graph."
+        }
+      }
+    },
+    "spawnDef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "pieceTypeId", "poses"],
+      "properties": {
+        "id": { "type": "string" },
+        "pieceTypeId": { "type": "string" },
+        "poses": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/pose2" }
+        },
+        "patternLabel": { "type": "string", "description": "Human label such as near_GPP. Not an engine enum." },
+        "preloadEligible": { "type": "boolean" }
+      }
+    },
+    "startSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "alliance", "slot", "pose"],
+      "properties": {
+        "id": { "type": "string" },
+        "alliance": { "type": "string", "enum": ["red", "blue"] },
+        "slot": { "type": "integer", "minimum": 0, "maximum": 1 },
+        "pose": { "$ref": "#/$defs/pose2" },
+        "legalRegion": { "$ref": "#/$defs/shape" }
+      }
+    },
+    "aprilTag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "tagId", "pose", "sizeIn"],
+      "properties": {
+        "family": { "type": "string", "default": "36h11" },
+        "tagId": { "type": "integer" },
+        "pose": { "$ref": "#/$defs/pose2" },
+        "sizeIn": { "type": "number", "exclusiveMinimum": 0 },
+        "onElementId": { "type": "string" },
+        "role": { "type": "string", "description": "Free string: motif, goal_aim, localization. Bound in scoring/observation graph, not engine." },
+        "mapsTo": { "type": "string", "description": "Optional match-variable enum value this tag reveals." },
+        "sideFaceObstructed": { "type": "boolean" }
+      }
+    }
+  }
+}

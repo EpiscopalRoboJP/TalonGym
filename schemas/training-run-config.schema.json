@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://talongym.dev/schemas/training-run-config.schema.json",
+  "title": "TrainingRunConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "presets",
+    "algorithm",
+    "actionTier",
+    "computeProfile",
+    "episode",
+    "budget",
+    "evaluation",
+    "objective"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "id": { "type": "string" },
+    "displayName": { "type": "string" },
+    "presets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fieldId", "robotId", "scoringId"],
+      "properties": {
+        "fieldId": { "type": "string" },
+        "robotId": { "type": "string" },
+        "scoringId": { "type": "string" },
+        "teammatePolicy": { "type": "string", "enum": ["none", "scripted", "shared_reward", "independent"] },
+        "opponentPolicy": { "type": "string", "enum": ["none", "static", "scripted", "frozen_policy"] }
+      }
+    },
+    "algorithm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "enum": ["ppo", "recurrent_ppo", "rllib_ppo"] },
+        "learningRate": { "type": "number", "default": 0.0003 },
+        "gamma": { "type": "number", "default": 0.99 },
+        "gaeLambda": { "type": "number", "default": 0.95 },
+        "clipRange": { "type": "number", "default": 0.2 },
+        "nSteps": { "type": "integer", "default": 128 },
+        "batchSize": { "type": "integer", "default": 256 },
+        "nEpochs": { "type": "integer", "default": 10 },
+        "entCoef": { "type": "number", "default": 0.01 },
+        "lstmHiddenSize": { "type": "integer", "default": 256 }
+      }
+    },
+    "actionTier": {
+      "type": "string",
+      "enum": ["high_level_waypoint", "low_level_velocity"]
+    },
+    "computeProfile": {
+      "type": "string",
+      "enum": ["lightweight_cpu", "workstation", "cloud"]
+    },
+    "nEnvs": { "type": "integer", "minimum": 1 },
+    "episode": {
+      "type": "object",
+      "required": ["controlHz", "durationS"],
+      "properties": {
+        "controlHz": { "type": "integer", "minimum": 10, "maximum": 100, "default": 25 },
+        "durationS": { "type": "number", "const": 30, "description": "AUTO length. TELEOP is a later phase, not a longer AUTO." },
+        "physicsSubsteps": { "type": "integer", "minimum": 1, "default": 2 }
+      }
+    },
+    "domainRandomization": {
+      "type": "object",
+      "properties": {
+        "poseJitterIn": { "type": "number", "minimum": 0 },
+        "headingJitterDeg": { "type": "number", "minimum": 0 },
+        "motorStrengthRange": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "sensorNoiseScale": { "type": "number", "minimum": 0 },
+        "fieldBuildToleranceIn": { "type": "number", "minimum": 0 },
+        "curriculum": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["untilFrac", "unlock"],
+            "properties": {
+              "untilFrac": { "type": "number", "minimum": 0, "maximum": 1 },
+              "unlock": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "motif_known_at_t0",
+                    "motif_must_sense",
+                    "scripted_teammate",
+                    "scripted_opponent",
+                    "full_noise"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "required": ["totalEnvSteps"],
+      "properties": {
+        "totalEnvSteps": { "type": "integer", "minimum": 1 },
+        "wallClockLimitS": { "type": "integer" },
+        "earlyStopNoImproveSteps": { "type": "integer" }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "required": ["nTrials", "confidence"],
+      "properties": {
+        "nTrials": { "type": "integer", "minimum": 500 },
+        "confidence": { "type": "number", "default": 0.95 },
+        "heldOutSeedStart": { "type": "integer" },
+        "pairCommonRandomNumbers": { "type": "boolean", "default": true }
+      }
+    },
+    "objective": {
+      "type": "string",
+      "enum": ["mean_true_score", "lcb_true_score", "p10_true_score", "rp_proxy_probability"]
+    },
+    "export": {
+      "type": "object",
+      "properties": {
+        "onnx": { "type": "boolean", "default": true },
+        "roadRunnerDialect": {
+          "type": "string",
+          "enum": ["rr1_actions", "rr05_trajectory_sequence"],
+          "default": "rr1_actions"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "talongym"
+version = "0.1.0"
+description = "Season-agnostic FTC Autonomous RL trainer and 3D strategy lab"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "TalonGym" }]
+dependencies = [
+  "numpy>=1.26",
+  "gymnasium>=0.29",
+  "pettingzoo>=1.24",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "typer>=0.12",
+  "pydantic>=2.7",
+  "jsonschema>=4.23",
+  "websockets>=12.0",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+rl = ["stable-baselines3>=2.3", "sb3-contrib>=2.3", "torch>=2.2"]
+scale = ["ray[rllib]>=2.10"]
+mujoco = ["mujoco>=3.1"]
+postgres = ["psycopg[binary]>=3.1"]
+
+[project.scripts]
+talongym = "talongym.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["python"]
+
+[tool.setuptools.package-data]
+talongym = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["python"]

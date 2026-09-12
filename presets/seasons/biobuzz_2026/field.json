@@ -1,0 +1,582 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "biobuzz_2026_field_v1",
+  "displayName": "BIOBUZZ 2026–2027 field (V1)",
+  "season": {
+    "slug": "biobuzz",
+    "officialName": "BIOBUZZ presented by RTX",
+    "competitionYear": "2026-2027"
+  },
+  "provenance": {
+    "manualRevision": "V1",
+    "sectionVersions": {
+      "arena": "V1",
+      "gameDetails": "V1"
+    },
+    "sourceUrl": "https://ftc-resources.firstinspires.org/ftc/game/manual-10",
+    "cadUrl": "https://ftc-resources.firstinspires.org/ftc/game",
+    "effectiveDate": "2026-09-12",
+    "geometryProvenance": "hand_authored",
+    "verifyAgainstManual": true,
+    "notes": "Schematic placeholders pending official CAD. VERIFY: flower / loading-zone / garden corner assignment; hive x-offsets; tip threshold is scoring-side; AprilTag IDs 1–3, 4–6, 42–45 are inferred (manual extract only confirmed 0, 7, 38–41). POLLEN diameter 2.8 in per §9.8 (not ~3 in). Official field ~144 x 144 in inside perimeter. CAD general tolerance +/- 1 in."
+  },
+  "coordinateSystem": {
+    "convention": "ftc_official_red_wall",
+    "units": "inch",
+    "origin": "field_center_tile_surface",
+    "xIncreases": "right_when_facing_from_red_wall",
+    "yIncreases": "away_from_red_wall",
+    "headingPositive": "ccw",
+    "notes": "Red half is x<0; audience wall is y=-72. Red ALLIANCE AREA is audience-left. AUTO sides are tile columns A–C (red) / D–E–F (blue)."
+  },
+  "fieldSizeIn": {
+    "width": 144,
+    "depth": 144,
+    "wallHeight": 12,
+    "tileSize": 24
+  },
+  "requiredCapabilities": [
+    "planar_drive",
+    "static_colliders",
+    "dynamic_game_pieces",
+    "trigger_volumes",
+    "occluders",
+    "apriltag_vision",
+    "end_of_phase_scoring",
+    "n_stage_scoring",
+    "ranking_point_thresholds",
+    "multi_robot_collision",
+    "phase_clock"
+  ],
+  "elements": [
+    {
+      "id": "perimeter",
+      "type": "wall",
+      "alliance": "neutral",
+      "pose": { "x": 0, "y": 0, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 144, "depth": 144 },
+      "isCollider": true,
+      "isOccluder": false,
+      "isTrigger": false,
+      "tags": ["perimeter"]
+    },
+    {
+      "id": "leave_interior",
+      "type": "zone",
+      "alliance": "neutral",
+      "pose": { "x": 0, "y": 0, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 122, "depth": 122 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": true,
+      "triggerId": "leave_interior",
+      "tags": ["leave"]
+    },
+    {
+      "id": "restricted_for_red",
+      "type": "zone",
+      "alliance": "blue",
+      "pose": { "x": 36, "y": 0, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 72, "depth": 144 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": true,
+      "triggerId": "restricted_for_red",
+      "tags": ["restricted_for_red"]
+    },
+    {
+      "id": "restricted_for_blue",
+      "type": "zone",
+      "alliance": "red",
+      "pose": { "x": -36, "y": 0, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 72, "depth": 144 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": true,
+      "triggerId": "restricted_for_blue",
+      "tags": ["restricted_for_blue"]
+    },
+    {
+      "id": "red_loading_zone",
+      "type": "tape",
+      "alliance": "red",
+      "pose": { "x": -66.5, "y": -60.5, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 11, "depth": 23 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": false,
+      "tags": ["loading_zone"]
+    },
+    {
+      "id": "red_park",
+      "type": "zone",
+      "alliance": "red",
+      "pose": { "x": -62, "y": -56, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 20, "depth": 32 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": true,
+      "triggerId": "red_park",
+      "tags": ["park", "loading_zone"]
+    },
+    {
+      "id": "blue_loading_zone",
+      "type": "tape",
+      "alliance": "blue",
+      "pose": { "x": 66.5, "y": 60.5, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 11, "depth": 23 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": false,
+      "tags": ["loading_zone"]
+    },
+    {
+      "id": "blue_park",
+      "type": "zone",
+      "alliance": "blue",
+      "pose": { "x": 62, "y": 56, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 20, "depth": 32 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": true,
+      "triggerId": "blue_park",
+      "tags": ["park", "loading_zone"]
+    },
+    {
+      "id": "red_garden",
+      "type": "tape",
+      "alliance": "red",
+      "pose": { "x": -60.5, "y": 71, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 23, "depth": 2 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": true,
+      "triggerId": "red_garden",
+      "tags": ["garden"]
+    },
+    {
+      "id": "blue_garden",
+      "type": "tape",
+      "alliance": "blue",
+      "pose": { "x": 60.5, "y": -71, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 23, "depth": 2 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": true,
+      "triggerId": "blue_garden",
+      "tags": ["garden"]
+    },
+    {
+      "id": "hive_frame_west",
+      "type": "hive_frame",
+      "alliance": "neutral",
+      "pose": { "x": -24.73, "y": 0, "headingDeg": 0, "z": 22 },
+      "shape": { "kind": "aabb", "width": 4, "depth": 38.95 },
+      "isCollider": true,
+      "isOccluder": true,
+      "isTrigger": false,
+      "tags": ["hive", "frame"]
+    },
+    {
+      "id": "hive_frame_east",
+      "type": "hive_frame",
+      "alliance": "neutral",
+      "pose": { "x": 24.73, "y": 0, "headingDeg": 0, "z": 22 },
+      "shape": { "kind": "aabb", "width": 4, "depth": 38.95 },
+      "isCollider": true,
+      "isOccluder": true,
+      "isTrigger": false,
+      "tags": ["hive", "frame"]
+    },
+    {
+      "id": "red_cell_up",
+      "type": "goal",
+      "alliance": "red",
+      "pose": { "x": -9.4, "y": 9.4, "headingDeg": 0, "z": 36 },
+      "shape": { "kind": "aabb", "width": 20, "depth": 14 },
+      "isCollider": false,
+      "isOccluder": true,
+      "isTrigger": true,
+      "triggerId": "red_cell_up",
+      "tags": ["cell", "hive", "up_cell", "goal"]
+    },
+    {
+      "id": "red_cell_down",
+      "type": "cell",
+      "alliance": "red",
+      "pose": { "x": -9.4, "y": -9.4, "headingDeg": 0, "z": 12 },
+      "shape": { "kind": "aabb", "width": 20, "depth": 14 },
+      "isCollider": false,
+      "isOccluder": true,
+      "isTrigger": false,
+      "tags": ["cell", "hive", "down_cell"]
+    },
+    {
+      "id": "blue_cell_up",
+      "type": "goal",
+      "alliance": "blue",
+      "pose": { "x": 9.4, "y": -9.4, "headingDeg": 0, "z": 36 },
+      "shape": { "kind": "aabb", "width": 20, "depth": 14 },
+      "isCollider": false,
+      "isOccluder": true,
+      "isTrigger": true,
+      "triggerId": "blue_cell_up",
+      "tags": ["cell", "hive", "up_cell", "goal"]
+    },
+    {
+      "id": "blue_cell_down",
+      "type": "cell",
+      "alliance": "blue",
+      "pose": { "x": 9.4, "y": 9.4, "headingDeg": 0, "z": 12 },
+      "shape": { "kind": "aabb", "width": 20, "depth": 14 },
+      "isCollider": false,
+      "isOccluder": true,
+      "isTrigger": false,
+      "tags": ["cell", "hive", "down_cell"]
+    },
+    {
+      "id": "flower_1",
+      "type": "flower",
+      "alliance": "neutral",
+      "pose": { "x": -36, "y": -69.5, "headingDeg": 0, "z": 21.5 },
+      "shape": { "kind": "aabb", "width": 5, "depth": 5 },
+      "isCollider": true,
+      "isOccluder": true,
+      "isTrigger": true,
+      "triggerId": "flower_1",
+      "tags": ["flower"]
+    },
+    {
+      "id": "flower_2",
+      "type": "flower",
+      "alliance": "neutral",
+      "pose": { "x": 36, "y": -69.5, "headingDeg": 0, "z": 21.5 },
+      "shape": { "kind": "aabb", "width": 5, "depth": 5 },
+      "isCollider": true,
+      "isOccluder": true,
+      "isTrigger": true,
+      "triggerId": "flower_2",
+      "tags": ["flower"]
+    },
+    {
+      "id": "flower_3",
+      "type": "flower",
+      "alliance": "neutral",
+      "pose": { "x": -36, "y": 69.5, "headingDeg": 0, "z": 21.5 },
+      "shape": { "kind": "aabb", "width": 5, "depth": 5 },
+      "isCollider": true,
+      "isOccluder": true,
+      "isTrigger": true,
+      "triggerId": "flower_3",
+      "tags": ["flower"]
+    },
+    {
+      "id": "flower_4",
+      "type": "flower",
+      "alliance": "neutral",
+      "pose": { "x": 36, "y": 69.5, "headingDeg": 0, "z": 21.5 },
+      "shape": { "kind": "aabb", "width": 5, "depth": 5 },
+      "isCollider": true,
+      "isOccluder": true,
+      "isTrigger": true,
+      "triggerId": "flower_4",
+      "tags": ["flower"]
+    }
+  ],
+  "gamePieces": [
+    {
+      "typeId": "pollen",
+      "displayName": "POLLEN",
+      "shape": { "kind": "circle", "radius": 1.4 },
+      "massKg": 0.05,
+      "restitution": 0.35,
+      "color": "yellow",
+      "attributes": { "color": "Y" }
+    },
+    {
+      "typeId": "nectar_red",
+      "displayName": "Red NECTAR",
+      "shape": { "kind": "circle", "radius": 1.8 },
+      "massKg": 0.08,
+      "restitution": 0.35,
+      "color": "red",
+      "attributes": { "color": "R", "alliance": "red" }
+    },
+    {
+      "typeId": "nectar_blue",
+      "displayName": "Blue NECTAR",
+      "shape": { "kind": "circle", "radius": 1.8 },
+      "massKg": 0.08,
+      "restitution": 0.35,
+      "color": "blue",
+      "attributes": { "color": "B", "alliance": "blue" }
+    }
+  ],
+  "spawns": [
+    {
+      "id": "flower_1_pollen",
+      "pieceTypeId": "pollen",
+      "poses": [
+        { "x": -40, "y": -64, "headingDeg": 0 },
+        { "x": -38, "y": -64, "headingDeg": 0 },
+        { "x": -36, "y": -64, "headingDeg": 0 },
+        { "x": -34, "y": -64, "headingDeg": 0 }
+      ]
+    },
+    {
+      "id": "flower_2_pollen",
+      "pieceTypeId": "pollen",
+      "poses": [
+        { "x": 34, "y": -64, "headingDeg": 0 },
+        { "x": 36, "y": -64, "headingDeg": 0 },
+        { "x": 38, "y": -64, "headingDeg": 0 },
+        { "x": 40, "y": -64, "headingDeg": 0 }
+      ]
+    },
+    {
+      "id": "flower_3_pollen",
+      "pieceTypeId": "pollen",
+      "poses": [
+        { "x": -40, "y": 64, "headingDeg": 0 },
+        { "x": -38, "y": 64, "headingDeg": 0 },
+        { "x": -36, "y": 64, "headingDeg": 0 },
+        { "x": -34, "y": 64, "headingDeg": 0 }
+      ]
+    },
+    {
+      "id": "flower_4_pollen",
+      "pieceTypeId": "pollen",
+      "poses": [
+        { "x": 34, "y": 64, "headingDeg": 0 },
+        { "x": 36, "y": 64, "headingDeg": 0 },
+        { "x": 38, "y": 64, "headingDeg": 0 },
+        { "x": 40, "y": 64, "headingDeg": 0 }
+      ]
+    },
+    {
+      "id": "red_garden_pollen",
+      "pieceTypeId": "pollen",
+      "poses": [
+        { "x": -70, "y": 68, "headingDeg": 0 },
+        { "x": -66, "y": 68, "headingDeg": 0 },
+        { "x": -62, "y": 68, "headingDeg": 0 },
+        { "x": -58, "y": 68, "headingDeg": 0 }
+      ]
+    },
+    {
+      "id": "blue_garden_pollen",
+      "pieceTypeId": "pollen",
+      "poses": [
+        { "x": 70, "y": -68, "headingDeg": 0 },
+        { "x": 66, "y": -68, "headingDeg": 0 },
+        { "x": 62, "y": -68, "headingDeg": 0 },
+        { "x": 58, "y": -68, "headingDeg": 0 }
+      ]
+    },
+    {
+      "id": "red_0_preload",
+      "pieceTypeId": "pollen",
+      "preloadEligible": true,
+      "poses": [
+        { "x": -52, "y": -30, "headingDeg": 0 },
+        { "x": -52, "y": -26, "headingDeg": 0 },
+        { "x": -52, "y": -22, "headingDeg": 0 },
+        { "x": -52, "y": -18, "headingDeg": 0 }
+      ]
+    },
+    {
+      "id": "red_1_preload",
+      "pieceTypeId": "pollen",
+      "preloadEligible": true,
+      "poses": [
+        { "x": -52, "y": 18, "headingDeg": 0 },
+        { "x": -52, "y": 22, "headingDeg": 0 },
+        { "x": -52, "y": 26, "headingDeg": 0 },
+        { "x": -52, "y": 30, "headingDeg": 0 }
+      ]
+    },
+    {
+      "id": "blue_0_preload",
+      "pieceTypeId": "pollen",
+      "preloadEligible": true,
+      "poses": [
+        { "x": 52, "y": 18, "headingDeg": 0 },
+        { "x": 52, "y": 22, "headingDeg": 0 },
+        { "x": 52, "y": 26, "headingDeg": 0 },
+        { "x": 52, "y": 30, "headingDeg": 0 }
+      ]
+    },
+    {
+      "id": "blue_1_preload",
+      "pieceTypeId": "pollen",
+      "preloadEligible": true,
+      "poses": [
+        { "x": 52, "y": -30, "headingDeg": 0 },
+        { "x": 52, "y": -26, "headingDeg": 0 },
+        { "x": 52, "y": -22, "headingDeg": 0 },
+        { "x": 52, "y": -18, "headingDeg": 0 }
+      ]
+    }
+  ],
+  "startSlots": [
+    {
+      "id": "red_0",
+      "alliance": "red",
+      "slot": 0,
+      "pose": { "x": -63, "y": -24, "headingDeg": 0 }
+    },
+    {
+      "id": "red_1",
+      "alliance": "red",
+      "slot": 1,
+      "pose": { "x": -63, "y": 24, "headingDeg": 0 }
+    },
+    {
+      "id": "blue_0",
+      "alliance": "blue",
+      "slot": 0,
+      "pose": { "x": 63, "y": 24, "headingDeg": 180 }
+    },
+    {
+      "id": "blue_1",
+      "alliance": "blue",
+      "slot": 1,
+      "pose": { "x": 63, "y": -24, "headingDeg": 180 }
+    }
+  ],
+  "aprilTags": [
+    {
+      "family": "36h11",
+      "tagId": 0,
+      "pose": { "x": -11.4, "y": 11.4, "headingDeg": 180, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "red_cell_up",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 1,
+      "pose": { "x": -7.4, "y": 11.4, "headingDeg": 180, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "red_cell_up",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 2,
+      "pose": { "x": -11.4, "y": 7.4, "headingDeg": 180, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "red_cell_up",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 3,
+      "pose": { "x": -7.4, "y": 7.4, "headingDeg": 180, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "red_cell_up",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 4,
+      "pose": { "x": -11.4, "y": -7.4, "headingDeg": 0, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "red_cell_down",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 5,
+      "pose": { "x": -7.4, "y": -7.4, "headingDeg": 0, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "red_cell_down",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 6,
+      "pose": { "x": -11.4, "y": -11.4, "headingDeg": 0, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "red_cell_down",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 7,
+      "pose": { "x": -7.4, "y": -11.4, "headingDeg": 0, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "red_cell_down",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 38,
+      "pose": { "x": 7.4, "y": -7.4, "headingDeg": 0, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "blue_cell_up",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 39,
+      "pose": { "x": 11.4, "y": -7.4, "headingDeg": 0, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "blue_cell_up",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 40,
+      "pose": { "x": 7.4, "y": -11.4, "headingDeg": 0, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "blue_cell_up",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 41,
+      "pose": { "x": 11.4, "y": -11.4, "headingDeg": 0, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "blue_cell_up",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 42,
+      "pose": { "x": 7.4, "y": 11.4, "headingDeg": 180, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "blue_cell_down",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 43,
+      "pose": { "x": 11.4, "y": 11.4, "headingDeg": 180, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "blue_cell_down",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 44,
+      "pose": { "x": 7.4, "y": 7.4, "headingDeg": 180, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "blue_cell_down",
+      "role": "cell_aim"
+    },
+    {
+      "family": "36h11",
+      "tagId": 45,
+      "pose": { "x": 11.4, "y": 7.4, "headingDeg": 180, "z": 30 },
+      "sizeIn": 3.25,
+      "onElementId": "blue_cell_down",
+      "role": "cell_aim"
+    }
+  ],
+  "domainRandomizationDefaults": {
+    "poseJitterIn": 1.0,
+    "headingJitterDeg": 2.0,
+    "buildToleranceIn": 1.0
+  }
+}

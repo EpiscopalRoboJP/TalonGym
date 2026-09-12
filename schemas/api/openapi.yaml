@@ -1,0 +1,124 @@
+# OpenAPI 3.1 — TalonGym BFF (normative companion to docs/ARCHITECTURE.md)
+
+openapi: 3.1.0
+info:
+  title: TalonGym API
+  version: 1.0.0
+servers:
+  - url: /api/v1
+paths:
+  /health:
+    get:
+      summary: Liveness and engine capability version
+      responses:
+        "200":
+          description: OK
+  /presets/field:
+    get:
+      summary: List field presets
+    post:
+      summary: Create field preset
+      responses:
+        "201":
+          description: Created
+  /presets/field/{id}:
+    get:
+      summary: Get field preset
+    put:
+      summary: Replace field preset
+    delete:
+      summary: Delete if unreferenced
+  /presets/robot:
+    get: {}
+    post: {}
+  /presets/robot/{id}:
+    get: {}
+    put: {}
+    delete: {}
+  /presets/scoring:
+    get: {}
+    post: {}
+  /presets/scoring/{id}:
+    get: {}
+    put: {}
+    delete: {}
+  /presets/validate:
+    post:
+      summary: Schema + capability lint
+  /runs:
+    get: {}
+    post:
+      summary: Enqueue training run
+      responses:
+        "202":
+          description: Accepted
+  /runs/{id}:
+    get: {}
+  /runs/{id}/cancel:
+    post: {}
+  /runs/{id}/artifacts:
+    get: {}
+  /runs/{id}/export/onnx:
+    post:
+      responses:
+        "202":
+          description: Export started
+        "501":
+          description: LSTM ONNX unsupported
+  /artifacts/{id}:
+    get: {}
+  /evaluations:
+    post:
+      responses:
+        "202":
+          description: Accepted
+  /evaluations/{id}:
+    get:
+      summary: Statistical report with CIs
+  /comparisons/{id}:
+    get: {}
+  /replays/{id}:
+    get: {}
+  /replays/{id}/chunks:
+    get:
+      parameters:
+        - in: query
+          name: fromStep
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer, maximum: 500 }
+  /replays/{id}/export/roadrunner:
+    post:
+      summary: Emit RR 1.0 Actions Java (default) or 0.5.x sequence
+  /ws/runs/{runId}:
+    get:
+      summary: WebSocket upgrade — envelope v, type, seq, ts, payload
+      description: |
+        Types: metrics, status, rollout, log, error, ping.
+        Backpressure: ERROR BACKPRESSURE with resumeFrom.
+        Resume: ?afterSeq=
+components:
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object }
+    WsEnvelope:
+      type: object
+      required: [v, type, seq, ts, payload]
+      properties:
+        v: { type: integer, const: 1 }
+        type:
+          type: string
+          enum: [metrics, status, rollout, log, error, ping, ack]
+        seq: { type: integer }
+        ts: { type: string, format: date-time }
+        payload: { type: object }

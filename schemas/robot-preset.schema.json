@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://talongym.dev/schemas/robot-preset.schema.json",
+  "title": "RobotPreset",
+  "description": "Pluggable drivetrain + sensors + mechanism capabilities. Defaults mirror MeepMeep so FTC users recognize the vocabulary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "displayName",
+    "drivetrain",
+    "chassis",
+    "motors",
+    "constraints",
+    "sensors",
+    "mechanisms",
+    "defaultActionTier"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_\\-.]{1,63}$" },
+    "displayName": { "type": "string" },
+    "drivetrain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["mecanum", "tank", "swerve"] },
+        "trackWidthIn": { "type": "number", "default": 15, "description": "MeepMeep default 15 in" },
+        "wheelDiameterIn": { "type": "number" },
+        "wheelbaseIn": { "type": "number" },
+        "strafeMultiplier": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 }
+      }
+    },
+    "chassis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lengthIn", "widthIn", "massKg"],
+      "properties": {
+        "lengthIn": { "type": "number", "default": 18 },
+        "widthIn": { "type": "number", "default": 18 },
+        "heightIn": { "type": "number" },
+        "massKg": { "type": "number", "exclusiveMinimum": 0 },
+        "collisionShape": { "type": "string", "enum": ["aabb", "circle"] }
+      }
+    },
+    "motors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freeSpeedRpm", "stallTorqueNm"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 2 },
+        "freeSpeedRpm": { "type": "number", "exclusiveMinimum": 0 },
+        "stallTorqueNm": { "type": "number", "exclusiveMinimum": 0 },
+        "currentLimitA": { "type": "number", "exclusiveMinimum": 0 },
+        "gearRatio": { "type": "number", "exclusiveMinimum": 0 },
+        "nominalVoltageV": { "type": "number", "default": 12 }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxVelInPerS", "maxAccelInPerS2", "maxAngVelDegPerS", "maxAngAccelDegPerS2"],
+      "description": "MeepMeep DefaultBotBuilder vocabulary. Product default: 30 in/s, 30 in/s², 60 deg/s, 60 deg/s², 15 in track (see drivetrain.trackWidthIn). Sample MeepMeep snippets sometimes use 60/60/180/180 — those are NOT our shipped defaults.",
+      "properties": {
+        "maxVelInPerS": { "type": "number", "default": 30 },
+        "maxAccelInPerS2": { "type": "number", "default": 30 },
+        "maxAngVelDegPerS": { "type": "number", "default": 60 },
+        "maxAngAccelDegPerS2": { "type": "number", "default": 60 }
+      }
+    },
+    "battery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sagEnabled": { "type": "boolean", "default": false },
+        "internalResistanceOhm": { "type": "number", "minimum": 0 }
+      }
+    },
+    "odometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "encoderTicksPerRev": { "type": "number" },
+        "positionNoiseStdIn": { "type": "number", "minimum": 0 },
+        "headingNoiseStdDeg": { "type": "number", "minimum": 0 },
+        "slipNoiseStd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "sensors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sensor" }
+    },
+    "mechanisms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capacity"],
+      "properties": {
+        "capacity": { "type": "integer", "minimum": 0, "description": "Held scoring elements. DECODE preload max is 3 (verify vs current manual)." },
+        "intakeCycleTimeS": { "type": "number", "minimum": 0 },
+        "scoreCycleTimeS": { "type": "number", "minimum": 0 },
+        "canIntakeWhileMoving": { "type": "boolean" },
+        "canScoreWhileMoving": { "type": "boolean" },
+        "launchCapable": { "type": "boolean" },
+        "climbCapable": { "type": "boolean" },
+        "fsmId": { "type": "string", "description": "Named mechanism state machine from the engine catalog, parameterized by this object — not season-hardcoded." }
+      }
+    },
+    "defaultActionTier": {
+      "type": "string",
+      "enum": ["high_level_waypoint", "low_level_velocity"]
+    }
+  },
+  "$defs": {
+    "sensor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": ["apriltag_camera", "distance", "color", "beam_break", "touch", "imu"]
+        },
+        "poseOnRobot": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "z": { "type": "number" },
+            "headingDeg": { "type": "number" },
+            "pitchDeg": { "type": "number" }
+          }
+        },
+        "fovDeg": { "type": "number" },
+        "rangeIn": { "type": "number" },
+        "falseNegativeRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "falsePositiveRate": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}

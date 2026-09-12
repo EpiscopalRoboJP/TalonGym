@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://talongym.dev/schemas/scoring-rules-preset.schema.json",
+  "title": "ScoringRulesPreset",
+  "description": "Data-driven rule-evaluation DAG. New seasons add nodes, not engine enums of scoring events. Ordinary presets MUST NOT embed arbitrary scripts; use the typed node vocabulary. Engine extension is a versioned primitive bump (see docs/NEW_SEASON_RUNBOOK.md).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "displayName",
+    "fieldPresetId",
+    "provenance",
+    "requiredCapabilities",
+    "phases",
+    "matchVariables",
+    "nodes",
+    "scoreChannels"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "id": { "type": "string" },
+    "displayName": { "type": "string" },
+    "fieldPresetId": { "type": "string" },
+    "provenance": {
+      "type": "object",
+      "required": ["manualRevision", "sourceUrl", "effectiveDate"],
+      "properties": {
+        "manualRevision": { "type": "string" },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "effectiveDate": { "type": "string", "format": "date" },
+        "verifyAgainstManual": { "type": "boolean" },
+        "pointTableRef": { "type": "string", "description": "e.g. Table 10-2" },
+        "supersedes": { "type": "string" }
+      }
+    },
+    "requiredCapabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "durationS"],
+        "properties": {
+          "id": { "type": "string", "enum": ["AUTO", "TRANSITION", "TELEOP"] },
+          "durationS": { "type": "number", "minimum": 0 },
+          "policyActive": { "type": "boolean", "description": "False during TRANSITION. TELEOP is architected but out of MVP scope." }
+        }
+      }
+    },
+    "matchVariables": {
+      "type": "array",
+      "description": "Per-episode randomized globals. Ground truth is privileged. Observation requires observeVia.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "domain"],
+        "properties": {
+          "id": { "type": "string" },
+          "domain": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["enum"],
+                "properties": { "enum": { "type": "array", "items": { "type": "string" }, "minItems": 1 } }
+              },
+              {
+                "type": "object",
+                "required": ["intRange"],
+                "properties": {
+                  "intRange": {
+                    "type": "object",
+                    "required": ["min", "max"],
+                    "properties": {
+                      "min": { "type": "integer" },
+                      "max": { "type": "integer" }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "observeVia": {
+            "type": "object",
+            "description": "If omitted, the variable is never in the policy observation (e.g. opponent private state).",
+            "properties": {
+              "sensorId": { "type": "string" },
+              "tagRole": { "type": "string" },
+              "requiresLineOfSight": { "type": "boolean", "default": true },
+              "sentinel": { "type": "string", "const": "not_yet_observed" }
+            }
+          },
+          "repeat": {
+            "type": "object",
+            "description": "e.g. DECODE motif repeated 3 times onto 9 ramp indices.",
+            "properties": {
+              "times": { "type": "integer", "minimum": 1 },
+              "intoAccumulator": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "accumulators": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "valueType"],
+        "properties": {
+          "id": { "type": "string" },
+          "valueType": { "type": "string", "enum": ["int", "float", "bool", "enum", "sequence"] },
+          "scope": { "type": "string", "enum": ["episode", "phase", "alliance", "robot", "element"] },
+          "init": true,
+          "maxLen": { "type": "integer" }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ruleNode" }
+    },
+    "scoreChannels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trueScore", "rankingPointsProxy"],
+      "properties": {
+        "trueScore": { "type": "string", "description": "Accumulator id whose terminal value is official MATCH points for the modeled phase(s)." },
+        "rankingPointsProxy": { "type": "string", "description": "AUTO-only proxy. Must not be labeled as final match RP in the UI." },
+        "shaping": { "type": "string" }
+      }
+    },
+    "rankingPointThresholds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "accumulator", "thresholdsByEventClass"],
+        "properties": {
+          "id": { "type": "string" },
+          "accumulator": { "type": "string" },
+          "thresholdsByEventClass": {
+            "type": "object",
+            "additionalProperties": { "type": "number" },
+            "description": "Keys such as championship, regional_championship, other. Values VERIFY AGAINST CURRENT MANUAL Table 10-3."
+          }
+        }
+      }
+    },
+    "optimizationObjectives": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["mean_true_score", "lcb_true_score", "p10_true_score", "rp_proxy_probability"]
+      }
+    }
+  },
+  "$defs": {
+    "ruleNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "trigger", "actions"],
+      "properties": {
+        "id": { "type": "string" },
+        "enabledPhases": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "trigger": { "$ref": "#/$defs/trigger" },
+        "conditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/condition" }
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action" }
+        },
+        "maxFires": { "type": "integer", "minimum": 1 },
+        "fireScope": { "type": "string", "enum": ["episode", "phase", "actor", "piece"] },
+        "explain": { "type": "string", "description": "Student-facing reason string shown in replay event log." }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "volumeEnter",
+            "volumeExit",
+            "contactStart",
+            "contactEnd",
+            "fsmTransition",
+            "phaseEnd",
+            "timerElapsed",
+            "accumulatorChanged",
+            "alwaysTick"
+          ]
+        },
+        "volumeId": { "type": "string" },
+        "fsmId": { "type": "string" },
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "phase": { "type": "string" },
+        "seconds": { "type": "number" },
+        "filterPieceType": { "type": "string" },
+        "filterAlliance": { "type": "string" }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "pieceTypeIs",
+            "pieceAttrEquals",
+            "actorInVolume",
+            "actorNotInVolume",
+            "accumulatorGte",
+            "accumulatorEq",
+            "sequenceEquals",
+            "sequencePrefix",
+            "matchVarEquals",
+            "phaseIs",
+            "gateRetaining",
+            "queueHasSlot",
+            "volumeHasPieceType",
+            "allAlliance",
+            "anyAlliance",
+            "not",
+            "and",
+            "or"
+          ]
+        },
+        "pieceType": { "type": "string" },
+        "attr": { "type": "string" },
+        "equals": true,
+        "volumeId": { "type": "string" },
+        "accumulator": { "type": "string" },
+        "targetAccumulator": { "type": "string" },
+        "value": true,
+        "matchVar": { "type": "string" },
+        "elementId": { "type": "string" },
+        "allOf": { "type": "array", "items": { "$ref": "#/$defs/condition" } },
+        "anyOf": { "type": "array", "items": { "$ref": "#/$defs/condition" } },
+        "not": { "$ref": "#/$defs/condition" }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "addScore",
+            "setFlag",
+            "incAccumulator",
+            "pushSequence",
+            "popSequence",
+            "transferPiece",
+            "despawnPiece",
+            "spawnPiece",
+            "setFsm",
+            "openGate",
+            "closeGate",
+            "lockGeometry",
+            "emitExplain"
+          ]
+        },
+        "channel": { "type": "string", "enum": ["trueScore", "rankingPointsProxy", "shaping"] },
+        "points": { "type": "number", "description": "VERIFY AGAINST CURRENT MANUAL. Preset data, not engine constants." },
+        "accumulator": { "type": "string" },
+        "delta": { "type": "number" },
+        "fsmId": { "type": "string" },
+        "state": { "type": "string" },
+        "toVolume": { "type": "string" },
+        "pieceAttr": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

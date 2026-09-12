@@ -1,0 +1,254 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "into_the_deep_2024_field",
+  "displayName": "INTO THE DEEP 2024–2025 field (AUTO, schematic)",
+  "season": {
+    "slug": "into_the_deep",
+    "officialName": "INTO THE DEEP presented by RTX",
+    "competitionYear": "2024-2025"
+  },
+  "provenance": {
+    "manualRevision": "archive-2025",
+    "sourceUrl": "https://ftc-resources.firstinspires.org/ftc/archive/2025/game/manual",
+    "effectiveDate": "2025-04-01",
+    "geometryProvenance": "official_drawing",
+    "verifyAgainstManual": true,
+    "notes": "Schematic AUTO layout. Point values from the archived one-pager: park 3, L1 ascent 3, net 2, low basket 4, high basket 8, low chamber 6, high chamber 10. VERIFY CAD poses before freeze."
+  },
+  "coordinateSystem": {
+    "convention": "ftc_official_red_wall",
+    "units": "inch",
+    "origin": "field_center_tile_surface",
+    "xIncreases": "right_when_facing_from_red_wall",
+    "yIncreases": "away_from_red_wall",
+    "headingPositive": "ccw"
+  },
+  "fieldSizeIn": { "width": 144, "depth": 144, "wallHeight": 12, "tileSize": 24 },
+  "requiredCapabilities": [
+    "planar_drive",
+    "static_colliders",
+    "dynamic_game_pieces",
+    "trigger_volumes",
+    "occluders",
+    "apriltag_vision",
+    "end_of_phase_scoring",
+    "n_stage_scoring",
+    "scripted_mechanism_fsm",
+    "multi_robot_collision",
+    "phase_clock"
+  ],
+  "elements": [
+    {
+      "id": "perimeter",
+      "type": "wall",
+      "alliance": "neutral",
+      "pose": { "x": 0, "y": 0, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 144, "depth": 144 },
+      "isCollider": true,
+      "tags": ["perimeter"]
+    },
+    {
+      "id": "restricted_for_red",
+      "type": "zone",
+      "alliance": "blue",
+      "pose": { "x": 36, "y": 0, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 72, "depth": 144 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": true,
+      "triggerId": "restricted_for_red",
+      "tags": ["restricted_for_red"]
+    },
+    {
+      "id": "restricted_for_blue",
+      "type": "zone",
+      "alliance": "red",
+      "pose": { "x": -36, "y": 0, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 72, "depth": 144 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": true,
+      "triggerId": "restricted_for_blue",
+      "tags": ["restricted_for_blue"]
+    },
+    {
+      "id": "submersible",
+      "type": "submersible",
+      "alliance": "neutral",
+      "pose": { "x": 0, "y": 0, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 40, "depth": 40 },
+      "isCollider": true,
+      "isOccluder": true,
+      "isTrigger": true,
+      "triggerId": "submersible_zone",
+      "tags": ["submersible"]
+    },
+    {
+      "id": "red_high_basket",
+      "type": "basket",
+      "alliance": "red",
+      "pose": { "x": -60, "y": 60, "headingDeg": 0, "z": 20 },
+      "shape": { "kind": "circle", "radius": 8 },
+      "isCollider": false,
+      "isTrigger": true,
+      "triggerId": "red_high_basket",
+      "tags": ["basket", "high"]
+    },
+    {
+      "id": "red_low_basket",
+      "type": "basket",
+      "alliance": "red",
+      "pose": { "x": -60, "y": 42, "headingDeg": 0, "z": 10 },
+      "shape": { "kind": "circle", "radius": 8 },
+      "isCollider": false,
+      "isTrigger": true,
+      "triggerId": "red_low_basket",
+      "tags": ["basket", "low"]
+    },
+    {
+      "id": "red_net",
+      "type": "net_zone",
+      "alliance": "red",
+      "pose": { "x": -52, "y": 24, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 28, "depth": 20 },
+      "isCollider": false,
+      "isTrigger": true,
+      "triggerId": "red_net",
+      "tags": ["net"]
+    },
+    {
+      "id": "red_observation",
+      "type": "observation_zone",
+      "alliance": "red",
+      "pose": { "x": 56, "y": -62, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 32, "depth": 16 },
+      "isCollider": false,
+      "isTrigger": true,
+      "triggerId": "red_observation",
+      "tags": ["observation", "park"]
+    },
+    {
+      "id": "red_low_chamber",
+      "type": "chamber",
+      "alliance": "red",
+      "pose": { "x": 0, "y": 26, "headingDeg": 0, "z": 8 },
+      "shape": { "kind": "aabb", "width": 18, "depth": 6 },
+      "isCollider": false,
+      "isTrigger": true,
+      "triggerId": "red_low_chamber",
+      "tags": ["chamber", "low"]
+    },
+    {
+      "id": "red_high_chamber",
+      "type": "chamber",
+      "alliance": "red",
+      "pose": { "x": 0, "y": 22, "headingDeg": 0, "z": 14 },
+      "shape": { "kind": "aabb", "width": 18, "depth": 4 },
+      "isCollider": false,
+      "isTrigger": true,
+      "triggerId": "red_high_chamber",
+      "tags": ["chamber", "high"]
+    },
+    {
+      "id": "red_ascent_l1",
+      "type": "ascent",
+      "alliance": "red",
+      "pose": { "x": 0, "y": -26, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 20, "depth": 8 },
+      "isCollider": false,
+      "isTrigger": true,
+      "triggerId": "red_ascent_l1",
+      "tags": ["ascent", "l1"]
+    }
+  ],
+  "gamePieces": [
+    {
+      "typeId": "sample_yellow",
+      "displayName": "Neutral sample",
+      "shape": { "kind": "aabb", "width": 3.5, "depth": 1.5 },
+      "massKg": 0.05,
+      "restitution": 0.2,
+      "color": "yellow",
+      "attributes": { "color": "Y", "alliance": "neutral" }
+    },
+    {
+      "typeId": "clipped_sample",
+      "displayName": "Clipped sample (chamber AUTO)",
+      "shape": { "kind": "aabb", "width": 3.5, "depth": 2.0 },
+      "massKg": 0.06,
+      "restitution": 0.15,
+      "attributes": { "color": "R", "clipped": true }
+    }
+  ],
+  "spawns": [
+    {
+      "id": "near_net_a",
+      "pieceTypeId": "sample_yellow",
+      "poses": [{ "x": -36, "y": -12, "headingDeg": 0 }]
+    },
+    {
+      "id": "near_net_b",
+      "pieceTypeId": "sample_yellow",
+      "poses": [{ "x": -28, "y": -8, "headingDeg": 0 }]
+    },
+    {
+      "id": "mid_sample",
+      "pieceTypeId": "sample_yellow",
+      "poses": [{ "x": 20, "y": -16, "headingDeg": 0 }]
+    },
+    {
+      "id": "sub_sample",
+      "pieceTypeId": "sample_yellow",
+      "poses": [{ "x": 16, "y": 28, "headingDeg": 0 }]
+    },
+    {
+      "id": "obs_clipped",
+      "pieceTypeId": "clipped_sample",
+      "poses": [{ "x": 40, "y": -48, "headingDeg": 0 }]
+    }
+  ],
+  "startSlots": [
+    {
+      "id": "red_0",
+      "alliance": "red",
+      "slot": 0,
+      "pose": { "x": -40, "y": -60, "headingDeg": 90 }
+    },
+    {
+      "id": "red_1",
+      "alliance": "red",
+      "slot": 1,
+      "pose": { "x": 40, "y": -60, "headingDeg": 90 }
+    },
+    {
+      "id": "blue_0",
+      "alliance": "blue",
+      "slot": 0,
+      "pose": { "x": 40, "y": 60, "headingDeg": -90 }
+    },
+    {
+      "id": "blue_1",
+      "alliance": "blue",
+      "slot": 1,
+      "pose": { "x": -40, "y": 60, "headingDeg": -90 }
+    }
+  ],
+  "aprilTags": [
+    {
+      "family": "36h11",
+      "tagId": 11,
+      "pose": { "x": 0, "y": 20, "headingDeg": 90, "z": 12 },
+      "sizeIn": 2,
+      "onElementId": "submersible",
+      "role": "localization"
+    },
+    {
+      "family": "36h11",
+      "tagId": 12,
+      "pose": { "x": 0, "y": -20, "headingDeg": -90, "z": 12 },
+      "sizeIn": 2,
+      "onElementId": "submersible",
+      "role": "localization"
+    }
+  ]
+}

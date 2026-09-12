@@ -1,0 +1,181 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "decode_2025_scoring_tu32",
+  "displayName": "DECODE AUTO scoring (TU32 Table 10-2)",
+  "fieldPresetId": "decode_2025_field_tu32",
+  "provenance": {
+    "manualRevision": "TU32",
+    "sourceUrl": "https://ftc-resources.firstinspires.org/ftc/game/manual-10",
+    "effectiveDate": "2026-04-16",
+    "verifyAgainstManual": true,
+    "pointTableRef": "Table 10-2"
+  },
+  "requiredCapabilities": [
+    "trigger_volumes",
+    "randomized_match_variable",
+    "partial_observability_sentinel",
+    "n_stage_scoring",
+    "end_of_phase_scoring",
+    "ranking_point_thresholds",
+    "retained_queue",
+    "scripted_mechanism_fsm",
+    "phase_clock"
+  ],
+  "phases": [
+    { "id": "AUTO", "durationS": 30, "policyActive": true },
+    { "id": "TRANSITION", "durationS": 8, "policyActive": false },
+    { "id": "TELEOP", "durationS": 120, "policyActive": false }
+  ],
+  "matchVariables": [
+    {
+      "id": "motif",
+      "domain": { "enum": ["GPP", "PGP", "PPG"] },
+      "observeVia": {
+        "sensorId": "front_camera",
+        "tagRole": "motif",
+        "requiresLineOfSight": true,
+        "sentinel": "not_yet_observed"
+      },
+      "repeat": { "times": 3, "intoAccumulator": "red_pattern_target" }
+    }
+  ],
+  "accumulators": [
+    { "id": "true_score", "valueType": "float", "scope": "alliance", "init": 0 },
+    { "id": "classified_count", "valueType": "int", "scope": "alliance", "init": 0 },
+    { "id": "overflow_count", "valueType": "int", "scope": "alliance", "init": 0 },
+    { "id": "left_launch_line", "valueType": "bool", "scope": "robot", "init": false },
+    { "id": "red_ramp_seq", "valueType": "sequence", "scope": "element", "init": [], "maxLen": 9 },
+    { "id": "red_pattern_target", "valueType": "sequence", "scope": "episode", "init": [], "maxLen": 9 },
+    { "id": "pattern_points", "valueType": "int", "scope": "alliance", "init": 0 },
+    { "id": "rp_proxy_goal", "valueType": "bool", "scope": "alliance", "init": false },
+    { "id": "rp_proxy_pattern", "valueType": "bool", "scope": "alliance", "init": false },
+    { "id": "restricted_entry", "valueType": "bool", "scope": "robot", "init": false }
+  ],
+  "nodes": [
+    {
+      "id": "leave_mobility",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeExit", "volumeId": "red_start_zone" },
+      "conditions": [{ "op": "phaseIs", "equals": "AUTO" }],
+      "actions": [
+        { "kind": "setFlag", "accumulator": "left_launch_line" }
+      ],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "Robot fully left the launch-line region (LEAVE assessed at AUTO end)."
+    },
+    {
+      "id": "leave_points_at_auto_end",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [{ "op": "accumulatorEq", "accumulator": "left_launch_line", "value": true }],
+      "actions": [
+        { "kind": "addScore", "channel": "trueScore", "points": 3, "accumulator": "true_score" }
+      ],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "LEAVE: 3 points at end of AUTO. VERIFY Table 10-2."
+    },
+    {
+      "id": "classified_through_square",
+      "enabledPhases": ["AUTO", "TELEOP"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_square", "filterPieceType": "artifact_purple,artifact_green" },
+      "conditions": [
+        {
+          "op": "and",
+          "allOf": [
+            { "op": "queueHasSlot", "accumulator": "red_ramp_seq", "elementId": "red_ramp" },
+            { "op": "pieceAttrEquals", "attr": "passed_goal_top", "equals": true },
+            { "op": "pieceAttrEquals", "attr": "passed_archway", "equals": true }
+          ]
+        }
+      ],
+      "actions": [
+        { "kind": "addScore", "channel": "trueScore", "points": 3, "accumulator": "true_score" },
+        { "kind": "incAccumulator", "accumulator": "classified_count", "delta": 1 },
+        { "kind": "pushSequence", "accumulator": "red_ramp_seq", "pieceAttr": "color" },
+        { "kind": "transferPiece", "toVolume": "red_ramp_queue" }
+      ],
+      "explain": "CLASSIFIED: entered top, exited archway, passed square, ramp had a slot. 3 pts. VERIFY Table 10-2. Gate does not classify."
+    },
+    {
+      "id": "overflow_through_square",
+      "enabledPhases": ["AUTO", "TELEOP"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_square", "filterPieceType": "artifact_purple,artifact_green" },
+      "conditions": [
+        {
+          "op": "and",
+          "allOf": [
+            { "op": "not", "not": { "op": "queueHasSlot", "accumulator": "red_ramp_seq", "elementId": "red_ramp" } },
+            { "op": "pieceAttrEquals", "attr": "passed_goal_top", "equals": true },
+            { "op": "pieceAttrEquals", "attr": "passed_archway", "equals": true }
+          ]
+        }
+      ],
+      "actions": [
+        { "kind": "addScore", "channel": "trueScore", "points": 1, "accumulator": "true_score" },
+        { "kind": "incAccumulator", "accumulator": "overflow_count", "delta": 1 }
+      ],
+      "explain": "OVERFLOW: passed square but ramp full (or skip). 1 pt. VERIFY Table 10-2."
+    },
+    {
+      "id": "gate_open_releases",
+      "enabledPhases": ["AUTO", "TELEOP"],
+      "trigger": { "kind": "contactStart", "volumeId": "red_gate_contact" },
+      "actions": [
+        { "kind": "openGate", "fsmId": "red_gate" }
+      ],
+      "explain": "GATE is a retain/release mechanism, not a classifier."
+    },
+    {
+      "id": "pattern_at_auto_end",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [
+        { "op": "gateRetaining", "elementId": "red_gate" },
+        { "op": "sequencePrefix", "accumulator": "red_ramp_seq", "targetAccumulator": "red_pattern_target" }
+      ],
+      "actions": [
+        { "kind": "addScore", "channel": "trueScore", "points": 2, "accumulator": "true_score" }
+      ],
+      "explain": "PATTERN: 2 points per matching ramp index vs motif repeated x3, only if GATE still retaining. VERIFY Table 10-2. Implementation expands this node per occupied index."
+    },
+    {
+      "id": "restricted_entry",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "restricted_for_red" },
+      "actions": [
+        { "kind": "setFlag", "accumulator": "restricted_entry" }
+      ],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "AUTO restricted-volume entry recorded (0 points; eval metric)."
+    }
+  ],
+  "scoreChannels": {
+    "trueScore": "true_score",
+    "rankingPointsProxy": "rp_proxy_goal",
+    "shaping": "unused_in_preset"
+  },
+  "rankingPointThresholds": [
+    {
+      "id": "goal_rp",
+      "accumulator": "classified_count",
+      "thresholdsByEventClass": {
+        "championship": 67,
+        "regional_championship": 42,
+        "other": 36
+      }
+    },
+    {
+      "id": "pattern_rp",
+      "accumulator": "pattern_points",
+      "thresholdsByEventClass": {
+        "championship": 22,
+        "regional_championship": 22,
+        "other": 18
+      }
+    }
+  ],
+  "optimizationObjectives": ["mean_true_score", "lcb_true_score", "p10_true_score", "rp_proxy_probability"]
+}

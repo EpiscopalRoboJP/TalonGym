@@ -1,0 +1,6 @@
+{
+  "fieldId": "decode_2025_field_tu32",
+  "robotId": "mecanum_meepmeep_defaults",
+  "scoringId": "decode_2025_scoring_tu32",
+  "trainingId": "decode_auto_lightweight"
+}

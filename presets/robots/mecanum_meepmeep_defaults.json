@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "mecanum_meepmeep_defaults",
+  "displayName": "Mecanum (MeepMeep default constraints)",
+  "drivetrain": {
+    "type": "mecanum",
+    "trackWidthIn": 15,
+    "wheelDiameterIn": 4,
+    "wheelbaseIn": 15,
+    "strafeMultiplier": 1.0
+  },
+  "chassis": {
+    "lengthIn": 18,
+    "widthIn": 18,
+    "heightIn": 14,
+    "massKg": 15,
+    "collisionShape": "aabb"
+  },
+  "motors": {
+    "count": 4,
+    "freeSpeedRpm": 312,
+    "stallTorqueNm": 2.1,
+    "currentLimitA": 20,
+    "gearRatio": 19.2,
+    "nominalVoltageV": 12
+  },
+  "constraints": {
+    "maxVelInPerS": 30,
+    "maxAccelInPerS2": 30,
+    "maxAngVelDegPerS": 60,
+    "maxAngAccelDegPerS2": 60
+  },
+  "battery": {
+    "sagEnabled": false,
+    "internalResistanceOhm": 0.1
+  },
+  "odometry": {
+    "encoderTicksPerRev": 537.7,
+    "positionNoiseStdIn": 0.3,
+    "headingNoiseStdDeg": 1.0,
+    "slipNoiseStd": 0.02
+  },
+  "sensors": [
+    {
+      "id": "front_camera",
+      "kind": "apriltag_camera",
+      "poseOnRobot": { "x": 7, "y": 0, "z": 8, "headingDeg": 0, "pitchDeg": 0 },
+      "fovDeg": 70,
+      "rangeIn": 96,
+      "falseNegativeRate": 0.05,
+      "falsePositiveRate": 0.0
+    },
+    {
+      "id": "imu",
+      "kind": "imu"
+    }
+  ],
+  "mechanisms": {
+    "capacity": 3,
+    "intakeCycleTimeS": 0.4,
+    "scoreCycleTimeS": 0.6,
+    "canIntakeWhileMoving": true,
+    "canScoreWhileMoving": true,
+    "launchCapable": true,
+    "climbCapable": false,
+    "fsmId": "intake_hold_launch"
+  },
+  "defaultActionTier": "high_level_waypoint"
+}

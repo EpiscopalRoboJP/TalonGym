@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "into_the_deep_2024_scoring",
+  "displayName": "INTO THE DEEP AUTO scoring (archived one-pager)",
+  "fieldPresetId": "into_the_deep_2024_field",
+  "provenance": {
+    "manualRevision": "archive-2025",
+    "sourceUrl": "https://ftc-resources.firstinspires.org/ftc/archive/2025/game/game-one-page",
+    "effectiveDate": "2025-04-01",
+    "verifyAgainstManual": true,
+    "pointTableRef": "AUTO scoring one-pager"
+  },
+  "requiredCapabilities": [
+    "trigger_volumes",
+    "end_of_phase_scoring",
+    "n_stage_scoring",
+    "scripted_mechanism_fsm",
+    "phase_clock"
+  ],
+  "phases": [
+    { "id": "AUTO", "durationS": 30, "policyActive": true }
+  ],
+  "matchVariables": [],
+  "accumulators": [
+    { "id": "true_score", "valueType": "float", "scope": "alliance", "init": 0 },
+    { "id": "parked", "valueType": "bool", "scope": "robot", "init": false },
+    { "id": "ascended_l1", "valueType": "bool", "scope": "robot", "init": false },
+    { "id": "restricted_entry", "valueType": "bool", "scope": "robot", "init": false }
+  ],
+  "nodes": [
+    {
+      "id": "high_basket",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_high_basket", "filterPieceType": "sample_yellow" },
+      "actions": [
+        { "kind": "addScore", "channel": "trueScore", "points": 8, "accumulator": "true_score" },
+        { "kind": "despawnPiece" }
+      ],
+      "fireScope": "piece",
+      "explain": "SAMPLE in HIGH BASKET: 8 AUTO points. VERIFY archived manual."
+    },
+    {
+      "id": "low_basket",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_low_basket", "filterPieceType": "sample_yellow" },
+      "actions": [
+        { "kind": "addScore", "channel": "trueScore", "points": 4, "accumulator": "true_score" },
+        { "kind": "despawnPiece" }
+      ],
+      "fireScope": "piece",
+      "explain": "SAMPLE in LOW BASKET: 4 AUTO points. VERIFY."
+    },
+    {
+      "id": "net_zone",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_net", "filterPieceType": "sample_yellow" },
+      "actions": [
+        { "kind": "addScore", "channel": "trueScore", "points": 2, "accumulator": "true_score" }
+      ],
+      "fireScope": "piece",
+      "explain": "SAMPLE in NET ZONE: 2 points. VERIFY."
+    },
+    {
+      "id": "low_chamber",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_low_chamber", "filterPieceType": "clipped_sample" },
+      "actions": [
+        { "kind": "addScore", "channel": "trueScore", "points": 6, "accumulator": "true_score" },
+        { "kind": "despawnPiece" }
+      ],
+      "fireScope": "piece",
+      "explain": "Clipped sample on LOW CHAMBER: 6 AUTO points. VERIFY."
+    },
+    {
+      "id": "high_chamber",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_high_chamber", "filterPieceType": "clipped_sample" },
+      "actions": [
+        { "kind": "addScore", "channel": "trueScore", "points": 10, "accumulator": "true_score" },
+        { "kind": "despawnPiece" }
+      ],
+      "fireScope": "piece",
+      "explain": "Clipped sample on HIGH CHAMBER: 10 AUTO points. VERIFY."
+    },
+    {
+      "id": "ascent_l1",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [
+        { "op": "actorInVolume", "volumeId": "red_ascent_l1" }
+      ],
+      "actions": [
+        { "kind": "setFlag", "accumulator": "ascended_l1" },
+        { "kind": "addScore", "channel": "trueScore", "points": 3, "accumulator": "true_score" }
+      ],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "LEVEL 1 ASCENT: 3 AUTO points. Mutually exclusive with observation park. VERIFY."
+    },
+    {
+      "id": "park_observation",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [
+        { "op": "actorInVolume", "volumeId": "red_observation" },
+        { "op": "actorNotInVolume", "volumeId": "red_ascent_l1" }
+      ],
+      "actions": [
+        { "kind": "setFlag", "accumulator": "parked" },
+        { "kind": "addScore", "channel": "trueScore", "points": 3, "accumulator": "true_score" }
+      ],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "PARKED in OBSERVATION ZONE: 3 AUTO points if not also in L1 ascent. VERIFY."
+    },
+    {
+      "id": "restricted_entry",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "restricted_for_red" },
+      "actions": [{ "kind": "setFlag", "accumulator": "restricted_entry" }],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "AUTO restricted-volume entry recorded (0 points; eval metric)."
+    }
+  ],
+  "scoreChannels": {
+    "trueScore": "true_score",
+    "rankingPointsProxy": "true_score"
+  },
+  "optimizationObjectives": ["mean_true_score"]
+}

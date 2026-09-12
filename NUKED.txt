@@ -1,0 +1,7 @@
+This repository was intentionally wiped on 2026-09-08 at the owner's request.
+
+Local files and .git history were deleted.
+Remote GitHub delete (TalonStrikeJP/TalonGym) failed: account lacks admin rights and/or the delete_repo OAuth scope.
+To finish remote deletion, run:
+  gh auth refresh -h github.com -s delete_repo
+  gh repo delete TalonStrikeJP/TalonGym --yes

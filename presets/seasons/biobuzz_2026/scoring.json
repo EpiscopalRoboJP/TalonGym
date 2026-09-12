@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "biobuzz_2026_scoring_v1",
+  "displayName": "BIOBUZZ AUTO scoring (V1 Table 10-2)",
+  "fieldPresetId": "biobuzz_2026_field_v1",
+  "provenance": {
+    "manualRevision": "V1",
+    "sourceUrl": "https://ftc-resources.firstinspires.org/ftc/game/manual-10",
+    "effectiveDate": "2026-09-12",
+    "verifyAgainstManual": true,
+    "pointTableRef": "Table 10-2"
+  },
+  "requiredCapabilities": [
+    "trigger_volumes",
+    "end_of_phase_scoring",
+    "n_stage_scoring",
+    "ranking_point_thresholds",
+    "phase_clock"
+  ],
+  "phases": [
+    { "id": "AUTO", "durationS": 30, "policyActive": true },
+    { "id": "TRANSITION", "durationS": 8, "policyActive": false },
+    { "id": "TELEOP", "durationS": 120, "policyActive": false }
+  ],
+  "matchVariables": [],
+  "accumulators": [
+    { "id": "true_score", "valueType": "float", "scope": "alliance", "init": 0 },
+    { "id": "left_wall", "valueType": "bool", "scope": "robot", "init": false },
+    { "id": "parked_auto", "valueType": "bool", "scope": "robot", "init": false },
+    { "id": "leave_park_points", "valueType": "int", "scope": "alliance", "init": 0 },
+    { "id": "red_up_cell_load", "valueType": "int", "scope": "element", "init": 3 },
+    { "id": "launched_count", "valueType": "int", "scope": "alliance", "init": 0 },
+    { "id": "tip_count", "valueType": "int", "scope": "alliance", "init": 0 },
+    { "id": "rp_proxy_swarm", "valueType": "bool", "scope": "alliance", "init": false },
+    { "id": "restricted_entry", "valueType": "bool", "scope": "robot", "init": false }
+  ],
+  "nodes": [
+    {
+      "id": "leave_at_auto_end",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [{ "op": "actorInVolume", "volumeId": "leave_interior" }],
+      "actions": [
+        { "kind": "setFlag", "accumulator": "left_wall" },
+        { "kind": "addScore", "channel": "trueScore", "points": 3, "accumulator": "true_score" },
+        { "kind": "incAccumulator", "accumulator": "leave_park_points", "delta": 3 }
+      ],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "LEAVE: 3 points at end of AUTO if the ROBOT is no longer contacting the perimeter wall. VERIFY Table 10-2."
+    },
+    {
+      "id": "park_at_auto_end",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [{ "op": "actorInVolume", "volumeId": "red_park" }],
+      "actions": [
+        { "kind": "setFlag", "accumulator": "parked_auto" },
+        { "kind": "addScore", "channel": "trueScore", "points": 5, "accumulator": "true_score" },
+        { "kind": "incAccumulator", "accumulator": "leave_park_points", "delta": 5 }
+      ],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "PARK: 5 AUTO points if the ROBOT is at least partially in the LOADING ZONE. VERIFY Table 10-2."
+    },
+    {
+      "id": "launch_into_up_cell",
+      "enabledPhases": ["AUTO", "TELEOP"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_cell_up", "filterPieceType": "pollen,nectar_red" },
+      "actions": [
+        { "kind": "incAccumulator", "accumulator": "red_up_cell_load", "delta": 1 },
+        { "kind": "incAccumulator", "accumulator": "launched_count", "delta": 1 },
+        { "kind": "transferPiece", "toVolume": "red_cell_up" }
+      ],
+      "maxFires": 1,
+      "fireScope": "piece",
+      "explain": "LAUNCH into the upward-facing CELL. Counted toward a HIVE TIP. VERIFY G417."
+    },
+    {
+      "id": "hive_tip",
+      "enabledPhases": ["AUTO", "TELEOP"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "red_cell_up", "filterPieceType": "pollen,nectar_red" },
+      "conditions": [{ "op": "accumulatorGte", "accumulator": "red_up_cell_load", "value": 7 }],
+      "actions": [
+        { "kind": "addScore", "channel": "trueScore", "points": 20, "accumulator": "true_score" },
+        { "kind": "incAccumulator", "accumulator": "tip_count", "delta": 1 },
+        { "kind": "incAccumulator", "accumulator": "red_up_cell_load", "delta": -7 }
+      ],
+      "explain": "HIVE TIP: 20 points. Placeholder threshold is 7 in the upward CELL (3 staged NECTAR + 4 launched). Same volume stays the up cell; spilled pieces are consumed. VERIFY CAD / Field Setup Guide and Table 10-2. Tips complete before TELEOP count as AUTO."
+    },
+    {
+      "id": "swarm_rp_proxy_at_auto_end",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "phaseEnd", "phase": "AUTO" },
+      "conditions": [
+        {
+          "op": "and",
+          "allOf": [
+            { "op": "accumulatorEq", "accumulator": "left_wall", "value": true },
+            { "op": "accumulatorEq", "accumulator": "parked_auto", "value": true }
+          ]
+        }
+      ],
+      "actions": [{ "kind": "setFlag", "accumulator": "rp_proxy_swarm" }],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "SWARM RP proxy: this ROBOT earned LEAVE+PARK (8 of the 16-point alliance threshold). Teammate is static in sim. VERIFY Table 10-3."
+    },
+    {
+      "id": "restricted_entry",
+      "enabledPhases": ["AUTO"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "restricted_for_red" },
+      "actions": [{ "kind": "setFlag", "accumulator": "restricted_entry" }],
+      "maxFires": 1,
+      "fireScope": "actor",
+      "explain": "AUTO restricted-volume entry recorded (0 points; eval metric)."
+    }
+  ],
+  "scoreChannels": {
+    "trueScore": "true_score",
+    "rankingPointsProxy": "rp_proxy_swarm"
+  },
+  "rankingPointThresholds": [
+    {
+      "id": "swarm",
+      "accumulator": "leave_park_points",
+      "thresholdsByEventClass": { "other": 16 }
+    },
+    {
+      "id": "pollinator_1",
+      "accumulator": "tip_count",
+      "thresholdsByEventClass": { "other": 4 }
+    },
+    {
+      "id": "pollinator_2",
+      "accumulator": "tip_count",
+      "thresholdsByEventClass": { "other": 7 }
+    }
+  ],
+  "optimizationObjectives": ["mean_true_score", "lcb_true_score", "p10_true_score", "rp_proxy_probability"]
+}

@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+var/
+outputs/
+web/node_modules/
+web/dist/
+engine/target/
+*.db
+.DS_Store
+MUJOCO_LOG.TXT
