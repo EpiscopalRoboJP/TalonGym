@@ -9,7 +9,7 @@ How-to pages for running TalonGym today. The architecture spec, Kickoff runbook,
 3. Train RecurrentPPO from the CLI or `/train`: [TRAINING.md](TRAINING.md)
 4. Rank candidates with held-out trials and CIs: [EVALUATION.md](EVALUATION.md)
 5. Scrub a replay in the Lab: [LAB.md](LAB.md)
-6. Paste Road Runner 1.0 Actions into robot code: [EXPORT.md](EXPORT.md)
+6. Export Road Runner 1.0 Actions and paste into an AUTO OpMode: [EXPORT.md](EXPORT.md)
 
 Every CLI command, including calibrate and distill: [CLI.md](CLI.md).
 
@@ -23,7 +23,7 @@ Every CLI command, including calibrate and distill: [CLI.md](CLI.md).
 | [LAB.md](LAB.md) | Use Replay, Train, Field, Robot, and Compare in the browser |
 | [PRESETS.md](PRESETS.md) | Switch seasons, lint JSON, and keep nouns in data |
 | [EVALUATION.md](EVALUATION.md) | Run the statistical harness and read the leaderboard |
-| [EXPORT.md](EXPORT.md) | Export Road Runner Java, distill ONNX, or fit a robot overlay |
+| [EXPORT.md](EXPORT.md) | Export Road Runner Java to paste into an AUTO OpMode; distill ONNX (demo); fit a robot overlay |
 
 ## Spec and season process
 
@@ -36,6 +36,8 @@ Every CLI command, including calibrate and distill: [CLI.md](CLI.md).
 
 JSON Schema for presets lives in [`../schemas/`](../schemas/).
 
-## Intended use
+## Deployment path (always and only)
 
-Off-field strategy discovery, rehearsal, and export into *your* autonomous code. Do not stream policy actions to a robot during a MATCH. See the boundary in [../README.md](../README.md).
+Train offline → export a trajectory → paste into an AUTO OpMode → Control Hub runs that OpMode.
+
+TalonGym is off-field only. The Control Hub runs the pasted OpMode; TalonGym does not talk to the robot during a MATCH. Full boundary: [../README.md](../README.md).

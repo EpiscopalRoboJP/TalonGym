@@ -1,8 +1,8 @@
 # TalonGym
 
-A **training and strategy-discovery aid** for FIRST Tech Challenge (FTC) autonomous periods. Teams configure a field, robot, and scoring-rules preset; train a control policy in a fast 2.5D simulator; inspect *why* a strategy scored; and export a Road Runner 1.0 Actions snippet they can paste into competition code.
+A **training and strategy-discovery aid** for FIRST Tech Challenge (FTC) autonomous periods. Teams configure a field, robot, and scoring-rules preset; train a control policy in a 2.5D simulator (DECODE) or a MuJoCo 3D mesh field (BIOBUZZ); inspect *why* a strategy scored; and export a Road Runner 1.0 Actions snippet they paste into an AUTO OpMode.
 
-This is **not** a mechanism for real-time in-match robot control. Using it during a MATCH to drive or retarget a robot would violate the spirit of FTC Autonomous (zero driver input) and is outside the intended-use boundary of this product.
+**Always and only this deployment path:** train offline → export a trajectory → paste into an AUTO OpMode → the Control Hub runs that OpMode. TalonGym never talks to a robot during a MATCH.
 
 ## What it does
 
@@ -11,10 +11,16 @@ This is **not** a mechanism for real-time in-match robot control. Using it durin
 3. Exposes a browser 3D visualizer (MeepMeep-style replay, live training, preset builders, leaderboard).
 4. Treats the current game as a **preset**, not an engine shape. DECODE™ presented by RTX (2025–2026, Competition Manual **TU32**) ships as the flagship preset. INTO THE DEEP℠ (2024–2025) ships as the season-agnostic regression proof. CENTERSTAGE℠ (2023–2024) is the third regression preset. BIOBUZZ™ (2026–2027) is the Kickoff-week acceptance test: a team must stand it up from data + a small rule graph, without a core-engine PR.
 
-## Intended-use boundary (spirit of competition)
+## Deployment path (always and only)
 
-- **Allowed:** off-field strategy discovery, path rehearsal, sim-to-real calibration against *your own* logs, exporting a trajectory into *your* robot code that then runs autonomously on the field.
-- **Not allowed / not supported:** streaming policy actions to a robot during a MATCH; leaking motif/randomization from the event system into the robot before the robot would perceive it; treating a single lucky sim rollout as “the auto.”
+1. **Train offline** in TalonGym (CLI or Lab). The policy never leaves the simulator.
+2. **Export a trajectory** as Road Runner 1.0 Actions (inches, official FTC coordinates).
+3. **Paste that snippet into an AUTO OpMode** in *your* robot code.
+4. **The Control Hub runs that OpMode** on the field. No laptop, no live policy, no retargeting.
+
+That is the only supported way a TalonGym result may be used at an event. It matches FTC Autonomous: the robot runs pre-programmed instructions with zero driver input (G401).
+
+**Not supported (and illegal play if used in a MATCH):** streaming policy actions to a robot; running the neural net on the field; using TalonGym or any other PC as a live controller; leaking motif/randomization into the robot before onboard sensors would perceive it; treating a single lucky sim rollout as “the auto.”
 
 ## Hardware modes
 
@@ -30,7 +36,7 @@ Throughput and time-to-policy numbers are **Phase 0 benchmark gates**, not claim
 
 - DECODE Competition Manual TU32: https://ftc-resources.firstinspires.org/ftc/archive/2026/game/manual
 - DECODE Game Details (HTML): https://ftc-resources.firstinspires.org/ftc/game/manual-10
-- DECODE field CAD / STEP: https://ftc-resources.firstinspires.org/ftc/archive/2026/field
+- BIOBUZZ field CAD / STEP: https://ftc-resources.firstinspires.org/ftc/archive/2027/field
 - FTC field coordinate system: https://ftc-docs.firstinspires.org/en/latest/game_specific_resources/field_coordinate_system/field-coordinate-system.html
 - Road Runner 1.0 Actions: https://rr.brott.dev/docs/v1-0/actions/
 - MeepMeep: https://github.com/acmerobotics/meepmeep
@@ -44,7 +50,7 @@ python -m pip install -e ".[dev,rl]"
 python -m talongym lab
 ```
 
-Optional extras: `[scale]` Ray/RLlib, `[mujoco]` 3D validation only, `[postgres]` when `TALONGYM_DATABASE_URL` is set. LSTM ONNX export is 501; `python -m talongym distill` writes a feed-forward demo. Deployment export remains Road Runner 1.0.
+Optional extras: `[scale]` Ray/RLlib, `[mujoco]` required for BIOBUZZ 3D mesh physics (DECODE stays planar), `[cad]` official STEP tessellation, `[postgres]` when `TALONGYM_DATABASE_URL` is set. LSTM ONNX export is 501; `python -m talongym distill` writes a feed-forward demo and is not a deployment path. The only match-bound artifact is a Road Runner 1.0 snippet pasted into an AUTO OpMode.
 
 Open http://127.0.0.1:8765 after `cd web && npm install && npm run build`, or use Vite (`npm run dev` in `web/`, API on :8765). State lives in `var/talongym.db` — not in the browser.
 
@@ -56,6 +62,7 @@ python -m talongym train --steps 8192
 python -m talongym replay
 python -m talongym evaluate --trials 32
 python -m talongym distill
+python -m talongym import-field-cad
 python -m pytest
 ```
 

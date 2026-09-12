@@ -50,7 +50,7 @@ python -m talongym replay
 python -m talongym replay --seed 0
 ```
 
-Rolls the scripted policy, writes Road Runner 1.0 Java to `var/last_replay.java`, prints `frames=… trueScore=… export=…`. How-to: [EXPORT.md](EXPORT.md).
+Rolls the scripted policy, writes Road Runner 1.0 Java to `var/last_replay.java`, prints `frames=… trueScore=… export=…`. Paste that file into an AUTO OpMode; the Control Hub runs it. How-to: [EXPORT.md](EXPORT.md).
 
 ## `defaults`
 
@@ -87,7 +87,16 @@ python -m talongym validate-3d
 python -m talongym validate-3d --steps 40
 ```
 
-Compares planar 2D vs MuJoCo on a short chassis motion; prints pose RMSE. Not used for bulk RL.
+Compares planar 2D vs MuJoCo on a short chassis motion; prints pose RMSE. The chassis-only adapter is not the BIOBUZZ train backend (`MujocoFieldBackend` + `collisionAsset`).
+
+## `import-field-cad`
+
+```bash
+python -m talongym import-field-cad
+python -m talongym import-field-cad --page https://ftc-resources.firstinspires.org/ftc/archive/2027/field
+```
+
+Writes `assets/seasons/<slug>/field.glb` and `field_mjcf.xml`. Tries official STEP from the archive page; HubSpot often hides the file, in which case the field preset AABBs are tessellated. Raw STEP is not committed (`var/cad/`).
 
 ## `distill`
 
@@ -96,4 +105,4 @@ python -m talongym distill
 python -m talongym distill --steps 256
 ```
 
-Clones scripted waypoint targets into a feed-forward ONNX (or `.npz` if torch is missing). Demo only — not LSTM, not on-robot inference. Output under `var/ckpts/ff_distill.onnx`.
+Clones scripted waypoint targets into a feed-forward ONNX (or `.npz` if torch is missing). Demo only — not LSTM, not a field path. AUTO on the field is a pasted Road Runner OpMode. Output under `var/ckpts/ff_distill.onnx`.

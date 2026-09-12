@@ -1,6 +1,8 @@
 # Export, distill, and calibration
 
-Deployment artifact is a **Road Runner 1.0 Actions** snippet (inches, official FTC coordinates). Neural-net export is a demo, not on-robot inference.
+**Always and only this path to the field:** train offline → export a trajectory → paste into an AUTO OpMode → the Control Hub runs that OpMode.
+
+The match-bound artifact is a **Road Runner 1.0 Actions** snippet (inches, official FTC coordinates). Neural-net export (`distill`) is a pipeline demo, not on-robot inference and not a deployment path. TalonGym does not stream actions during a MATCH.
 
 ## Road Runner from the CLI
 
@@ -8,7 +10,7 @@ Deployment artifact is a **Road Runner 1.0 Actions** snippet (inches, official F
 python -m talongym replay --seed 0
 ```
 
-Writes `var/last_replay.java` from a scripted episode on the active bundle. Open the file and paste into `MeepMeepTesting` / an OpMode.
+Writes `var/last_replay.java` from a scripted episode on the active bundle. Paste that snippet into an AUTO OpMode (MeepMeep is fine for rehearsal). The Control Hub, not TalonGym, runs it in a MATCH.
 
 Dialects (API body `dialect`, Python `to_roadrunner_java`):
 
@@ -26,7 +28,7 @@ Waypoints are taken from the first robot pose each frame and **decimated** (~8 i
 
 Both call `POST /api/v1/replays/{id}/export/roadrunner`. Training jobs also store a `roadrunner` artifact on the run.
 
-This is still a simulated path. Calibrate the robot preset before treating timings as real ([#calibration](#calibration)). Intended use: paste into **your** autonomous; do not stream actions during a MATCH.
+This is still a simulated path. Calibrate the robot preset before treating timings as real ([#calibration](#calibration)). Then paste into **your** AUTO OpMode so the Control Hub runs it. Do not stream actions during a MATCH.
 
 ## Distill (feed-forward demo)
 
@@ -36,7 +38,7 @@ LSTM ONNX is not a supported deployment path (`POST /runs/{id}/export/onnx` retu
 python -m talongym distill --steps 256
 ```
 
-Collects scripted `target_pose` labels, fits a small MLP (torch) or a linear map, writes `var/ckpts/ff_distill.onnx` or `.npz`. Use it to prove the export pipeline, not to run AUTO on the robot.
+Collects scripted `target_pose` labels, fits a small MLP (torch) or a linear map, writes `var/ckpts/ff_distill.onnx` or `.npz`. Use it to prove the export pipeline. Do not load it on the Control Hub; AUTO on the field is the pasted Road Runner OpMode only.
 
 ## Calibration
 

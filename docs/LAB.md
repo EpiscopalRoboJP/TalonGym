@@ -39,7 +39,7 @@ The top bar health chip is `GET /api/v1/health` (`engine`, `db`, ok). If it says
 - Keys: Space play/pause, arrows step, Home/End jump (when focus is not in an input).
 - **Score** tab: running `trueScore` and per-event explains.
 - **Field state** tab: ramp queue, gate, privileged vs observed match variables (inspection only).
-- **Export** tab: Road Runner 1.0 Actions from the decimated path.
+- **Export** tab: Road Runner 1.0 Actions from the decimated path. Paste into an AUTO OpMode; the Control Hub runs it. TalonGym does not stream this during a MATCH.
 
 Training and evaluation jobs also store replays; pick them from the dropdown (id · source · true score).
 

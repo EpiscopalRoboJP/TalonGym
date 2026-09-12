@@ -39,7 +39,7 @@ def to_roadrunner_java(
         return "\n".join(lines) + "\n"
     lines = [
         "// TalonGym export — Road Runner 1.0 Actions",
-        "// Paste into MeepMeepTesting / OpMode. Inches, FTC official coords.",
+        "// Paste into an AUTO OpMode. Control Hub runs it. Inches, FTC official coords.",
         "Actions.runBlocking(",
         f"    drive.actionBuilder(new Pose2d({sx:.2f}, {sy:.2f}, {sh:.4f}))",
     ]

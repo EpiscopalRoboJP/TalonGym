@@ -27,7 +27,7 @@ Open `/compare` ([LAB.md](LAB.md)).
 1. **Run 24-trial evaluation (scripted)** — stores a row; UI keeps it unlabeled (`n<500`).
 2. Pick a finished training run and **Optional checkpoint eval** — loads that run’s checkpoint artifact and the run’s field/robot/scoring ids.
 3. Read mean, CI whiskers, p10, collision time, restricted-entry rate.
-4. Export Road Runner from the eval’s best-scoring replay.
+4. Export Road Runner from the eval’s best-scoring replay, then paste into an AUTO OpMode (Control Hub runs it; this is the only field path).
 
 The page refuses a “best” label when any of:
 
