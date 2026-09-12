@@ -17,7 +17,7 @@ class FTCAutoEnv(gym.Env):
     def __init__(
         self,
         bundle: LoadedPresets | None = None,
-        control_hz: int = 25,
+        control_hz: int | None = None,
         static_teammate: bool = True,
         motif_known_at_t0: bool = False,
         record: bool = False,
@@ -31,7 +31,9 @@ class FTCAutoEnv(gym.Env):
     ) -> None:
         super().__init__()
         self.bundle = bundle or load_bundle()
-        self.control_hz = control_hz
+        ep = (self.bundle.training or {}).get("episode") or {}
+        self.control_hz = int(control_hz or ep.get("controlHz") or 25)
+        substeps = int(ep.get("physicsSubsteps") or 2)
         self.static_teammate = static_teammate
         self.motif_known_at_t0 = motif_known_at_t0
         self.record = record
@@ -42,7 +44,7 @@ class FTCAutoEnv(gym.Env):
         self.learner_id = learner_id
         self.fill_others = fill_others
         self.shared_alliance_reward = shared_alliance_reward or teammate_policy == "shared_reward"
-        self.world = World(self.bundle, control_hz=control_hz)
+        self.world = World(self.bundle, control_hz=self.control_hz, substeps=substeps)
         self.K = 6
         self.M = 6
         field = self.bundle.field
@@ -93,6 +95,10 @@ class FTCAutoEnv(gym.Env):
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[dict, dict]:
         super().reset(seed=seed)
         opts = options or {}
+        if opts.get("teammate_policy") is not None:
+            self.teammate_policy = str(opts["teammate_policy"])
+        if opts.get("opponent_policy") is not None:
+            self.opponent_policy = str(opts["opponent_policy"])
         teammate = opts.get("teammate_policy", self.teammate_policy)
         opponent = opts.get("opponent_policy", self.opponent_policy)
         live = teammate in {"scripted", "shared_reward", "independent"}
@@ -102,11 +108,13 @@ class FTCAutoEnv(gym.Env):
         opp_mode = opponent if opponent not in {None, "none"} else "none"
         if opts.get("opponent_mode"):
             opp_mode = opts["opponent_mode"]
+        full_noise = bool(opts.get("full_noise", True))
         self.world.reset(
             seed=seed,
             static_teammate=static,
             opponent_mode=opp_mode,
             live_teammate=live or bool(opts.get("live_teammate")),
+            full_noise=full_noise,
         )
         if opts.get("action_tier"):
             self.action_tier = opts["action_tier"]
@@ -336,7 +344,7 @@ def flatten_obs(obs: dict[str, np.ndarray]) -> np.ndarray:
 
 
 class FlatBoxEnv(gym.Env):
-    """SB3-friendly Box obs/action wrapper around FTCAutoEnv."""
+    """SB3-friendly Box obs/action wrapper around FTCAutoEnv (RLlib / legacy)."""
 
     def __init__(self, env: FTCAutoEnv) -> None:
         super().__init__()
@@ -363,6 +371,25 @@ class FlatBoxEnv(gym.Env):
 
     def close(self):
         self.env.close()
+
+
+class BoxActionDictObsEnv(gym.Wrapper):
+    """Keep Dict observations for MultiInputLstmPolicy; flatten mixed actions for SB3."""
+
+    def __init__(self, env: gym.Env) -> None:
+        super().__init__(env)
+        base = env.unwrapped
+        self._tier = getattr(base, "action_tier", "high_level_waypoint")
+        if self._tier == "low_level_velocity":
+            self.action_space = spaces.Box(-60, 60, shape=(4,), dtype=np.float32)
+        else:
+            pose = base.action_space["target_pose"]
+            n_mech = float(len(MECHANISM_VERBS) - 1)
+            self.action_space = spaces.Box(
+                low=np.concatenate([pose.low, np.array([0.2, 0.0], np.float32)]),
+                high=np.concatenate([pose.high, np.array([1.0, n_mech], np.float32)]),
+                dtype=np.float32,
+            )
 
 
 class EncoderOnlyObsAssertWrapper(gym.Wrapper):

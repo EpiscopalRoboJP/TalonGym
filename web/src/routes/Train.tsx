@@ -4,13 +4,23 @@ import { FieldScene } from "../scene/FieldScene";
 import { Sparkline } from "../Sparkline";
 import { getJson, loadReplayFrames, postJson, putJson, type DefaultsBundle, type Frame, type PresetMeta, type RunRow } from "../api";
 
+type Profile = "demo" | "short" | "preset";
+
 type Metrics = {
   envSteps?: number;
+  nEnvs?: number;
   algo?: string;
   replayId?: string;
   trueScoreMean?: number | null;
   objectiveMean?: number | null;
   shapingMean?: number | null;
+  evalTrueScoreMean?: number | null;
+  entropy?: number | null;
+  approxKl?: number | null;
+  progressFrac?: number | null;
+  curriculumStage?: number | string | null;
+  curriculumUnlock?: string[];
+  fps?: number | null;
 };
 
 export function TrainPage() {
@@ -28,12 +38,15 @@ export function TrainPage() {
   const [scoringId, setScoringId] = useState("decode_2025_scoring_tu32");
   const [trainingId, setTrainingId] = useState("decode_auto_lightweight");
   const [defaultSeason, setDefaultSeason] = useState("");
-  const [demo, setDemo] = useState(true);
+  const [profile, setProfile] = useState<Profile>("demo");
   const [trueSeries, setTrueSeries] = useState<number[]>([]);
+  const [evalSeries, setEvalSeries] = useState<number[]>([]);
   const [shapeSeries, setShapeSeries] = useState<number[]>([]);
   const [rollout, setRollout] = useState<Frame[]>([]);
   const [rolloutI, setRolloutI] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
+  const watchingRef = useRef<string | null>(null);
+  const replayLoadedRef = useRef<string | null>(null);
 
   async function refreshList() {
     const list = await getJson<RunRow[]>("/runs");
@@ -69,7 +82,15 @@ export function TrainPage() {
       const row = list.find((r) => r.id === current.id) || (await getJson<RunRow>(`/runs/${current.id}`));
       if (row) {
         setCurrent(row);
-        pushSeries(row.metrics as Metrics);
+        const m = row.metrics as Metrics;
+        pushSeries(m);
+        if (m.replayId && replayLoadedRef.current !== m.replayId) {
+          replayLoadedRef.current = m.replayId;
+          loadReplayFrames(m.replayId).then((frames) => {
+            setRollout((prev) => (prev.length ? prev : frames.filter((_, idx) => idx % 5 === 0)));
+            setRolloutI(0);
+          });
+        }
       }
     }, 2000);
     return () => window.clearInterval(id);
@@ -85,13 +106,22 @@ export function TrainPage() {
     if (typeof m.trueScoreMean === "number") {
       setTrueSeries((s) => (s.length && s[s.length - 1] === m.trueScoreMean ? s : [...s.slice(-80), m.trueScoreMean as number]));
     }
+    if (typeof m.evalTrueScoreMean === "number") {
+      setEvalSeries((s) => (s.length && s[s.length - 1] === m.evalTrueScoreMean ? s : [...s.slice(-80), m.evalTrueScoreMean as number]));
+    }
     if (typeof m.shapingMean === "number") {
       setShapeSeries((s) => (s.length && s[s.length - 1] === m.shapingMean ? s : [...s.slice(-80), m.shapingMean as number]));
     }
   }
 
   function openRun(id: string) {
+    if (watchingRef.current === id && wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) {
+      return;
+    }
+    watchingRef.current = id;
+    replayLoadedRef.current = null;
     setTrueSeries([]);
+    setEvalSeries([]);
     setShapeSeries([]);
     setRollout([]);
     navigate(`/train/${id}`, { replace: true });
@@ -159,25 +189,33 @@ export function TrainPage() {
 
   async function start() {
     setLog("Queueing training…");
-    const res = await postJson<{ runId: string }>("/runs", {
-      demo,
-      nEnvs: 4,
-      budget: { totalEnvSteps: demo ? 4096 : 8192 },
-      presets: { fieldId, robotId, scoringId },
-    });
+    const body: Record<string, unknown> = {
+      demo: profile === "demo",
+      presets: { fieldId, robotId, scoringId, trainingId },
+    };
+    if (profile === "demo") {
+      body.nEnvs = 2;
+      body.budget = { totalEnvSteps: 4096 };
+    } else if (profile === "short") {
+      body.nEnvs = 4;
+      body.budget = { totalEnvSteps: 16384 };
+    }
+    const res = await postJson<{ runId: string }>("/runs", body);
     openRun(res.runId);
     setLog(`Run ${res.runId} started. Leaderboard uses true score, not shaping.`);
   }
 
   async function cancel() {
     if (!current) return;
-    await postJson(`/runs/${current.id}/cancel`, {});
     setLog(`Cancel requested for ${current.id}.`);
+    await postJson(`/runs/${current.id}/cancel`, {});
   }
 
   const metrics = (current?.metrics || {}) as Metrics;
   const liveFrame = rollout[rolloutI] || null;
   const fieldOptions = useMemo(() => fields, [fields]);
+  const busy = current?.state === "running" || current?.state === "queued";
+  const progress = typeof metrics.progressFrac === "number" ? Math.max(0, Math.min(1, metrics.progressFrac)) : 0;
 
   function fmt(n: unknown) {
     return typeof n === "number" ? n.toFixed(3).replace(/\.?0+$/, "") : "—";
@@ -203,12 +241,17 @@ export function TrainPage() {
       <aside className="side">
         <div className="page-head">
           <h2>Training dashboard</h2>
-          <p className="note">True score is the leaderboard. Shaping is never ranked.</p>
+          <p className="note">True score is the leaderboard. Shaping is never ranked. RecurrentPPO keeps Dict observations and an LSTM.</p>
         </div>
         <div className="card">
           <h3>True score (leaderboard)</h3>
           <Sparkline values={trueSeries} label="True score mean over time" color="#6fbfa3" />
-          <div className="stat">mean {fmt(metrics.trueScoreMean)}</div>
+          <div className="stat">episode mean {fmt(metrics.trueScoreMean)}</div>
+        </div>
+        <div className="card">
+          <h3>Held-out eval true score</h3>
+          <Sparkline values={evalSeries} label="Eval true score mean over time" color="#8ec5e8" />
+          <div className="stat">eval mean {fmt(metrics.evalTrueScoreMean)}</div>
         </div>
         <div className="card">
           <h3>Shaping (not leaderboard)</h3>
@@ -218,23 +261,51 @@ export function TrainPage() {
         {current && (
           <div className="banner">
             <span className={pillClass(current.state)}>{current.state}</span> {current.id} · algo{" "}
-            {String(metrics.algo || "—")} · steps {metrics.envSteps ?? 0}
+            {String(metrics.algo || "—")} · {metrics.nEnvs ?? "—"} envs · steps {metrics.envSteps ?? 0}
             {metrics.replayId ? (
               <>
                 {" "}
                 · <Link to={`/replay/${metrics.replayId}`}>open replay</Link>
+                {" · "}
+                <Link to="/compare">compare</Link>
               </>
             ) : null}
+            <div className="meter" aria-hidden="true">
+              <span style={{ width: `${progress * 100}%` }} />
+            </div>
+            <div className="stat" style={{ marginBottom: 0 }}>
+              stage {metrics.curriculumStage ?? "—"}
+              {metrics.curriculumUnlock?.length ? ` · ${metrics.curriculumUnlock.join(", ")}` : ""}
+              {" · "}entropy {fmt(metrics.entropy)} · KL {fmt(metrics.approxKl)}
+              {metrics.fps != null ? ` · ${fmt(metrics.fps)} fps` : ""}
+            </div>
           </div>
         )}
         <div className="row">
-          <button className="primary" type="button" onClick={start}>
+          <button className="primary" type="button" onClick={start} disabled={busy}>
             Start run
           </button>
-          <button type="button" onClick={cancel} disabled={!current}>
+          <button type="button" onClick={cancel} disabled={!current || !busy}>
             Cancel
           </button>
         </div>
+        <label>Budget</label>
+        <div className="seg" role="group" aria-label="Training budget">
+          <button type="button" className={profile === "demo" ? "on" : ""} onClick={() => setProfile("demo")}>
+            Demo
+          </button>
+          <button type="button" className={profile === "short" ? "on" : ""} onClick={() => setProfile("short")}>
+            Short
+          </button>
+          <button type="button" className={profile === "preset" ? "on" : ""} onClick={() => setProfile("preset")}>
+            Preset
+          </button>
+        </div>
+        <p className="note">
+          {profile === "demo" && "4,096 steps, 2 envs, scripted fallback if RL extras are missing."}
+          {profile === "short" && "16,384-step RecurrentPPO on 4 envs. No scripted fallback."}
+          {profile === "preset" && "Uses the training preset budget and nEnvs (can be millions of steps)."}
+        </p>
         <details open={!current}>
           <summary>Run configuration</summary>
           <label htmlFor="train-field">Field preset</label>
@@ -278,10 +349,6 @@ export function TrainPage() {
               Use current selection
             </button>
           </div>
-          <label className="check">
-            <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} /> demo budget (scripted
-            fallback allowed)
-          </label>
         </details>
         <p className="note">{log}</p>
         <h2>Runs</h2>
@@ -294,7 +361,7 @@ export function TrainPage() {
               </button>
               <span className={pillClass(r.state)}>{r.state}</span>
               <span className="stat" style={{ margin: 0 }}>
-                true {fmt(m.trueScoreMean)} · shaping {fmt(m.shapingMean)} · {String(m.algo || "—")}
+                true {fmt(m.trueScoreMean)} · eval {fmt(m.evalTrueScoreMean)} · {String(m.algo || "—")}
               </span>
               {m.replayId ? <Link to={`/replay/${m.replayId}`}>replay</Link> : null}
             </div>

@@ -98,8 +98,11 @@ class World:
         self.intake_time = float(mech.get("intakeCycleTimeS", 0.4))
         self.score_time = float(mech.get("scoreCycleTimeS", 0.6))
         odo = self.robot.get("odometry") or {}
-        self.pos_noise = float(odo.get("positionNoiseStdIn", 0.3))
-        self.heading_noise = math.radians(float(odo.get("headingNoiseStdDeg", 1.0)))
+        self._base_pos_noise = float(odo.get("positionNoiseStdIn", 0.3))
+        self._base_heading_noise = math.radians(float(odo.get("headingNoiseStdDeg", 1.0)))
+        self.pos_noise = self._base_pos_noise
+        self.heading_noise = self._base_heading_noise
+        self.motor_strength = 1.0
         self.cameras = [s for s in self.robot.get("sensors") or [] if s.get("kind") == "apriltag_camera"]
         self.gate_ids = [
             el["id"]
@@ -138,15 +141,41 @@ class World:
         self.last_events: list[TickEvent] = []
         self.pending_piece_ops: list[tuple[str, str | None, str | None]] = []
 
+    def _domain_randomization(self) -> dict[str, Any]:
+        return ((self.bundle.training or {}).get("domainRandomization") or {})
+
+    def spawn_jitter_sigma(self) -> tuple[float, float]:
+        """Return (xy inches, heading radians) Gaussian sigmas from the training preset."""
+        dr = self._domain_randomization()
+        xy = float(dr.get("poseJitterIn", 0.2)) + float(dr.get("fieldBuildToleranceIn", 0.0))
+        heading = math.radians(float(dr.get("headingJitterDeg", 0.0)))
+        return xy, heading
+
+    def apply_episode_randomization(self, *, full_noise: bool = True) -> None:
+        dr = self._domain_randomization()
+        scale = float(dr.get("sensorNoiseScale") or 1.0)
+        if not full_noise:
+            scale *= 0.15
+        self.pos_noise = self._base_pos_noise * scale
+        self.heading_noise = self._base_heading_noise * scale
+        lo_hi = list(dr.get("motorStrengthRange") or [1.0, 1.0])
+        lo = float(lo_hi[0] if lo_hi else 1.0)
+        hi = float(lo_hi[1] if len(lo_hi) > 1 else lo)
+        if hi < lo:
+            lo, hi = hi, lo
+        self.motor_strength = float(self.rng.uniform(lo, hi)) if hi > lo else lo
+
     def reset(
         self,
         seed: int | None = None,
         static_teammate: bool = True,
         opponent_mode: str = "none",
         live_teammate: bool = False,
+        full_noise: bool = True,
     ) -> None:
         if seed is not None:
             self.rng = np.random.default_rng(seed)
+        self.apply_episode_randomization(full_noise=full_noise)
         self.time_s = 0.0
         self.phase = "AUTO"
         self.true_score = 0.0
@@ -170,9 +199,10 @@ class World:
             else:
                 rad = max(float(sh.get("width") or 3.0), float(sh.get("depth") or 3.0)) / 2.0
             color = (spec.get("attributes") or {}).get("color")
+            xy_sigma, _ = self.spawn_jitter_sigma()
             for pose in spawn.get("poses") or []:
-                jx = float(self.rng.normal(0, 0.2))
-                jy = float(self.rng.normal(0, 0.2))
+                jx = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 else 0.0
+                jy = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 else 0.0
                 name = f"p{pid}"
                 pid += 1
                 piece = Piece(
@@ -210,12 +240,16 @@ class World:
 
     def _make_robot(self, rid: str, alliance: str, slot: dict[str, Any], dynamic: bool) -> RobotState:
         pose = slot["pose"]
+        xy_sigma, heading_sigma = self.spawn_jitter_sigma()
+        jx = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 else 0.0
+        jy = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 else 0.0
+        jh = float(self.rng.normal(0, heading_sigma)) if heading_sigma > 0 else 0.0
         return RobotState(
             body=Body(
                 rid,
-                float(pose["x"]),
-                float(pose["y"]),
-                deg_to_rad(float(pose["headingDeg"])),
+                float(pose["x"]) + jx,
+                float(pose["y"]) + jy,
+                wrap_angle(deg_to_rad(float(pose["headingDeg"])) + jh),
                 hx=self.robot_hx,
                 hy=self.robot_hy,
                 dynamic=dynamic,
@@ -292,7 +326,7 @@ class World:
         tx, ty, th = float(target[0]), float(target[1]), float(target[2])
         ex, ey = tx - rs.body.x, ty - rs.body.y
         dist = math.hypot(ex, ey)
-        speed = self.max_vel * float(np.clip(speed_frac, 0.2, 1.0))
+        speed = self.max_vel * float(self.motor_strength) * float(np.clip(speed_frac, 0.2, 1.0))
         if dist > 1e-3:
             des_vx = speed * ex / dist
             des_vy = speed * ey / dist
@@ -313,7 +347,8 @@ class World:
         if not rs.body.dynamic:
             rs.body.vx = rs.body.vy = rs.body.omega = 0.0
             return
-        des_vx, des_vy, des_w = clip_twist(vx, vy, omega, self.robot)
+        s = float(self.motor_strength)
+        des_vx, des_vy, des_w = clip_twist(vx * s, vy * s, omega * s, self.robot)
         dvx = float(np.clip(des_vx - rs.body.vx, -self.max_accel * dt, self.max_accel * dt))
         dvy = float(np.clip(des_vy - rs.body.vy, -self.max_accel * dt, self.max_accel * dt))
         dw = float(np.clip(des_w - rs.body.omega, -self.max_ang_accel * dt, self.max_ang_accel * dt))

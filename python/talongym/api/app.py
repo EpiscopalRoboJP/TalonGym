@@ -16,7 +16,7 @@ from talongym.api import db, jobs
 from talongym.eval.harness import run_trials
 from talongym.export.roadrunner import export_from_replay
 from talongym.paths import WEB_DIST
-from talongym.presets.loader import PresetError, validate_document
+from talongym.presets.loader import PresetError, load_bundle, validate_document
 from talongym.sim.physics import default_backend
 from talongym.training.policies import scripted_auto
 from talongym.training.ppo import record_policy_episode, load_trained_policy
@@ -39,9 +39,10 @@ class ValidateBody(BaseModel):
 
 class RunBody(BaseModel):
     presets: dict[str, str] = Field(default_factory=dict)
-    budget: dict[str, int] = Field(default_factory=lambda: {"totalEnvSteps": 4096})
-    nEnvs: int = 4
+    budget: dict[str, int] | None = None
+    nEnvs: int | None = None
     demo: bool = True
+    resume: bool = False
     algorithm: dict[str, Any] = Field(default_factory=lambda: {"name": "recurrent_ppo"})
 
 
@@ -60,6 +61,7 @@ class ExportBody(BaseModel):
 @app.on_event("startup")
 def _startup() -> None:
     db.connect()
+    db.fail_orphan_runs()
 
 
 class DefaultsBody(BaseModel):
@@ -181,8 +183,14 @@ def get_run(run_id: str) -> dict[str, Any]:
 
 @app.post(f"{API}/runs/{{run_id}}/cancel")
 def cancel_run(run_id: str) -> dict[str, str]:
+    row = db.get_run(run_id)
+    if not row:
+        raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": run_id}})
     jobs.request_cancel(run_id)
-    return {"state": "cancelling"}
+    if row["state"] in {"queued", "running", "cancelling"}:
+        db.save_run(run_id, row["config"], "cancelled", row.get("metrics") or {}, row.get("log"))
+        jobs.emit(run_id, {"type": "status", "payload": {"state": "cancelled"}})
+    return {"state": "cancelled"}
 
 
 @app.post(f"{API}/runs/{{run_id}}/export/onnx")
@@ -250,6 +258,18 @@ def demo_replay() -> dict[str, str]:
 def start_eval(body: EvalBody) -> dict[str, Any]:
     n = max(8, min(int(body.nTrials), 500))
     policy = scripted_auto
+    bundle = None
+    run_presets: dict[str, str] = {}
+    if body.runId:
+        run = db.get_run(body.runId)
+        if run:
+            run_presets = (run.get("config") or {}).get("presets") or {}
+            bundle = load_bundle(
+                run_presets.get("fieldId"),
+                run_presets.get("robotId"),
+                run_presets.get("scoringId"),
+                run_presets.get("trainingId"),
+            )
     if body.policy in {"checkpoint", "trained"}:
         path = body.checkpoint
         if not path and body.runId:
@@ -259,15 +279,20 @@ def start_eval(body: EvalBody) -> dict[str, Any]:
         if not path:
             raise HTTPException(400, {"error": {"code": "NO_CHECKPOINT", "message": "No trained policy artifact"}})
         policy = load_trained_policy(path)
-    report = run_trials(n, policy, seed0=10_000_000, record_best=True)
+    if bundle is None:
+        bundle = load_bundle()
+    report = run_trials(n, policy, bundle=bundle, seed0=10_000_000, record_best=True)
     frames = report.pop("bestFrames", [])
     replay_id = db.save_replay(frames, {"source": "eval", "trueScore": report.get("bestScore")}) if frames else None
     report["replayId"] = replay_id
+    report["policy"] = body.policy
+    report["runId"] = body.runId
     report["bestLabelEligible"] = bool(n >= 500)
     if n < 500:
         report["bestLabelEligible"] = False
-    eid = db.save_evaluation(report)
-    return {"evaluationId": eid, "replayId": replay_id}
+    eid = db.save_evaluation(report, run_id=body.runId)
+    row = db.get_evaluation(eid) or {"id": eid, "report": report}
+    return {"evaluationId": eid, "replayId": replay_id, **row}
 
 
 @app.get(f"{API}/evaluations")
@@ -309,13 +334,23 @@ async def ws_run(websocket: WebSocket, run_id: str) -> None:
     def push(msg: dict) -> None:
         nonlocal seq
         seq += 1
-        payload = json.dumps({"v": 1, "seq": seq, **msg})
+        payload = json.dumps({"v": 1, "seq": seq, **msg}, default=str)
         loop.call_soon_threadsafe(outgoing.put_nowait, payload)
 
     jobs.subscribe(run_id, push)
     try:
         run = db.get_run(run_id)
-        await websocket.send_text(json.dumps({"v": 1, "seq": 0, "type": "status", "payload": run or {"state": "unknown"}}))
+        await websocket.send_text(
+            json.dumps({"v": 1, "seq": 0, "type": "status", "payload": run or {"state": "unknown"}})
+        )
+        if run and run.get("metrics"):
+            seq = 1
+            await websocket.send_text(json.dumps({"v": 1, "seq": 1, "type": "metrics", "payload": run["metrics"]}))
+        for msg in jobs.latest_messages(run_id):
+            if msg.get("type") not in {"rollout", "log"}:
+                continue
+            seq += 1
+            await websocket.send_text(json.dumps({"v": 1, "seq": seq, **msg}))
 
         async def pump_out() -> None:
             while True:

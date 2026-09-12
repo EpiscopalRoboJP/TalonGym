@@ -33,6 +33,36 @@ function cam(doc: RobotDoc) {
   return doc.sensors?.find((s) => s.kind === "apriltag_camera") || doc.sensors?.[0];
 }
 
+function Slider({
+  id,
+  label,
+  value,
+  min,
+  max,
+  step,
+  unit,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  unit: string;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <div className="slider-row">
+      <label htmlFor={id}>{label}</label>
+      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <span className="readout">
+        {value} {unit}
+      </span>
+    </div>
+  );
+}
+
 export function RobotBuilderPage() {
   const [list, setList] = useState<PresetMeta[]>([]);
   const [id, setId] = useState("mecanum_meepmeep_defaults");
@@ -83,123 +113,156 @@ export function RobotBuilderPage() {
   return (
     <div className="page single">
       <div>
-        <h2>Robot preset</h2>
-        <p className="note">
-          MeepMeep default vocabulary: 30 in/s, 30 in/s², 60 deg/s, 15 in track, 18×18 chassis, mecanum.
-        </p>
+        <div className="page-head">
+          <h2>Robot preset</h2>
+          <p className="note">MeepMeep default vocabulary: 30 in/s, 30 in/s², 60 deg/s, 15 in track, 18×18 chassis, mecanum.</p>
+        </div>
         <label htmlFor="robot-preset">Robot preset</label>
-        <select id="robot-preset" value={id} onChange={(e) => setId(e.target.value)}>
+        <select id="robot-preset" value={id} onChange={(e) => setId(e.target.value)} style={{ maxWidth: 420 }}>
           {list.map((p) => (
             <option key={p.id} value={p.id}>
               {p.displayName || p.id}
             </option>
           ))}
         </select>
-        <div className="form-grid" style={{ marginTop: "1rem" }}>
-          <label htmlFor="dt">Drivetrain</label>
-          <select
-            id="dt"
-            value={doc.drivetrain.type}
-            onChange={(e) => setDoc({ ...doc, drivetrain: { ...doc.drivetrain, type: e.target.value } })}
-          >
-            <option value="mecanum">mecanum</option>
-            <option value="tank">tank</option>
-            <option value="swerve">swerve</option>
-          </select>
-          <label htmlFor="max-vel">Max vel (in/s)</label>
-          <input
+        <div className="card">
+          <h3>Drivetrain</h3>
+          <div className="form-grid">
+            <label htmlFor="dt">Type</label>
+            <select
+              id="dt"
+              value={doc.drivetrain.type}
+              onChange={(e) => setDoc({ ...doc, drivetrain: { ...doc.drivetrain, type: e.target.value } })}
+            >
+              <option value="mecanum">mecanum</option>
+              <option value="tank">tank</option>
+              <option value="swerve">swerve</option>
+            </select>
+            <label htmlFor="track">Track width (in)</label>
+            <input
+              id="track"
+              className="narrow"
+              type="number"
+              value={doc.drivetrain.trackWidthIn}
+              onChange={(e) => setDoc({ ...doc, drivetrain: { ...doc.drivetrain, trackWidthIn: Number(e.target.value) } })}
+            />
+          </div>
+        </div>
+        <div className="card">
+          <h3>Motion limits (MeepMeep)</h3>
+          <Slider
             id="max-vel"
-            type="number"
+            label="Max vel"
             value={doc.constraints.maxVelInPerS}
-            onChange={(e) => setDoc({ ...doc, constraints: { ...doc.constraints, maxVelInPerS: Number(e.target.value) } })}
+            min={0}
+            max={80}
+            step={1}
+            unit="in/s"
+            onChange={(n) => setDoc({ ...doc, constraints: { ...doc.constraints, maxVelInPerS: n } })}
           />
-          <label htmlFor="max-acc">Max accel (in/s²)</label>
-          <input
+          <Slider
             id="max-acc"
-            type="number"
+            label="Max accel"
             value={doc.constraints.maxAccelInPerS2}
-            onChange={(e) =>
-              setDoc({ ...doc, constraints: { ...doc.constraints, maxAccelInPerS2: Number(e.target.value) } })
-            }
+            min={0}
+            max={80}
+            step={1}
+            unit="in/s²"
+            onChange={(n) => setDoc({ ...doc, constraints: { ...doc.constraints, maxAccelInPerS2: n } })}
           />
-          <label htmlFor="max-ang">Max ang vel (deg/s)</label>
-          <input
+          <Slider
             id="max-ang"
-            type="number"
+            label="Max ang vel"
             value={doc.constraints.maxAngVelDegPerS}
-            onChange={(e) =>
-              setDoc({ ...doc, constraints: { ...doc.constraints, maxAngVelDegPerS: Number(e.target.value) } })
-            }
+            min={0}
+            max={360}
+            step={1}
+            unit="deg/s"
+            onChange={(n) => setDoc({ ...doc, constraints: { ...doc.constraints, maxAngVelDegPerS: n } })}
           />
-          <label htmlFor="track">Track width (in)</label>
-          <input
-            id="track"
-            type="number"
-            value={doc.drivetrain.trackWidthIn}
-            onChange={(e) =>
-              setDoc({ ...doc, drivetrain: { ...doc.drivetrain, trackWidthIn: Number(e.target.value) } })
-            }
-          />
-          <label htmlFor="chassis-l">Chassis length (in)</label>
-          <input
-            id="chassis-l"
-            type="number"
-            value={doc.chassis.lengthIn}
-            onChange={(e) => setDoc({ ...doc, chassis: { ...doc.chassis, lengthIn: Number(e.target.value) } })}
-          />
-          <label htmlFor="chassis-w">Chassis width (in)</label>
-          <input
-            id="chassis-w"
-            type="number"
-            value={doc.chassis.widthIn}
-            onChange={(e) => setDoc({ ...doc, chassis: { ...doc.chassis, widthIn: Number(e.target.value) } })}
-          />
-          <label htmlFor="cap">Capacity</label>
-          <input
+        </div>
+        <div className="card">
+          <h3>Chassis</h3>
+          <div className="form-grid">
+            <label htmlFor="chassis-l">Length (in)</label>
+            <input
+              id="chassis-l"
+              className="narrow"
+              type="number"
+              value={doc.chassis.lengthIn}
+              onChange={(e) => setDoc({ ...doc, chassis: { ...doc.chassis, lengthIn: Number(e.target.value) } })}
+            />
+            <label htmlFor="chassis-w">Width (in)</label>
+            <input
+              id="chassis-w"
+              className="narrow"
+              type="number"
+              value={doc.chassis.widthIn}
+              onChange={(e) => setDoc({ ...doc, chassis: { ...doc.chassis, widthIn: Number(e.target.value) } })}
+            />
+          </div>
+        </div>
+        <div className="card">
+          <h3>Mechanisms and camera</h3>
+          <Slider
             id="cap"
-            type="number"
+            label="Capacity"
             value={doc.mechanisms.capacity}
-            onChange={(e) => setDoc({ ...doc, mechanisms: { ...doc.mechanisms, capacity: Number(e.target.value) } })}
+            min={0}
+            max={10}
+            step={1}
+            unit=""
+            onChange={(n) => setDoc({ ...doc, mechanisms: { ...doc.mechanisms, capacity: n } })}
           />
-          <label htmlFor="intake">Intake cycle (s)</label>
-          <input
+          <Slider
             id="intake"
-            type="number"
-            step="0.05"
+            label="Intake cycle"
             value={doc.mechanisms.intakeCycleTimeS}
-            onChange={(e) =>
-              setDoc({ ...doc, mechanisms: { ...doc.mechanisms, intakeCycleTimeS: Number(e.target.value) } })
-            }
+            min={0.1}
+            max={3}
+            step={0.05}
+            unit="s"
+            onChange={(n) => setDoc({ ...doc, mechanisms: { ...doc.mechanisms, intakeCycleTimeS: n } })}
           />
-          <label htmlFor="score">Score cycle (s)</label>
-          <input
+          <Slider
             id="score"
-            type="number"
-            step="0.05"
+            label="Score cycle"
             value={doc.mechanisms.scoreCycleTimeS}
-            onChange={(e) =>
-              setDoc({ ...doc, mechanisms: { ...doc.mechanisms, scoreCycleTimeS: Number(e.target.value) } })
-            }
+            min={0.1}
+            max={3}
+            step={0.05}
+            unit="s"
+            onChange={(n) => setDoc({ ...doc, mechanisms: { ...doc.mechanisms, scoreCycleTimeS: n } })}
           />
-          <label htmlFor="fov">Camera FOV (deg)</label>
-          <input
+          <Slider
             id="fov"
-            type="number"
+            label="Camera FOV"
             value={camera?.fovDeg ?? 70}
-            onChange={(e) => setCamera({ fovDeg: Number(e.target.value) })}
+            min={30}
+            max={120}
+            step={1}
+            unit="deg"
+            onChange={(n) => setCamera({ fovDeg: n })}
           />
-          <label htmlFor="range">Camera range (in)</label>
-          <input
+          <Slider
             id="range"
-            type="number"
+            label="Camera range"
             value={camera?.rangeIn ?? 96}
-            onChange={(e) => setCamera({ rangeIn: Number(e.target.value) })}
+            min={12}
+            max={200}
+            step={1}
+            unit="in"
+            onChange={(n) => setCamera({ rangeIn: n })}
           />
-          <label htmlFor="tier">Action tier</label>
+        </div>
+        <div className="card">
+          <h3>Action tier</h3>
+          <label htmlFor="tier">Default</label>
           <select
             id="tier"
             value={doc.defaultActionTier}
             onChange={(e) => setDoc({ ...doc, defaultActionTier: e.target.value })}
+            style={{ maxWidth: 280 }}
           >
             <option value="high_level_waypoint">high_level_waypoint</option>
             <option value="low_level_velocity">low_level_velocity</option>

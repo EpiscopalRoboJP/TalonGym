@@ -13,15 +13,25 @@ export function App() {
   const [ok, setOk] = useState(false);
 
   useEffect(() => {
-    getJson<Health>("/health")
-      .then((h) => {
+    let cancelled = false;
+    async function ping() {
+      try {
+        const h = await getJson<Health>("/health");
+        if (cancelled) return;
         setOk(Boolean(h.ok));
         setHealth(`${h.engine}${h.db ? " · " + h.db : ""} · ok`);
-      })
-      .catch(() => {
+      } catch {
+        if (cancelled) return;
         setOk(false);
         setHealth("API offline");
-      });
+      }
+    }
+    ping();
+    const id = window.setInterval(ping, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
   }, []);
 
   return (

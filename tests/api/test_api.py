@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import time
+
 from fastapi.testclient import TestClient
 
 from talongym.api.app import app
@@ -17,8 +21,7 @@ def test_health_and_presets():
     assert "biobuzz_2026_field_v1" in ids
 
 
-def test_defaults_get_and_put(tmp_path, monkeypatch):
-    monkeypatch.setattr("talongym.paths.VAR_DIR", tmp_path)
+def test_defaults_get_and_put():
     client = TestClient(app)
     got = client.get("/api/v1/defaults")
     assert got.status_code == 200
@@ -66,3 +69,99 @@ def test_preset_validate_is_not_swallowed_by_create_route():
     res = client.post("/api/v1/presets/validate", json={"kind": "scoring", "document": doc})
     assert res.status_code == 200
     assert res.json()["ok"] is True
+
+
+def _frame() -> dict:
+    return {
+        "t": 0.4,
+        "trueScore": 3,
+        "robots": [{"id": "red_0", "x": 0.0, "y": -48.0, "headingDeg": 90.0, "held": [], "dynamic": True, "alliance": "red"}],
+        "pieces": [],
+        "elements": [{"id": "z", "type": "zone", "pose": {"x": 0, "y": 0}, "shape": {"kind": "rect", "width": 1, "depth": 1}}],
+        "explains": [],
+        "queues": {},
+        "gate": {},
+        "matchVarsPrivileged": {},
+        "observedMatchVars": {},
+        "fieldSizeIn": {"width": 144, "depth": 144},
+        "vision": [],
+    }
+
+
+def _wait_run(client: TestClient, run_id: str, states: set[str], timeout: float = 8.0) -> dict:
+    deadline = time.time() + timeout
+    last: dict | None = None
+    while time.time() < deadline:
+        res = client.get(f"/api/v1/runs/{run_id}")
+        assert res.status_code == 200
+        last = res.json()
+        if last["state"] in states:
+            return last
+        time.sleep(0.05)
+    raise AssertionError(f"run {run_id} stuck in {last}")
+
+
+def test_start_run_passes_training_id(monkeypatch):
+    captured: dict = {}
+
+    def fake_train(**kwargs):
+        captured["bundle"] = kwargs.get("bundle")
+        on_metrics = kwargs.get("on_metrics")
+        if on_metrics:
+            on_metrics({"envSteps": 64, "trueScoreMean": 3.0, "algo": "recurrent_ppo", "nEnvs": 2})
+        on_rollout = kwargs.get("on_rollout")
+        if on_rollout:
+            on_rollout([_frame()])
+        return {
+            "algo": "recurrent_ppo",
+            "frames": [_frame()],
+            "steps": 64,
+            "checkpoint": "mem://ckpt",
+            "metrics": {"envSteps": 64},
+        }
+
+    monkeypatch.setattr("talongym.api.jobs.train_ppo", fake_train)
+    client = TestClient(app)
+    res = client.post(
+        "/api/v1/runs",
+        json={
+            "demo": True,
+            "nEnvs": 2,
+            "budget": {"totalEnvSteps": 128},
+            "presets": {
+                "fieldId": "biobuzz_2026_field_v1",
+                "robotId": "mecanum_biobuzz_4cap",
+                "scoringId": "biobuzz_2026_scoring_v1",
+                "trainingId": "biobuzz_auto_lightweight",
+            },
+        },
+    )
+    assert res.status_code == 202
+    run_id = res.json()["runId"]
+    row = _wait_run(client, run_id, {"succeeded", "failed"})
+    assert row["state"] == "succeeded"
+    assert row["config"]["presets"]["trainingId"] == "biobuzz_auto_lightweight"
+    assert captured["bundle"].training["id"] == "biobuzz_auto_lightweight"
+    assert captured["bundle"].field["id"] == "biobuzz_2026_field_v1"
+    assert row["metrics"].get("replayId")
+
+
+def test_cancel_run(monkeypatch):
+    def fake_train(**kwargs):
+        should_stop = kwargs.get("should_stop")
+        while should_stop and not should_stop():
+            time.sleep(0.02)
+        return {"algo": "recurrent_ppo", "frames": [], "steps": 8, "cancelled": True}
+
+    monkeypatch.setattr("talongym.api.jobs.train_ppo", fake_train)
+    client = TestClient(app)
+    res = client.post("/api/v1/runs", json={"demo": True, "presets": {"trainingId": "decode_auto_lightweight"}})
+    assert res.status_code == 202
+    run_id = res.json()["runId"]
+    _wait_run(client, run_id, {"running", "queued", "cancelled"})
+    cancel = client.post(f"/api/v1/runs/{run_id}/cancel")
+    assert cancel.status_code == 200
+    assert cancel.json()["state"] == "cancelled"
+    row = _wait_run(client, run_id, {"cancelled", "failed", "succeeded"})
+    assert row["state"] == "cancelled"
+    time.sleep(0.3)

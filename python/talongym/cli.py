@@ -6,9 +6,10 @@ from pathlib import Path
 import typer
 import uvicorn
 
+from talongym import paths
 from talongym.eval.harness import run_trials
 from talongym.export.roadrunner import export_from_replay
-from talongym.paths import VAR_DIR
+from talongym.presets.loader import load_bundle
 from talongym.training.policies import scripted_auto
 from talongym.training.ppo import record_policy_episode, train_ppo
 
@@ -22,13 +23,26 @@ def lab(host: str = "127.0.0.1", port: int = 8765) -> None:
 
 
 @app.command()
-def train(steps: int = 8192, n_envs: int = 4, allow_scripted: bool = False, algo: str = "recurrent_ppo") -> None:
+def train(
+    steps: int = 8192,
+    n_envs: int | None = None,
+    allow_scripted: bool = False,
+    algo: str = "recurrent_ppo",
+) -> None:
+    bundle = load_bundle()
+    n = n_envs if n_envs is not None else min(int((bundle.training or {}).get("nEnvs") or 4), 8)
     if algo == "rllib_ppo":
         from talongym.training.rllib import train_rllib
 
         result = train_rllib(total_steps=steps, log=typer.echo)
     else:
-        result = train_ppo(total_steps=steps, n_envs=n_envs, log=typer.echo, allow_scripted=allow_scripted)
+        result = train_ppo(
+            bundle=bundle,
+            total_steps=steps,
+            n_envs=n,
+            log=typer.echo,
+            allow_scripted=allow_scripted,
+        )
     typer.echo(f"algo={result.get('algo')} steps={result.get('steps')} ckpt={result.get('checkpoint')}")
 
 
@@ -44,8 +58,8 @@ def evaluate(trials: int = 32) -> None:
 @app.command()
 def replay(seed: int = 0) -> None:
     frames = record_policy_episode(scripted_auto, seed=seed)
-    VAR_DIR.mkdir(exist_ok=True)
-    path = VAR_DIR / "last_replay.java"
+    paths.VAR_DIR.mkdir(exist_ok=True)
+    path = paths.VAR_DIR / "last_replay.java"
     path.write_text(export_from_replay(frames), encoding="utf-8")
     score = frames[-1]["trueScore"] if frames else 0
     typer.echo(f"frames={len(frames)} trueScore={score} export={path}")
@@ -86,7 +100,7 @@ def calibrate(log: Path, out: Path | None = None) -> None:
 
     robot = load_preset("robot", "mecanum_meepmeep_defaults")
     overlay = fit_file(log, robot)
-    dest = out or (VAR_DIR / "robot_overlay.json")
+    dest = out or (paths.VAR_DIR / "robot_overlay.json")
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(overlay, indent=2), encoding="utf-8")
     typer.echo(f"rmse={overlay.get('calibration', {}).get('rmse')} overlay={dest}")

@@ -34,7 +34,7 @@ button { cursor: pointer; }
 button.primary { background: var(--accent); color: #1a120c; font-weight: 600; border-color: transparent; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 .mono { font-family: "IBM Plex Mono", monospace; }
-.app { display: grid; grid-template-rows: 56px 1fr; height: 100%; position: relative; }
+.app { display: grid; grid-template-rows: 56px 1fr; height: 100%; position: relative; min-width: 0; overflow: hidden; }
 .topbar {
   display: flex; align-items: center; gap: 1.2rem;
   padding: 0 1.2rem; border-bottom: 1px solid var(--line); background: var(--bg-2);
@@ -45,11 +45,12 @@ nav a { color: var(--muted); margin-right: 1rem; font-size: 0.92rem; padding: 0.
 nav a.active { color: var(--text); border-bottom: 2px solid var(--accent); padding-bottom: 0.2rem; }
 .health { margin-left: auto; font-size: 0.8rem; color: var(--muted); }
 .health.ok { color: var(--good); }
-.page { display: grid; grid-template-columns: 1fr 360px; min-height: 0; height: 100%; }
+.page { display: grid; grid-template-columns: minmax(0, 1fr) 360px; min-height: 0; min-width: 0; height: 100%; }
+.page > * { min-width: 0; }
 .page.single { grid-template-columns: 1fr; padding: 1.2rem; overflow: auto; }
 .page.single h2 { font-size: 1.05rem; margin: 0 0 0.4rem; }
-.scene { min-height: 0; height: 100%; background: #070b0e; position: relative; }
-.scene canvas { display: block; width: 100%; height: 100%; }
+.scene { min-height: 0; min-width: 0; height: 100%; background: #070b0e; position: relative; overflow: hidden; }
+.scene canvas { display: block; width: 100%; height: 100%; max-width: 100%; }
 .empty-scene { display: flex; align-items: center; justify-content: center; height: 100%; padding: 2rem; }
 .scene-label {
   position: absolute; top: 10px; left: 12px; z-index: 4;
@@ -134,7 +135,8 @@ label { color: var(--muted); font-size: 0.85rem; display: block; margin: 0.45rem
   border: 0; border-radius: 0; min-height: 32px; padding: 0.35rem 0.7rem; background: transparent; color: var(--muted);
 }
 .seg button + button { border-left: 1px solid var(--line); }
-.seg button.on { background: var(--accent); color: #1a120c; font-weight: 600; }
+.meter { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 0.45rem 0 0.25rem; }
+.meter > span { display: block; height: 100%; background: var(--accent); }
 .pill {
   display: inline-block; font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase;
   padding: 0.12rem 0.45rem; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); color: var(--muted);
@@ -185,7 +187,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
 .narrow { max-width: 8rem; }
 summary { cursor: pointer; margin: 0.75rem 0; color: var(--accent); }
 @media (max-width: 1100px) {
-  .page { grid-template-columns: 1fr; grid-template-rows: minmax(280px, 42vh) 1fr; }
-  .side { border-left: 0; border-top: 1px solid var(--line); }
-  .field-work { grid-template-columns: 1fr; }
+  .page { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(280px, 42vh) 1fr; }
+  .side { border-left: 0; border-top: 1px solid var(--line); min-width: 0; }
+  .field-work { grid-template-columns: minmax(0, 1fr); }
 }

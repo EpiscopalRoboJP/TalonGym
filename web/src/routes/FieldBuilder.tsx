@@ -190,7 +190,7 @@ export function FieldBuilderPage() {
         </div>
         {tab === "field" && (
           <>
-            {(meta?.stale || meta?.verifyAgainstManual) && (
+            {meta && (meta.stale || meta.verifyAgainstManual) && (
               <div className="banner">
                 {seasonName(meta)} · {meta.manualRevision || "rev?"}
                 {meta.stale ? " · stale vs latest known manual" : ""}
@@ -231,6 +231,11 @@ export function FieldBuilderPage() {
                   ))}
                   {[-size.width / 2, 0, size.width / 2].map((v) => (
                     <text key={`x-${v}`} x={v + 1} y={size.depth / 2 - 2} fill="#8aa0ae" fontSize="4">
+                      {v}
+                    </text>
+                  ))}
+                  {[-size.depth / 2, 0, size.depth / 2].map((v) => (
+                    <text key={`y-${v}`} x={-size.width / 2 + 1} y={-v + 4} fill="#8aa0ae" fontSize="4">
                       {v}
                     </text>
                   ))}

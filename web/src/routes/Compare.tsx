@@ -5,6 +5,8 @@ import { getJson, postJson, postText, type RunRow } from "../api";
 
 type EvalRow = {
   id: string;
+  runId?: string | null;
+  createdAt?: string;
   report: {
     mean: number;
     lo: number;
@@ -16,6 +18,8 @@ type EvalRow = {
     collisionTimeMean?: number;
     restrictedEntryRate?: number;
     collisionRate?: number;
+    policy?: string;
+    runId?: string;
   };
 };
 
@@ -25,6 +29,7 @@ export function ComparePage() {
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [runId, setRunId] = useState("");
   const [java, setJava] = useState<Record<string, string>>({});
+  const [openExport, setOpenExport] = useState<Record<string, boolean>>({});
   const [msg, setMsg] = useState("");
 
   async function refresh() {
@@ -44,9 +49,14 @@ export function ComparePage() {
     setMsg(policy === "checkpoint" ? "Evaluating checkpoint…" : "Evaluating scripted baseline…");
     const body: Record<string, unknown> = { nTrials: 24, policy };
     if (policy === "checkpoint") body.runId = runId;
-    await postJson("/evaluations", body);
+    const res = await postJson<{ evaluationId: string; report?: { mean?: number } }>("/evaluations", body);
     await refresh();
-    setMsg("Evaluation stored. 24-trial rows stay unlabeled.");
+    const mean = res.report?.mean;
+    setMsg(
+      mean != null
+        ? `Evaluation stored (mean ${mean.toFixed(2)}). 24-trial rows stay unlabeled.`
+        : "Evaluation stored. 24-trial rows stay unlabeled.",
+    );
   }
 
   async function exportRow(row: EvalRow) {
@@ -54,23 +64,29 @@ export function ComparePage() {
     if (!rid) return;
     const text = await postText(`/replays/${rid}/export/roadrunner`, { dialect: "rr1_actions" });
     setJava((m) => ({ ...m, [row.id]: text }));
+    setOpenExport((m) => ({ ...m, [row.id]: true }));
   }
 
   const bounds = useMemo(() => {
     if (!rows.length) return { min: 0, max: 1 };
     const lo = Math.min(...rows.map((r) => r.report.lo ?? 0));
     const hi = Math.max(...rows.map((r) => r.report.hi ?? 0));
-    return { min: lo, max: hi === lo ? lo + 1 : hi };
+    const pad = Math.max(0.5, (hi - lo) * 0.05) || 1;
+    return { min: lo - pad, max: hi + pad };
   }, [rows]);
+
+  const mid = (bounds.min + bounds.max) / 2;
 
   return (
     <div className="page single">
       <div>
-        <h2>Comparison / leaderboard</h2>
-        <p className="note">
-          “Best” is a pre-registered statistical objective with bootstrap CIs. This UI will not label a winner if CIs
-          overlap or n&lt;500.
-        </p>
+        <div className="page-head">
+          <h2>Comparison / leaderboard</h2>
+          <p className="note">
+            “Best” is a pre-registered statistical objective with bootstrap CIs. This UI will not label a winner if CIs
+            overlap or n&lt;500.
+          </p>
+        </div>
         {!eligible && (
           <div className="banner">No strategy is labeled statistically best yet (n&lt;500 or overlapping intervals).</div>
         )}
@@ -94,12 +110,27 @@ export function ComparePage() {
             Optional checkpoint eval
           </button>
         </div>
-        <ul className="list">
-          {rows.map((r) => (
-            <li key={r.id}>
-              <div>
+        {rows.length > 0 && (
+          <div className="axis-ticks" aria-hidden="true">
+            <span>{bounds.min.toFixed(1)}</span>
+            <span>{mid.toFixed(1)}</span>
+            <span>{bounds.max.toFixed(1)}</span>
+          </div>
+        )}
+        {rows.map((r) => {
+          const policy = r.report.policy || "scripted";
+          const n = r.report.nTrials;
+          return (
+            <div key={r.id} className="card">
+              <div className="run-card">
+                <span className="pill">{policy}</span>
+                <b className="mono">{r.id}</b>
+                {r.createdAt && <span className="stat" style={{ margin: 0 }}>{r.createdAt.replace("T", " ").slice(0, 19)}</span>}
+                {n < 500 && <span className="pill warn">n&lt;500</span>}
+              </div>
+              <div className="stat">
                 <b>{r.report.mean?.toFixed(2)}</b> [{r.report.lo?.toFixed(2)}, {r.report.hi?.toFixed(2)}] · p10{" "}
-                {r.report.p10?.toFixed(2)} · n={r.report.nTrials}
+                {r.report.p10?.toFixed(2)} · n={n}
                 {r.report.replayId ? (
                   <>
                     {" "}
@@ -118,13 +149,16 @@ export function ComparePage() {
                 </button>
               </div>
               {java[r.id] && (
-                <pre className="note mono rr-export" tabIndex={0}>
-                  {java[r.id]}
-                </pre>
+                <details open={openExport[r.id]}>
+                  <summary>Road Runner export</summary>
+                  <pre className="note mono rr-export" tabIndex={0}>
+                    {java[r.id]}
+                  </pre>
+                </details>
               )}
-            </li>
-          ))}
-        </ul>
+            </div>
+          );
+        })}
         <p className="note">{msg}</p>
       </div>
     </div>

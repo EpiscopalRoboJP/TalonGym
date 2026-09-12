@@ -3,6 +3,9 @@ from __future__ import annotations
 import threading
 from typing import Any, Callable
 
+import numpy as np
+
+from talongym import paths
 from talongym.api import db
 from talongym.eval.harness import run_trials
 from talongym.export.roadrunner import export_from_replay
@@ -12,6 +15,7 @@ from talongym.training.ppo import record_policy_episode, train_ppo
 
 _listeners: dict[str, list[Callable[[dict], None]]] = {}
 _cancel: set[str] = set()
+_latest: dict[str, dict[str, dict[str, Any]]] = {}
 
 
 def request_cancel(run_id: str) -> None:
@@ -20,6 +24,10 @@ def request_cancel(run_id: str) -> None:
 
 def is_cancelled(run_id: str) -> bool:
     return run_id in _cancel
+
+
+def clear_cancel(run_id: str) -> None:
+    _cancel.discard(run_id)
 
 
 def subscribe(run_id: str, fn: Callable[[dict], None]) -> None:
@@ -32,12 +40,52 @@ def unsubscribe(run_id: str, fn: Callable[[dict], None]) -> None:
         lst.remove(fn)
 
 
+def _jsonable(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(k): _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(v) for v in value]
+    if hasattr(value, "tolist") and not isinstance(value, (str, bytes)):
+        try:
+            return value.tolist()
+        except Exception:
+            pass
+    if hasattr(value, "item") and type(value).__module__.startswith("numpy"):
+        return value.item()
+    if isinstance(value, (np.bool_,)):
+        return bool(value)
+    return value
+
+
+def ws_rollout_frames(frames: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """Downsample and JSON-sanitize frames so Lab WebSocket payloads stay small."""
+    if not frames:
+        return []
+    keep = ("t", "trueScore", "robots", "pieces", "elements", "fieldSizeIn", "vision", "aprilTags")
+    step = max(1, len(frames) // 48)
+    out: list[dict[str, Any]] = []
+    for fr in frames[::step][:48]:
+        out.append({k: _jsonable(fr.get(k)) for k in keep if isinstance(fr, dict) and k in fr})
+    return out
+
+
 def emit(run_id: str, msg: dict[str, Any]) -> None:
+    kind = str(msg.get("type") or "")
+    if kind == "rollout":
+        payload = dict(msg.get("payload") or {})
+        payload["frames"] = ws_rollout_frames(payload.get("frames") or [])
+        msg = {**msg, "payload": payload}
+    if kind:
+        _latest.setdefault(run_id, {})[kind] = msg
     for fn in list(_listeners.get(run_id) or []):
         try:
             fn(msg)
         except Exception:
             pass
+
+
+def latest_messages(run_id: str) -> list[dict[str, Any]]:
+    return list((_latest.get(run_id) or {}).values())
 
 
 def start_training(config: dict[str, Any] | None = None) -> str:
@@ -49,23 +97,37 @@ def start_training(config: dict[str, Any] | None = None) -> str:
     return run_id
 
 
+def _resolved_budget(config: dict[str, Any], training: dict[str, Any] | None) -> tuple[int, int, bool]:
+    training = training or {}
+    demo = bool(config.get("demo", False))
+    body_budget = config.get("budget") if isinstance(config.get("budget"), dict) else None
+    if body_budget and body_budget.get("totalEnvSteps"):
+        total = int(body_budget["totalEnvSteps"])
+    else:
+        total = int((training.get("budget") or {}).get("totalEnvSteps") or 8192)
+    if config.get("nEnvs") is not None:
+        n_envs = int(config["nEnvs"])
+    else:
+        n_envs = int(training.get("nEnvs") or 4)
+    if demo:
+        total = min(total, 4096)
+        n_envs = min(max(1, n_envs), 4)
+    return max(1, total), max(1, n_envs), demo
+
+
 def _train_worker(run_id: str, config: dict[str, Any]) -> None:
     db.save_run(run_id, config, "running", {"envSteps": 0})
     emit(run_id, {"type": "status", "payload": {"state": "running", "step": 0}})
     presets = config.get("presets") or {}
     bundle = load_bundle(
-        presets.get("fieldId"),
-        presets.get("robotId"),
-        presets.get("scoringId"),
+        presets.get("fieldId") or None,
+        presets.get("robotId") or None,
+        presets.get("scoringId") or None,
+        presets.get("trainingId") or None,
     )
-    total = int((config.get("budget") or {}).get("totalEnvSteps") or 8_192)
-    n_envs = int(config.get("nEnvs") or 4)
-    demo = bool(config.get("demo", True))
-    if demo:
-        total = min(total, 4_096)
-
+    total, n_envs, demo = _resolved_budget(config, bundle.training)
     logs: list[str] = []
-    last_metrics: dict[str, Any] = {}
+    last_metrics: dict[str, Any] = {"envSteps": 0, "nEnvs": n_envs, "algo": "recurrent_ppo"}
 
     def log(msg: str) -> None:
         logs.append(msg)
@@ -73,16 +135,20 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
 
     def metrics(m: dict) -> None:
         last_metrics.update(m)
-        db.save_run(run_id, config, "running", m, "\n".join(logs))
-        emit(run_id, {"type": "metrics", "payload": m})
+        db.save_run(run_id, config, "running", last_metrics, "\n".join(logs))
+        emit(run_id, {"type": "metrics", "payload": dict(last_metrics)})
+
+    def rollout(frames: list[dict[str, Any]]) -> None:
+        emit(run_id, {"type": "rollout", "payload": {"frames": frames[::5] if frames else []}})
 
     try:
         frozen = None
-        if (config.get("presets") or {}).get("opponentPolicy") == "frozen_policy":
-            from talongym.paths import VAR_DIR
+        if (config.get("presets") or {}).get("opponentPolicy") == "frozen_policy" or (
+            (bundle.training or {}).get("presets") or {}
+        ).get("opponentPolicy") == "frozen_policy":
             from talongym.training.ppo import load_trained_policy
 
-            ckpt = VAR_DIR / "ckpts" / "recurrent_ppo.zip"
+            ckpt = paths.VAR_DIR / "ckpts" / "recurrent_ppo.zip"
             if ckpt.exists():
                 frozen = load_trained_policy(ckpt)
         result = train_ppo(
@@ -91,9 +157,13 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
             n_envs=n_envs,
             log=log,
             on_metrics=metrics,
+            on_rollout=rollout,
             allow_scripted=demo,
             frozen_policy=frozen,
             should_stop=lambda: is_cancelled(run_id),
+            save_dir=paths.VAR_DIR / "ckpts" / run_id,
+            resume=bool(config.get("resume")),
+            demo=demo,
         )
         if result.get("cancelled") or is_cancelled(run_id):
             db.save_run(run_id, config, "cancelled", last_metrics, "\n".join(logs))
@@ -115,20 +185,16 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
         )
         java = export_from_replay(frames)
         db.save_artifact(run_id, "roadrunner", java)
-        db.save_run(
-            run_id,
-            config,
-            "succeeded",
-            {
-                "envSteps": result.get("steps"),
-                "replayId": rid,
-                "algo": result.get("algo"),
-                "trueScoreMean": last_metrics.get("trueScoreMean"),
-                "shapingMean": last_metrics.get("shapingMean"),
-                "objectiveMean": last_metrics.get("objectiveMean"),
-            },
-            "\n".join(logs),
-        )
+        merged = {
+            **last_metrics,
+            **(result.get("metrics") or {}),
+            "envSteps": result.get("steps"),
+            "replayId": rid,
+            "algo": result.get("algo"),
+            "checkpoint": result.get("checkpoint"),
+        }
+        last_metrics.update(merged)
+        db.save_run(run_id, config, "succeeded", last_metrics, "\n".join(logs))
         emit(
             run_id,
             {
@@ -136,10 +202,17 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
                 "payload": {"state": "succeeded", "replayId": rid, "step": result.get("steps")},
             },
         )
+        emit(run_id, {"type": "metrics", "payload": dict(last_metrics)})
         emit(run_id, {"type": "rollout", "payload": {"replayId": rid, "frames": frames[::5]}})
     except Exception as exc:
-        db.save_run(run_id, config, "failed", {"error": str(exc)}, str(exc))
+        db.save_run(run_id, config, "failed", {**last_metrics, "error": str(exc)}, str(exc))
         emit(run_id, {"type": "error", "payload": {"code": "TRAIN_FAILED", "message": str(exc)}})
+        emit(run_id, {"type": "status", "payload": {"state": "failed"}})
+    finally:
+        clear_cancel(run_id)
+        row = db.get_run(run_id)
+        if row:
+            db.enqueue_job(run_id, run_id, config, row.get("state") or "done")
 
 
 def start_evaluation(n_trials: int = 32, policy_name: str = "scripted") -> str:
