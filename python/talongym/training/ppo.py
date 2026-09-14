@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import gymnasium as gym
 import numpy as np
@@ -73,7 +74,7 @@ class CurriculumEnv(gym.Wrapper):
 
 
 def _eval_true_scores(
-    adapter: "RecurrentPolicyAdapter",
+    adapter: RecurrentPolicyAdapter,
     bundle: LoadedPresets,
     seeds: list[int],
     record_first: bool = False,
@@ -162,9 +163,9 @@ def train_ppo(
         return _init
 
     try:
+        from sb3_contrib import RecurrentPPO
         from stable_baselines3.common.callbacks import BaseCallback
         from stable_baselines3.common.vec_env import DummyVecEnv
-        from sb3_contrib import RecurrentPPO
     except ImportError as exc:
         if allow_scripted:
             emit("stable-baselines3 not installed; using scripted AUTO baseline")
@@ -312,7 +313,7 @@ def train_ppo(
         done = int(model.num_timesteps)
         progress.steps = done
         stage = stage_info(training, progress.frac)
-        metrics: dict[str, Any] = {
+        metrics = {
             "envSteps": done,
             "nEnvs": n_envs,
             "objectiveMean": float(np.mean(obj_hist[-200:])) if obj_hist else None,
@@ -448,6 +449,7 @@ class RecurrentPolicyAdapter:
 
 def load_trained_policy(path: str | Path) -> RecurrentPolicyAdapter:
     from sb3_contrib import RecurrentPPO
+
     from talongym.training.asymmetric import AsymmetricLstmPolicy
     from talongym.training.compute import resolve_torch_device
 

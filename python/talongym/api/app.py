@@ -24,7 +24,7 @@ from talongym.paths import WEB_DIST
 from talongym.presets.loader import PresetError, load_bundle, validate_document
 from talongym.sim.physics import default_backend
 from talongym.training.policies import scripted_auto
-from talongym.training.ppo import record_policy_episode, load_trained_policy
+from talongym.training.ppo import load_trained_policy, record_policy_episode
 
 
 @asynccontextmanager
@@ -446,7 +446,7 @@ async def upload_robot_model(preset_id: str, file: UploadFile = File(...)) -> di
 
 @app.delete(f"{API}/presets/robot/{{preset_id}}/model")
 def delete_robot_model(preset_id: str) -> dict[str, bool]:
-    from talongym.assets.import_robot_cad import ROBOT_ID_RE, RobotCadError, delete_robot_assets
+    from talongym.assets.import_robot_cad import RobotCadError, delete_robot_assets
 
     try:
         delete_robot_assets(preset_id)

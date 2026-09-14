@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, cast
 
+import gymnasium as gym
 import numpy as np
 
 from talongym import paths
@@ -15,7 +17,9 @@ from talongym.training.curriculum import objective_value
 from talongym.training.ppo import RecurrentPolicyAdapter, record_policy_episode
 
 
-def _episode(env: FTCAutoEnv, policy, seed: int) -> tuple[float, list[dict], list[np.ndarray], list]:
+def _episode(
+    env: gym.Env, policy: Any, seed: int
+) -> tuple[float, list[dict[str, np.ndarray]], list[np.ndarray], dict[str, Any]]:
     if hasattr(policy, "reset_lstm"):
         policy.reset_lstm()
     obs, info = env.reset(seed=seed)
@@ -54,6 +58,7 @@ def train_grpo(
         import torch
         from sb3_contrib import RecurrentPPO
         from stable_baselines3.common.vec_env import DummyVecEnv
+
         from talongym.env.ftc_auto import BoxActionDictObsEnv, EncoderOnlyObsAssertWrapper
         from talongym.training.asymmetric import AsymmetricLstmPolicy
         from talongym.training.privileged import PrivilegedObsWrapper
@@ -100,6 +105,7 @@ def train_grpo(
     last_metrics: dict[str, Any] = {}
     seed0 = 1
     from stable_baselines3.common.utils import obs_as_tensor
+
     from talongym.training.privileged import PRIV_DIM, PRIV_KEY
 
     while done < total_steps:
@@ -107,7 +113,7 @@ def train_grpo(
             break
         scores: list[float] = []
         logps: list[torch.Tensor] = []
-        for k in range(group_size):
+        for _k in range(group_size):
             score, traj_obs, traj_act, _info = _episode(boxed, adapter, seed0)
             seed0 += 1
             done += max(1, len(traj_act))
@@ -115,13 +121,15 @@ def train_grpo(
             if not traj_act:
                 logps.append(torch.zeros(1, device=model.policy.device))
                 continue
+            obs_space = cast(gym.spaces.Dict, model.observation_space)
             batch = {}
-            keys = list(model.observation_space.spaces.keys())
+            keys = list(obs_space.spaces.keys())
             for key in keys:
                 if key == PRIV_KEY and key not in traj_obs[0]:
                     batch[key] = np.zeros((len(traj_obs), PRIV_DIM), dtype=np.float32)
                     continue
-                batch[key] = np.stack([row.get(key, np.zeros(model.observation_space.spaces[key].shape, np.float32)) for row in traj_obs])
+                shape = obs_space.spaces[key].shape or ()
+                batch[key] = np.stack([row.get(key, np.zeros(shape, np.float32)) for row in traj_obs])
             obs_t = obs_as_tensor(batch, model.policy.device)
             acts_t = torch.as_tensor(np.stack(traj_act), device=model.policy.device)
             dist = model.policy.get_distribution(obs_t)
@@ -130,7 +138,7 @@ def train_grpo(
         mean = float(np.mean(scores))
         adv = [s - mean for s in scores]
         loss = torch.zeros((), device=model.policy.device)
-        for a, lp in zip(adv, logps):
+        for a, lp in zip(adv, logps, strict=True):
             loss = loss + (-float(a) * lp)
         loss = loss / max(1, group_size)
         opt.zero_grad()

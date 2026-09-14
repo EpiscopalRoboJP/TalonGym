@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
 
-
 IN_G = 386.0886  # 9.80665 m/s^2 in inches/s^2
 
 

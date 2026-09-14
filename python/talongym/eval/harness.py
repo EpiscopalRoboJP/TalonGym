@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -8,7 +9,7 @@ from talongym.env.ftc_auto import FTCAutoEnv
 from talongym.presets.loader import LoadedPresets
 
 
-def bootstrap_ci(samples: list[float], confidence: float = 0.95, n_boot: int = 2000, rng: np.random.Generator | None = None) -> dict[str, float]:
+def bootstrap_ci(samples: list[float], confidence: float = 0.95, n_boot: int = 2000, rng: np.random.Generator | None = None) -> dict[str, Any]:
     rng = rng or np.random.default_rng(0)
     arr = np.asarray(samples, dtype=np.float64)
     if arr.size == 0:

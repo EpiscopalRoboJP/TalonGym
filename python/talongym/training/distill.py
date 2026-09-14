@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from gymnasium import spaces
 
 from talongym.env.ftc_auto import FTCAutoEnv, flatten_obs
 from talongym.paths import VAR_DIR
@@ -122,9 +123,8 @@ def bc_warmup(model: Any, bundle: LoadedPresets | None, n_steps: int, log=lambda
 
     obs_list, acts = collect_full_actions(n_steps=n_steps, bundle=bundle)
     space = getattr(model, "observation_space", None)
-    keys = list(space.spaces.keys()) if isinstance(space, dict) or hasattr(space, "spaces") else sorted(obs_list[0])
-    if hasattr(space, "spaces"):
-        keys = list(space.spaces.keys())
+    obs_space = space if isinstance(space, spaces.Dict) else None
+    keys = list(obs_space.spaces.keys()) if obs_space is not None else sorted(obs_list[0])
     batch: dict[str, np.ndarray] = {}
     n = len(obs_list)
     for key in keys:
@@ -133,7 +133,7 @@ def bc_warmup(model: Any, bundle: LoadedPresets | None, n_steps: int, log=lambda
             continue
         sample = obs_list[0].get(key)
         if sample is None:
-            shp = space.spaces[key].shape if hasattr(space, "spaces") else (1,)
+            shp: tuple[int, ...] = (obs_space.spaces[key].shape or (1,)) if obs_space is not None else (1,)
             batch[key] = np.zeros((n, *shp), dtype=np.float32)
             continue
         batch[key] = np.stack(
@@ -182,7 +182,7 @@ def distill_mlp(x: np.ndarray, y: np.ndarray, out_path: Path | None = None) -> P
             loss.backward()
             opt.step()
         dummy = torch.zeros(1, xt.shape[1])
-        torch.onnx.export(model, dummy, str(out_path), input_names=["obs"], output_names=["target_pose"], opset_version=17)
+        torch.onnx.export(model, (dummy,), str(out_path), input_names=["obs"], output_names=["target_pose"], opset_version=17)
         return out_path
     except Exception:
         xb = np.concatenate([x, np.ones((x.shape[0], 1), dtype=np.float32)], axis=1)

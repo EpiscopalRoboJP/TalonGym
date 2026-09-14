@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -12,8 +12,8 @@ from torch import nn
 from talongym.training.privileged import PRIV_KEY
 
 try:
-    from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
     from sb3_contrib.common.recurrent.policies import RecurrentMultiInputActorCriticPolicy
+    from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 except ImportError:  # pragma: no cover
     BaseFeaturesExtractor = object  # type: ignore
     RecurrentMultiInputActorCriticPolicy = object  # type: ignore
@@ -26,13 +26,13 @@ def _sorted_keys(observation_space: spaces.Dict, include_privileged: bool) -> li
     return [k for k in keys if k != PRIV_KEY]
 
 
-class SplitDictExtractor(BaseFeaturesExtractor):  # type: ignore[misc]
+class SplitDictExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Dict, features_dim: int = 256, include_privileged: bool = False) -> None:
         super().__init__(observation_space, features_dim)
         self._keys = _sorted_keys(observation_space, include_privileged)
         n = 0
         for key in self._keys:
-            n += int(np.prod(observation_space.spaces[key].shape))
+            n += int(np.prod(cast(tuple[int, ...], observation_space.spaces[key].shape)))
         self.linear = nn.Sequential(nn.Linear(max(1, n), features_dim), nn.ReLU())
 
     def forward(self, observations: dict[str, torch.Tensor]) -> torch.Tensor:
@@ -59,7 +59,7 @@ class CriticDictExtractor(SplitDictExtractor):
         super().__init__(observation_space, features_dim, include_privileged=True)
 
 
-class AsymmetricLstmPolicy(RecurrentMultiInputActorCriticPolicy):  # type: ignore[misc]
+class AsymmetricLstmPolicy(RecurrentMultiInputActorCriticPolicy):
     """RecurrentPPO policy whose actor cannot read `_privileged`."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -67,4 +67,4 @@ class AsymmetricLstmPolicy(RecurrentMultiInputActorCriticPolicy):  # type: ignor
         kwargs["share_features_extractor"] = False
         super().__init__(*args, **kwargs)
         dim = int(getattr(self, "features_dim", 256) or 256)
-        self.vf_features_extractor = CriticDictExtractor(self.observation_space, features_dim=dim)
+        self.vf_features_extractor = CriticDictExtractor(cast(spaces.Dict, self.observation_space), features_dim=dim)

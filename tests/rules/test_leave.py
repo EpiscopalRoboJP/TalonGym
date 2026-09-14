@@ -1,6 +1,7 @@
+import numpy as np
+
 from talongym.presets.loader import load_bundle
 from talongym.sim.world import World
-import numpy as np
 
 
 def test_leave_scores_at_phase_end():

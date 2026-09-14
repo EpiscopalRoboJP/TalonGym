@@ -44,8 +44,9 @@ def test_stage_step_rejects_missing(tmp_path: Path):
 
 
 def test_cli_import_field_cad_accepts_step():
-    from talongym.cli import app
     from typer.testing import CliRunner
+
+    from talongym.cli import app
 
     result = CliRunner().invoke(app, ["import-field-cad", "--help"])
     assert result.exit_code == 0

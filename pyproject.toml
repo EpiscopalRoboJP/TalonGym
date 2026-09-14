@@ -44,7 +44,7 @@ Issues = "https://github.com/TalonStrikeJP/TalonGym/issues"
 Documentation = "https://github.com/TalonStrikeJP/TalonGym/tree/main/docs"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "httpx>=0.27"]
+dev = ["pytest>=8.0", "httpx>=0.27", "ruff>=0.16", "mypy>=1.13"]
 rl = ["stable-baselines3>=2.3", "sb3-contrib>=2.3", "torch>=2.2"]
 scale = ["ray[rllib]>=2.10"]
 mujoco = ["mujoco>=3.1"]
@@ -66,3 +66,25 @@ pythonpath = ["python"]
 markers = [
   "require_mesh: do not planar-fallback a mesh field",
 ]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+src = ["python", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# E501: pre-existing data-heavy lines (preset tables, glTF buffers) routinely
+# exceed any sane limit; enforce it with a formatter later instead of ratcheting.
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI/Typer's dependency-injection style takes the sentinel default itself.
+extend-immutable-calls = ["fastapi.File", "typer.Option"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "python"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true

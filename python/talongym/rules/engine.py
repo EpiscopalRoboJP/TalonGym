@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any
-
+from typing import Any, cast
 
 MECHANISM_VERBS = ("idle", "intake", "score", "open_gate", "stow")
 
@@ -56,7 +55,7 @@ class RuleEngine:
             out[acc["id"]] = deepcopy(init)
         return out
 
-    def init_match_vars(self, rng) -> dict[str, Any]:
+    def init_match_vars(self, rng: Any) -> tuple[dict[str, Any], dict[str, Any]]:
         values: dict[str, Any] = {}
         acc_seed: dict[str, Any] = {}
         for var in self.scoring.get("matchVariables") or []:
@@ -74,7 +73,7 @@ class RuleEngine:
                 acc_seed[repeat["intoAccumulator"]] = seq
         return values, acc_seed
 
-    def evaluate(self, ctx: RuleContext) -> list[dict[str, Any]]:
+    def evaluate(self, ctx: RuleContext) -> tuple[list[dict[str, Any]], float]:
         explains: list[dict[str, Any]] = []
         true_delta = 0.0
         for node in self.nodes:
@@ -146,7 +145,7 @@ class RuleEngine:
         if op == "pieceTypeIs":
             return match.piece_type == c.get("pieceType")
         if op == "pieceAttrEquals":
-            return match.piece_attrs.get(c.get("attr")) == c.get("equals")
+            return match.piece_attrs.get(cast(str, c.get("attr"))) == c.get("equals")
         if op == "actorInVolume":
             return c.get("volumeId") in ctx.actor_volumes
         if op == "actorNotInVolume":
@@ -154,11 +153,11 @@ class RuleEngine:
         if op == "robotAllianceIs":
             return match.robot_alliance == c.get("alliance")
         if op == "accumulatorGte":
-            return float(ctx.accumulators.get(c.get("accumulator"), 0) or 0) >= float(c.get("value", 0))
+            return float(ctx.accumulators.get(cast(str, c.get("accumulator")), 0) or 0) >= float(c.get("value", 0))
         if op == "accumulatorEq":
-            return ctx.accumulators.get(c.get("accumulator")) == c.get("value")
+            return ctx.accumulators.get(cast(str, c.get("accumulator"))) == c.get("value")
         if op == "matchVarEquals":
-            return ctx.match_vars.get(c.get("matchVar")) == c.get("equals")
+            return ctx.match_vars.get(cast(str, c.get("matchVar"))) == c.get("equals")
         if op == "gateRetaining":
             eid = c.get("elementId") or ""
             return ctx.gate_state.get(eid, "closed") == "closed"
@@ -185,11 +184,11 @@ class RuleEngine:
         if op == "sequencePrefix":
             return True  # match count applied in addScore; presence of sequences is enough
         if op == "sequenceEquals":
-            return ctx.accumulators.get(c.get("accumulator")) == c.get("value")
+            return ctx.accumulators.get(cast(str, c.get("accumulator"))) == c.get("value")
         return True
 
     def _pattern_matches(self, ctx: RuleContext, node: dict[str, Any]) -> int:
-        cond = next((c for c in (node.get("conditions") or []) if c.get("op") == "sequencePrefix"), {})
+        cond: dict[str, Any] = next((c for c in (node.get("conditions") or []) if c.get("op") == "sequencePrefix"), {})
         seq = list(ctx.accumulators.get(cond.get("accumulator") or "") or [])
         target = list(ctx.accumulators.get(cond.get("targetAccumulator") or "") or [])
         n = 0

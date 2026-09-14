@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
-from typing import Any, Sequence
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Any
 
 Point = tuple[float, float]
 

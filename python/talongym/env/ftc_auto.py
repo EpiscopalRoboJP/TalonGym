@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import gymnasium as gym
-from gymnasium import spaces
 import numpy as np
+from gymnasium import spaces
 
 from talongym.presets.loader import LoadedPresets, load_bundle
 from talongym.rules.engine import MECHANISM_VERBS
@@ -13,6 +13,8 @@ from talongym.sim.world import World
 
 class FTCAutoEnv(gym.Env):
     metadata = {"render_modes": ["none"], "render_fps": 25}
+    observation_space: spaces.Dict
+    action_space: spaces.Dict
 
     def __init__(
         self,
@@ -274,7 +276,8 @@ class FTCAutoEnv(gym.Env):
                 1.0 if hit["visible"] else 0.0,
                 1.0 if hit["occluded"] else 0.0,
             ]
-        n_vars, enum_w = self.observation_space["match_var_obs"].shape
+        match_var_obs_space = cast(spaces.Box, self.observation_space["match_var_obs"])
+        n_vars, enum_w = match_var_obs_space.shape
         match_obs = np.zeros((n_vars, enum_w), dtype=np.float32)
         for i, spec in enumerate(self.match_var_specs or [{"id": "_"}]):
             domain = list((spec.get("domain") or {}).get("enum") or [])
@@ -366,7 +369,7 @@ class FlatBoxEnv(gym.Env):
         if getattr(env, "action_tier", "high_level_waypoint") == "low_level_velocity":
             self.action_space = spaces.Box(-60, 60, shape=(4,), dtype=np.float32)
         else:
-            pose = env.action_space["target_pose"]
+            pose = cast(spaces.Box, env.action_space["target_pose"])
             self.action_space = spaces.Box(
                 low=np.concatenate([pose.low, np.array([0.2, 0.0], np.float32)]),
                 high=np.concatenate([pose.high, np.array([1.0, float(len(MECHANISM_VERBS) - 1)], np.float32)]),
@@ -395,7 +398,7 @@ class BoxActionDictObsEnv(gym.Wrapper):
         if self._tier == "low_level_velocity":
             self.action_space = spaces.Box(-60, 60, shape=(4,), dtype=np.float32)
         else:
-            pose = base.action_space["target_pose"]
+            pose = cast(spaces.Box, cast(spaces.Dict, base.action_space)["target_pose"])
             n_mech = float(len(MECHANISM_VERBS) - 1)
             self.action_space = spaces.Box(
                 low=np.concatenate([pose.low, np.array([0.2, 0.0], np.float32)]),

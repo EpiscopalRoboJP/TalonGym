@@ -12,7 +12,6 @@ def test_biobuzz_curriculum_has_launch_stages():
     training = load_preset("training", "biobuzz_auto_lightweight")
     assert training["algorithm"]["name"] == "bc_then_ppo"
     early = curriculum_unlocks(training, 0.0)
-    mid = curriculum_unlocks(training, 0.5)
     late = curriculum_unlocks(training, 0.99)
     assert "scripted_launch" in early
     assert "motif_known_at_t0" not in early
@@ -34,8 +33,8 @@ def test_collect_full_actions_includes_mechanism():
 def test_bc_warmup_reduces_or_runs(tmp_path: Path):
     pytest.importorskip("torch")
     pytest.importorskip("sb3_contrib")
-    from stable_baselines3.common.vec_env import DummyVecEnv
     from sb3_contrib import RecurrentPPO
+    from stable_baselines3.common.vec_env import DummyVecEnv
 
     from talongym.env.ftc_auto import BoxActionDictObsEnv, EncoderOnlyObsAssertWrapper, FTCAutoEnv
     from talongym.presets.loader import load_bundle

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -504,7 +504,8 @@ class World:
                 can_move = self.can_intake_moving
                 if intake is not None:
                     can_move = bool(intake.get("canRunWhileMoving", can_move))
-                    cycle = float(intake.get("cycleTimeS") if intake.get("cycleTimeS") is not None else cycle)
+                    cycle_time_s = intake.get("cycleTimeS")
+                    cycle = float(cycle_time_s if cycle_time_s is not None else cycle)
                 if moving and not can_move:
                     continue
                 rs.intake_timer += dt

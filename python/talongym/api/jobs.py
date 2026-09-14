@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import threading
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
 from talongym import paths
 from talongym.api import db
-from talongym.eval.harness import run_trials
 from talongym.api.cad_frames import ensure_background_asset
+from talongym.eval.harness import run_trials
 from talongym.export.roadrunner import export_from_replay
 from talongym.presets.loader import load_bundle
 from talongym.training.policies import scripted_auto
@@ -185,7 +186,7 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
             or ((bundle.training or {}).get("algorithm") or {}).get("name")
             or "recurrent_ppo"
         )
-        train_kwargs = dict(
+        train_kwargs: dict[str, Any] = dict(
             bundle=bundle,
             total_steps=total,
             n_envs=n_envs,
