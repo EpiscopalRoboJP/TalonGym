@@ -259,7 +259,7 @@ export function RobotActor({
   return (
     <group position={[inch(x), height / 2, inch(-y)]} rotation={[0, (headingDeg * Math.PI) / 180, 0]}>
       {cadUrl && (
-        <group position={[offset.x || 0, (offset.z || 0) - height / 2, -(offset.y || 0)]} rotation={[0, ((offset.headingDeg || 0) * Math.PI) / 180, 0]}>
+        <group position={[offset.x || 0, (offset.z || 0) - height / 2, -(offset.y || 0)]} rotation={[0, ((offset.yawDeg || 0) * Math.PI) / 180, 0]}>
           <CadErrorBoundary onError={() => setCadReady(false)}>
             <Suspense fallback={null}>
               <RobotCad url={cadUrl} onReady={() => setCadReady(true)} />

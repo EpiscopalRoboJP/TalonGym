@@ -68,6 +68,18 @@ export async function postText(path: string, body: unknown = {}): Promise<string
   return res.text();
 }
 
+export async function postForm<T>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(`${API}${path}`, { method: "POST", body: form });
+  if (!res.ok) await fail(res, path);
+  return res.json() as Promise<T>;
+}
+
+export async function deleteJson<T>(path: string): Promise<T> {
+  const res = await fetch(`${API}${path}`, { method: "DELETE" });
+  if (!res.ok) await fail(res, path);
+  return res.json() as Promise<T>;
+}
+
 export type Health = { ok: boolean; engine: string; db?: string; version?: string; computeProfile?: string; nEnvs?: number };
 
 export type ComputeInfo = {
@@ -98,6 +110,10 @@ export type PresetMeta = {
   stale?: boolean;
   computeProfile?: string;
 };
+
+export function robotPresetLabel(p: PresetMeta): string {
+  return p.displayName || p.id;
+}
 
 export type PoseOnRobot = {
   x?: number;
@@ -130,15 +146,42 @@ export type LauncherSpec = {
   canLaunchWhileMoving?: boolean;
 };
 
+export type VisualOffset = {
+  x?: number;
+  y?: number;
+  z?: number;
+  yawDeg?: number;
+  scale?: number;
+};
+
 export type RobotDesign = {
   chassis?: { lengthIn?: number; widthIn?: number; heightIn?: number; massKg?: number; collisionShape?: string };
   intakes?: IntakeSpec[];
   launchers?: LauncherSpec[];
   visualAsset?: string | null;
   collisionAsset?: string | null;
-  visualOffset?: PoseOnRobot;
+  visualOffset?: VisualOffset;
   collisionShape?: string;
 };
+
+export type RobotCadImportResult = {
+  visualAsset: string;
+  collisionAsset: string;
+  bbox: { lengthIn: number; widthIn: number; heightIn: number };
+  footprint: { x: number; y: number }[];
+  unitsGuess: string;
+  faceCount: number;
+};
+
+export async function uploadRobotModel(robotId: string, file: File): Promise<RobotCadImportResult> {
+  const form = new FormData();
+  form.append("file", file);
+  return postForm<RobotCadImportResult>(`/presets/robot/${robotId}/model`, form);
+}
+
+export async function deleteRobotModel(robotId: string): Promise<{ ok: boolean }> {
+  return deleteJson<{ ok: boolean }>(`/presets/robot/${robotId}/model`);
+}
 
 export type FrameExplain = { id: string; explain: string; points: number };
 

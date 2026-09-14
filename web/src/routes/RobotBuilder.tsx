@@ -399,6 +399,7 @@ export function RobotBuilderPage() {
   const camera = cam(doc);
 
   function setCamera(partial: { fovDeg?: number; rangeIn?: number }) {
+    if (!doc) return;
     setDoc({
       ...doc,
       sensors: (doc.sensors || []).map((s) => (s === camera || s.kind === "apriltag_camera" ? { ...s, ...partial } : s)),
