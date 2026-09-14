@@ -50,9 +50,18 @@ def to_roadrunner_java(
         "Actions.runBlocking(",
         f"    drive.actionBuilder(new Pose2d({sx:.2f}, {sy:.2f}, {sh:.4f}))",
     ]
+    # splineTo's second argument is the path *tangent*, not the robot's final heading —
+    # they only coincide on a straight run. Use splineToLinearHeading so the emitted
+    # trajectory actually ends facing the policy's intended heading (e.g. to score or
+    # intake) while the tangent still shapes the curve from the previous waypoint.
+    prev_x, prev_y = sx, sy
     for p in pts[1:]:
         heading = p[2] if len(p) > 2 else 0.0
-        lines.append(f"        .splineTo(new Vector2d({p[0]:.2f}, {p[1]:.2f}), {heading:.4f})")
+        tangent = math.atan2(p[1] - prev_y, p[0] - prev_x)
+        lines.append(
+            f"        .splineToLinearHeading(new Pose2d({p[0]:.2f}, {p[1]:.2f}, {heading:.4f}), {tangent:.4f})"
+        )
+        prev_x, prev_y = p[0], p[1]
     lines.append("        .build());")
     return "\n".join(lines) + "\n"
 

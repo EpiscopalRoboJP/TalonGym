@@ -519,7 +519,7 @@ From a rollout of high-level targets, decimate to a polyline with heading, then 
 ```java
 Actions.runBlocking(
     drive.actionBuilder(new Pose2d(startX, startY, startHeading))
-        .splineTo(new Vector2d(x1, y1), tangent1)
+        .splineToLinearHeading(new Pose2d(x1, y1, heading1), tangent1)
         // ...
         .build());
 ```

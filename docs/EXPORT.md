@@ -16,7 +16,7 @@ Dialects (API body `dialect`, Python `to_roadrunner_java`):
 
 | Dialect | Output |
 |---------|--------|
-| `rr1_actions` (default) | `Actions.runBlocking(drive.actionBuilder(new Pose2d(…)).splineTo(…))` |
+| `rr1_actions` (default) | `Actions.runBlocking(drive.actionBuilder(new Pose2d(…)).splineToLinearHeading(…))` |
 | `rr05_trajectory_sequence` | Legacy `trajectorySequenceBuilder` / `lineToLinearHeading` |
 
 Waypoints are taken from the first robot pose each frame and **decimated** (~8 in minimum spacing) so the snippet is a polyline, not 25 Hz chatter.
