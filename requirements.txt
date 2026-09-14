@@ -1,0 +1,19 @@
+# One-shot dev environment: `python -m pip install -r requirements.txt`
+# (PyCharm offers to install this file automatically when it opens the project).
+#
+# PyPI only ships CPU torch for Windows, so the PyTorch CUDA index is added
+# here. pip takes the highest version across both indexes, and a local tag
+# like 2.14.0+cu130 sorts above PyPI's plain 2.14.0, so:
+#   - Windows / Linux (x86_64, aarch64): CUDA 13.0 torch. It runs fine on
+#     machines with no NVIDIA GPU; TalonGym just falls back to CPU.
+#   - macOS: that index has no mac wheels, so PyPI's torch (with Metal/MPS) wins.
+# CUDA 13.0 needs an NVIDIA driver >= 580 and a GTX 16xx / RTX 20xx or newer
+# GPU; older cards fall back to CPU. `python -m talongym detect` reports which
+# torch build is installed and why CUDA is or isn't in use.
+#
+# When bumping this, check that the index still carries the newest torch
+# release (https://download.pytorch.org/whl/cu130/torch/). If PyTorch stops
+# publishing to it, pip silently picks PyPI's CPU build on Windows instead.
+--extra-index-url https://download.pytorch.org/whl/cu130
+
+-e .[dev,rl]

@@ -1,6 +1,7 @@
 from talongym.presets.loader import load_preset, preset_index
 from talongym.training.compute import (
     ENV_DEVICE,
+    _arch_supports_capability,
     detect_compute_profile,
     easy_training_id,
     recommended_n_envs,
@@ -77,3 +78,12 @@ def test_resolve_torch_device_falls_back_to_cpu_without_an_accelerator(monkeypat
     monkeypatch.setattr("talongym.training.compute.cuda_available", lambda: False)
     monkeypatch.setattr("talongym.training.compute.mps_available", lambda: False)
     assert resolve_torch_device() == "cpu"
+
+
+def test_cuda_arch_check_rejects_gpus_the_torch_build_has_no_kernels_for():
+    cu130 = ["sm_75", "sm_80", "sm_86", "sm_90", "sm_100", "sm_120"]
+    assert _arch_supports_capability(cu130, (12, 0))  # RTX 50xx
+    assert _arch_supports_capability(cu130, (8, 9))  # RTX 40xx runs sm_86 kernels
+    assert not _arch_supports_capability(cu130, (6, 1))  # GTX 10xx
+    assert not _arch_supports_capability(["sm_50", "sm_60", "sm_86"], (12, 0))
+    assert _arch_supports_capability([], (6, 1))

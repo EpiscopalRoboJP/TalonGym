@@ -7,10 +7,14 @@ TalonGym is a Python 3.12+ package plus a React Lab. Physics and scoring run in 
 From the repository root:
 
 ```bash
-python -m pip install -e ".[dev,rl]"
+python -m pip install -r requirements.txt
 ```
 
-That extra set is the laptop/workstation path: tests (`dev`) plus RecurrentPPO (`rl`: torch, stable-baselines3, sb3-contrib).
+That installs the package editable with the laptop/workstation extras: tests (`dev`) plus RecurrentPPO (`rl`: torch, stable-baselines3, sb3-contrib). PyCharm offers to run it when it opens the project.
+
+`requirements.txt` adds the PyTorch CUDA 13.0 index, because PyPI only has CPU torch for Windows. The same file works on every machine: without an NVIDIA GPU (or with one older than a GTX 16xx / RTX 20xx, or a driver older than 580) training falls back to CPU, and macOS gets PyPI's torch with Metal. Plain `pip install -e ".[dev,rl]"` still works but gives Windows a CPU-only torch.
+
+If `python -m talongym detect` shows `"cuda": false` on an NVIDIA machine, its `torch.hint` field says why (CPU-only build, broken install, driver too old) and how to fix it.
 
 | Extra | Install when | Provides |
 |-------|----------------|----------|

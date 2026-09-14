@@ -51,7 +51,7 @@ Point values and geometry in presets are **data**. If a Team Update changes them
 ## Run the Lab
 
 ```bash
-python -m pip install -e ".[dev,rl]"
+python -m pip install -r requirements.txt
 python -m talongym lab
 ```
 
