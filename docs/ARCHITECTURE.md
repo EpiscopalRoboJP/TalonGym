@@ -187,9 +187,7 @@ RP thresholds (Table 10-3) are **match-wide**. AUTO-only training may optimize a
 
 POLLEN is 2.8 in yellow; NECTAR is 3.6 in red/blue. Preload 4 POLLEN per ROBOT.
 
-AprilTags (manual §9.10): Goal red 24, blue 20; Obelisk faces 21/22/23. Community mapping GPP→21, PGP→22, PPG→23 is **widely used but must be confirmed against the printed tag artwork** before freeze (`verifyAgainstManual: true` on the DECODE field preset).
-
-Artifact count: 24 purple + 12 green; 5 in nominal (manufacturer 4.9 ± 0.25 in — domain-randomize diameter). Spike patterns near GPP / middle PGP / far PPG. Preload up to 3.
+AprilTags are 36h11 clusters on CELL bottoms. Manual extract confirmed ids 0, 7, and 38–41; 1–3, 4–6, and 42–45 are inferred.
 
 ---
 
@@ -207,7 +205,7 @@ class FTCAutoEnv(gymnasium.Env):
 
 `options` may set `alliance`, `start_slot`, `opponent_mode`, `action_tier` override, `determinism_stream` (`"train"` | `"eval"`).
 
-**Control rate:** 25 Hz default (preset `episode.controlHz`; legal 20–50). Physics substeps: 2 (50 Hz Rapier) unless the Phase 0 bench says otherwise. Episode length: **30.0 s AUTO**, then truncation. TRANSITION (8 s official; 15 s at FIRST Championship per TU32 §15.2.2) is **not** simulated in MVP; PATTERN uses the AUTO `phaseEnd` hook with a configurable `settle_time_s` (default 0.5 s) to stand in for “come to rest.”
+**Control rate:** 25 Hz default (preset `episode.controlHz`; legal 20–50). Physics substeps: 2 (50 Hz Rapier) unless the Phase 0 bench says otherwise. Episode length: **30.0 s AUTO**, then truncation. TRANSITION (8 s official; 15 s at FIRST Championship) is **not** simulated in MVP; end-of-AUTO scoring uses the AUTO `phaseEnd` hook with a configurable `settle_time_s` (default 0.5 s) to stand in for “come to rest.”
 
 ### Observation space (`Dict`) — policy-visible only
 
@@ -405,14 +403,14 @@ Time-to-useful-policy is a **measured** number after Phase 1, not a promise. Pla
 
 - `/build/field` and `/build/robot`; scoring graph editor (node list + lint, not a free-form script box).
 - Stale-version banners.
-- INTO THE DEEP regression: samples/baskets/net/park as volumes + end-of-AUTO scoring; **no DECODE identifiers in engine**.
-- CENTERSTAGE stub: randomization task + backdrop columns as `matchVariables` + `sequenceEquals`.
+- Season-agnostic regression: new games as volumes + end-of-AUTO scoring; **no season nouns in engine identifiers**.
+- Randomization seasons use `matchVariables` + `sequenceEquals` when needed.
 - Runbook executed dry on a fake “season X” fixture in CI.
 
 ### Phase 3 — Multi-agent rigor
 
 - PettingZoo cooperative red alliance; scripted then frozen-policy opponents.
-- Collision / right-of-way metrics in the report (contact-seconds, first-contact time, G402-style “entered opponent side” flag as a **data rule**, not hardcoded DECODE).
+- Collision / right-of-way metrics in the report (contact-seconds, first-contact time, G402-style “entered opponent side” flag as a **data rule**, not a hardcoded season name).
 - Paired CRN comparisons; “best” suppressed when CIs overlap.
 
 ### Phase 4 — (renumbered in exec summary as Phase 4/5) Transfer and scale
@@ -429,7 +427,7 @@ Keep the plan-file numbering mapped as:
 1. **Rapier Python ABI slips.** Mitigation: Phase 0 time-box; Box2D v3 process pool with shared-memory states; keep `PhysicsBackend` protocol tiny (`reset_batch`, `step_batch`, `contacts`).
 2. **Policy cheats motif.** Mitigation: unit tests that mutate privileged motif without moving the robot/camera and assert obs unchanged; curriculum that starts with `motif_known_at_t0` then disables it.
 3. **Shaping optimizes the wrong game.** Mitigation: leaderboard binds to `true_score`; freeze shaping coefficients in the run config hash; abort train if true_score and objective diverge past a threshold for 1e6 steps.
-4. **Sim-to-real gap on launch/classify.** Mitigation: 2.5D classify is rules-accurate by construction; launch success is a Bernoulli + heading/range model fit from team logs (`calibrate/`). MuJoCo mode only for teams who live and die by ballistics.
+4. **Sim-to-real gap on launch.** Mitigation: ballistic launches use the mesh field when unlocked; launch success can also be a Bernoulli + heading/range model fit from team logs (`calibrate/`). MuJoCo is required for BIOBUZZ training — no silent planar fallback.
 5. **LSTM ONNX / in-browser demo is lossy.** Mitigation: the only field path is (a) follower waypoint sequence pasted into an AUTO OpMode the Control Hub runs; (b) ONNX of a distilled feed-forward policy is a demo only. Do not claim on-robot NN inference.
 6. **Multi-robot collisions ignored in MVP then surprise in quals.** Mitigation: even single-agent MVP spawns a **static** teammate bounding box by default (configurable off) and penalizes contact.
 7. **Mid-season Team Updates silently desync.** Mitigation: `manualRevision` + hash on every preset; UI stale banner; evaluations store preset hash immutably.
@@ -437,18 +435,17 @@ Keep the plan-file numbering mapped as:
 
 ---
 
-## 8. Open questions for an FTC mentor (DECODE freeze)
+## 8. Open questions for an FTC mentor (BIOBUZZ freeze)
 
-Do not treat the following as engine work. They are **preset sign-off** questions. Until answered, keep `verifyAgainstManual: true`.
+Do not treat the following as engine work. They are **preset sign-off** questions. Until answered, keep `verifyAgainstManual: true`. Full checklist: [MENTOR_SIGNOFF.md](MENTOR_SIGNOFF.md).
 
-1. Confirm Table 10-2 AUTO values still 3 / 3 / 1 / 2 for LEAVE / CLASSIFIED / OVERFLOW / PATTERN after any post-TU32 errata (TU32 is the last scheduled update; still confirm the PDF you ship).
-2. Confirm Obelisk AprilTag id ↔ motif mapping (21/22/23 ↔ GPP/PGP/PPG) against official artwork, not community snippets.
-3. PATTERN: if the gate is cracked open at the buzzer, official Q&A says no pattern. Should the sim use a binary `gateRetaining` or a continuous “how far open”?
-4. Overflow vs 9th slot skip at high launch speed: model as stochastic overflow when `launch_speed > threshold`, or deterministic occupancy only?
-5. G402 (no AUTO opponent-side interference): encode as a scoring/foul node for training, or only as an eval metric?
-6. Championship 15 s transition vs 8 s: ignore for AUTO policy training?
-7. Which optimization objective should the default leaderboard use for *your* team: mean match points, 10th percentile (robust), or RP-proxy probability at “other events” thresholds (GOAL RP 36, PATTERN RP 18 — **verify Table 10-3**)?
-8. Legal start poses for your region’s typical field build: which start slots are actually used in AUTO?
+1. Confirm Table 10-2 AUTO values still 3 / 5 / 20 for LEAVE / PARK / HIVE TIP.
+2. Confirm HIVE TIP threshold (preset uses 7 in the upward CELL) against CAD / Field Setup Guide.
+3. Confirm AprilTag cluster ids against official artwork (0, 7, 38–41 confirmed; 1–3, 4–6, 42–45 inferred).
+4. G402 (no AUTO opponent-side interference): encode as a scoring/foul node for training, or only as an eval metric?
+5. Championship 15 s transition vs 8 s: ignore for AUTO policy training?
+6. Which optimization objective should the default leaderboard use for *your* team: mean match points, 10th percentile (robust), or RP-proxy probability (SWARM ≥ 16, POLLINATOR 1/2 — **verify Table 10-3**)?
+7. Legal start poses for your region’s typical field build: which start slots are actually used in AUTO?
 
 ---
 
@@ -461,14 +458,13 @@ Do not treat the following as engine work. They are **preset sign-off** question
 | Planar holonomic / tank motion | Motor-limited 2D rigid body |
 | Wall / robot / piece push | Rapier contacts |
 | Intake capture | Volume + cycle timer + capacity |
-| Classify / overflow | Trigger path + retained queue length 9 |
-| Pattern | End-of-AUTO sequence match + gate closed |
-| Vision / motif | FOV, range, occluder rays, false-negative rate |
-| Launch ballistics | DECODE: success probability + time-of-flight. BIOBUZZ: 3D muzzle velocity vs mesh field when `ballistic_launch` is unlocked |
+| Launch / score | Trigger path + optional ballistic mesh |
+| Vision / match vars | FOV, range, occluder rays, false-negative rate |
+| Launch ballistics | BIOBUZZ: 3D muzzle velocity vs mesh field when `ballistic_launch` is unlocked |
 | Foam tile compliance | Optional friction DR, not FEM |
 | Battery sag | Optional; off in lightweight |
 
-**Calibration workflow:** ingest FTC Dashboard / WPILOG pose streams from a few real AUTOs; fit `maxVel`, `maxAccel`, slip noise, and intake cycle time so simulated encoder traces match within a reported RMSE. Store the fit as a robot-preset overlay, not a fork of DECODE rules.
+**Calibration workflow:** ingest FTC Dashboard / WPILOG pose streams from a few real AUTOs; fit `maxVel`, `maxAccel`, slip noise, and intake cycle time so simulated encoder traces match within a reported RMSE. Store the fit as a robot-preset overlay, not a fork of BIOBUZZ rules.
 
 ### Multi-robot right-of-way
 
@@ -510,7 +506,7 @@ Engine identifiers are capability names and geometry kinds (`aabb`, `volumeEnter
 - Forward/inverse kinematics in `python/talongym/robot/`.
 - DC motor: linear torque-speed, clip to `currentLimitA`. No infinite acceleration.
 - Encoders: Gaussian noise + slip; separate `ground_truth` pose for rewards/eval only.
-- AprilTag camera: pinhole FOV cone, max range, ray vs `isOccluder` elements (DECODE OBELISK side faces marked `sideFaceObstructed`).
+- AprilTag camera: pinhole FOV cone, max range, ray vs `isOccluder` elements (BIOBUZZ hive frame + CELL tag clusters).
 
 ---
 
@@ -534,20 +530,20 @@ Dialect `rr05_trajectory_sequence` emits legacy `trajectorySequenceBuilder` for 
 
 ## Capability regression matrix
 
-| Need | DECODE TU32 | INTO THE DEEP | CENTERSTAGE | BIOBUZZ V1 |
-|------|-------------|---------------|-------------|------------|
-| Planar drive + walls | yes | yes | yes | yes |
-| Game pieces | artifacts 5 in | samples / specimens | pixels | POLLEN 2.8 in, NECTAR 3.6 in |
-| Randomized match var + sentinel | motif via Obelisk tags | spike colors / preload | white pixel / team prop | none (AUTO) |
-| Occluders + vision | Obelisk, goals | submersible | truss / backdrop | hive frame + cells (AprilTag clusters) |
-| N-stage + pattern/derived | classify then pattern | sample vs specimen vs ascent | pixel + randomization bonus | launch count then HIVE TIP |
-| End-of-AUTO scoring | LEAVE, PATTERN | park / ascent optional | park + auto pixels | LEAVE, PARK, HIVE TIP |
-| Retained queue | ramp 9 + gate | no | backdrop mosaic (approx as sequence) | no |
-| Alliance aggregate | later RP / two-robot base | less central in AUTO | less central | SWARM RP (LEAVE+PARK) |
-| Mid-episode geometry | no | no | stage door analog optional | hive tip modeled as accumulator, not collider swap |
-| Climb / vertical FSM | no AUTO | AUTO ascent possible | drone launch (approximate FSM) | no AUTO |
+| Need | BIOBUZZ V1 |
+|------|------------|
+| Planar drive + walls | yes |
+| Game pieces | POLLEN 2.8 in, NECTAR 3.6 in |
+| Randomized match var + sentinel | none (AUTO) |
+| Occluders + vision | hive frame + cells (AprilTag clusters) |
+| N-stage + pattern/derived | launch count then HIVE TIP |
+| End-of-AUTO scoring | LEAVE, PARK, HIVE TIP |
+| Retained queue | no |
+| Alliance aggregate | SWARM RP (LEAVE+PARK) |
+| Mid-episode geometry | hive tip modeled as accumulator, not collider swap |
+| Climb / vertical FSM | no AUTO |
 
-BIOBUZZ acceptance: a contributor adds `presets/seasons/biobuzz_2026/` plus scoring JSON the week of Kickoff following the runbook, CI capability lint passes, and **zero files under `engine/` change**.
+BIOBUZZ is the only shipped season. A new season is data under `presets/seasons/` following the runbook; CI capability lint must pass with **zero files under `engine/` changed** unless a new primitive is required.
 
 ---
 

@@ -63,7 +63,9 @@ Saves go to the API/SQLite row, not a silent browser blob.
 
 ## Robot builder
 
-Visual design editor: top-down robot-frame inch grid (+x forward, +y left) plus a 3D preview. Place intake mouths and launcher muzzles, then set cycle times, muzzle speed, hood pitch/yaw, and MeepMeep vel/accel. Chassis length/width/height drive both the canvas and replay meshes.
+Visual design editor: top-down robot-frame inch grid (+x forward, +y left) plus a 3D preview. Place intake mouths and launcher muzzles, then set cycle times, muzzle speed, hood pitch/yaw, and MeepMeep vel/accel. Chassis length/width/height drive both the canvas and replay collision box.
+
+**Custom 3D model:** upload STL, OBJ, GLB, glTF, or STEP. The API converts to a light GLB (viewer) and a convex hull (optional physics) under `var/assets/robots/<id>/`. **Fit chassis to model** copies the mesh bounds into length/width/height. Leave **Use mesh for collision** off to keep AABB physics; turn it on for a 2D hull on planar fields and a MuJoCo mesh geom on BIOBUZZ (slower; fidelity, not overnight PPO). Offset/yaw/scale line the CAD up with chassis center. Save still goes through validate + PUT.
 
 Save with PUT `/presets/robot/{id}` after `POST /presets/validate`. **Save as new** POSTs a copy so shipped presets stay intact. Fit real logs with CLI `calibrate` and merge the overlay ([EXPORT.md](EXPORT.md)) rather than guessing constraints.
 
