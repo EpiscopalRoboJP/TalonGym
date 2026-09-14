@@ -4,6 +4,8 @@ import asyncio
 import json
 import shutil
 import tempfile
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +26,15 @@ from talongym.sim.physics import default_backend
 from talongym.training.policies import scripted_auto
 from talongym.training.ppo import record_policy_episode, load_trained_policy
 
-app = FastAPI(title="TalonGym", version=__version__)
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    db.connect()
+    db.fail_orphan_runs()
+    yield
+
+
+app = FastAPI(title="TalonGym", version=__version__, lifespan=_lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -61,12 +71,6 @@ class EvalBody(BaseModel):
 
 class ExportBody(BaseModel):
     dialect: str = "rr1_actions"
-
-
-@app.on_event("startup")
-def _startup() -> None:
-    db.connect()
-    db.fail_orphan_runs()
 
 
 class DefaultsBody(BaseModel):
