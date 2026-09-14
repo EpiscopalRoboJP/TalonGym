@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -35,12 +34,6 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="TalonGym", version=__version__, lifespan=_lifespan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 API = "/api/v1"
 
@@ -498,8 +491,8 @@ def mount_frontend(application: FastAPI) -> None:
         def spa(full_path: str):
             if full_path.startswith("api"):
                 raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": full_path}})
-            candidate = dist / full_path
-            if full_path and candidate.exists() and candidate.is_file():
+            candidate = (dist / full_path).resolve()
+            if full_path and candidate.is_relative_to(dist.resolve()) and candidate.is_file():
                 return FileResponse(candidate)
             return FileResponse(dist / "index.html")
 
