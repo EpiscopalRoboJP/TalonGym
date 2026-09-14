@@ -110,10 +110,13 @@
       "id": "restricted_entry",
       "enabledPhases": ["AUTO"],
       "trigger": { "kind": "volumeEnter", "volumeId": "restricted_for_red" },
-      "actions": [{ "kind": "setFlag", "accumulator": "restricted_entry" }],
+      "actions": [
+        { "kind": "setFlag", "accumulator": "restricted_entry" },
+        { "kind": "addScore", "channel": "trueScore", "points": -15, "accumulator": "true_score" }
+      ],
       "maxFires": 1,
       "fireScope": "actor",
-      "explain": "AUTO restricted-volume entry recorded (0 points; eval metric)."
+      "explain": "FOUL: AUTO restricted-volume entry (G402-style). −15 training proxy for opponent Major Foul. VERIFY AGAINST MANUAL."
     }
   ],
   "scoreChannels": {

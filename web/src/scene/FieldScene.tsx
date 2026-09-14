@@ -1,8 +1,23 @@
-import { Suspense, useEffect } from "react";
+import { Component, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Grid, Line, useGLTF } from "@react-three/drei";
+import { DoubleSide, Mesh, Object3D } from "three";
 import type { Frame, IntakeSpec, LauncherSpec, RobotDesign } from "../api";
 import { API } from "../api";
+import { theme } from "../theme";
+
+const BIOBUZZ_GLB = "seasons/biobuzz_2026/field.glb";
+const CAD_ASSET_VERSION = "am-5850e";
+
+export function resolveBackgroundAsset(frame: Frame | null | undefined, fallback?: string | null) {
+  if (frame?.backgroundAsset) return frame.backgroundAsset;
+  if (fallback) return fallback;
+  const els = frame?.elements || [];
+  if (els.some((el) => el.id === "red_cell_up" || el.type === "hive_frame" || (el.tags || []).includes("hive"))) {
+    return BIOBUZZ_GLB;
+  }
+  return null;
+}
 
 export type SceneView = "threeQuarter" | "top";
 
@@ -10,6 +25,21 @@ type El = Frame["elements"][number];
 
 function inch(n: number) {
   return n;
+}
+
+function prepareCadScene(scene: Object3D) {
+  scene.traverse((obj) => {
+    if (!(obj instanceof Mesh) || !obj.material) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const mat of mats) {
+      mat.side = DoubleSide;
+      if ("metalness" in mat) mat.metalness = Math.min(Number(mat.metalness ?? 0), 0.12);
+      if ("roughness" in mat) mat.roughness = Math.max(Number(mat.roughness ?? 0.7), 0.55);
+      if ("color" in mat && mat.color && typeof mat.color.getHex === "function" && mat.color.getHex() === 0) {
+        mat.color.set(theme.goldLight);
+      }
+    }
+  });
 }
 
 function isFlatOverlay(el: El) {
@@ -23,10 +53,10 @@ function isFlatOverlay(el: El) {
 
 function overlayColor(el: El) {
   const tags = el.tags || [];
-  if (tags.some((t) => t.includes("restricted"))) return "#d16b6b";
-  if (el.type === "tape" || tags.some((t) => t.includes("launch"))) return "#e0c36a";
-  if (tags.some((t) => t.includes("start"))) return el.alliance === "blue" ? "#3d6b8a" : "#2f6f55";
-  return el.alliance === "blue" ? "#3d6b8a" : "#2f6f55";
+  if (tags.some((t) => t.includes("restricted"))) return theme.restricted;
+  if (el.type === "tape" || tags.some((t) => t.includes("launch"))) return theme.gold;
+  if (tags.some((t) => t.includes("start"))) return el.alliance === "blue" ? theme.allianceBlue : theme.maroon;
+  return el.alliance === "blue" ? theme.allianceBlue : theme.maroon;
 }
 
 function overlayKey(el: El) {
@@ -104,15 +134,52 @@ function ZoneOverlay({ el, fieldArea }: { el: El; fieldArea: number }) {
   );
 }
 
-function CadBackground({ url }: { url: string }) {
+class CadErrorBoundary extends Component<{ onError?: () => void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    this.props.onError?.();
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
+function CadBackground({ url, onReady }: { url: string; onReady?: () => void }) {
   const gltf = useGLTF(url);
-  return <primitive object={gltf.scene} />;
+  const scene = useMemo(() => {
+    const cloned = gltf.scene.clone(true);
+    prepareCadScene(cloned);
+    return cloned;
+  }, [gltf.scene]);
+  useEffect(() => {
+    onReady?.();
+    // Load completion is tied to the cloned scene, not the parent callback identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene]);
+  return <primitive object={scene} />;
+}
+
+function RobotCad({ url, onReady }: { url: string; onReady?: () => void }) {
+  const gltf = useGLTF(url);
+  const scene = useMemo(() => {
+    const cloned = gltf.scene.clone(true);
+    prepareCadScene(cloned);
+    return cloned;
+  }, [gltf.scene]);
+  useEffect(() => {
+    onReady?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene]);
+  return <primitive object={scene} />;
 }
 
 function pieceColor(color?: string) {
   if (color === "Y" || color === "yellow") return "#e2c44a";
   if (color === "R" || color === "red") return "#c4453c";
-  if (color === "B" || color === "blue") return "#3d6b8a";
+  if (color === "B" || color === "blue") return theme.allianceBlue;
   if (color === "G") return "#3dbf6a";
   return "#7a4ad6";
 }
@@ -128,7 +195,7 @@ function IntakeGizmo({ intake, chassisHeight }: { intake: IntakeSpec; chassisHei
     <group position={[pose.x || 0, z, -(pose.y || 0)]} rotation={[0, heading, 0]}>
       <mesh position={[reach / 2, 0, 0]}>
         <boxGeometry args={[reach, height, width]} />
-        <meshStandardMaterial color="#6fbfa3" transparent opacity={0.45} />
+        <meshStandardMaterial color={theme.intake} transparent opacity={0.45} />
       </mesh>
     </group>
   );
@@ -149,9 +216,9 @@ function LauncherGizmo({ launcher, chassisHeight }: { launcher: LauncherSpec; ch
     <group position={[pose.x || 0, z, -(pose.y || 0)]} rotation={[0, heading, 0]}>
       <mesh>
         <boxGeometry args={[2.2, 2.2, 2.2]} />
-        <meshStandardMaterial color="#d4a574" />
+        <meshStandardMaterial color={theme.gold} />
       </mesh>
-      <Line points={points} color="#e0c36a" lineWidth={2} />
+      <Line points={points} color={theme.goldBright} lineWidth={2} />
     </group>
   );
 }
@@ -163,6 +230,7 @@ export function RobotActor({
   dynamic = true,
   design,
   showFov = false,
+  showHull = false,
 }: {
   x?: number;
   y?: number;
@@ -170,20 +238,43 @@ export function RobotActor({
   dynamic?: boolean;
   design?: RobotDesign;
   showFov?: boolean;
+  showHull?: boolean;
 }) {
   const length = design?.chassis?.lengthIn ?? 18;
   const width = design?.chassis?.widthIn ?? 18;
   const height = design?.chassis?.heightIn ?? 10;
+  const visualAsset = design?.visualAsset;
+  const offset = design?.visualOffset || {};
+  const cadUrl = visualAsset ? `${API}/robot-assets/${visualAsset}` : null;
+  const [cadReady, setCadReady] = useState(false);
+  useEffect(() => {
+    setCadReady(false);
+    if (cadUrl) useGLTF.preload(cadUrl);
+  }, [cadUrl]);
+  const showBox = !cadUrl || !cadReady || showHull;
   return (
     <group position={[inch(x), height / 2, inch(-y)]} rotation={[0, (headingDeg * Math.PI) / 180, 0]}>
-      <mesh>
-        <boxGeometry args={[length, height, width]} />
-        <meshStandardMaterial color={dynamic ? "#e8c9a3" : "#7d8b94"} />
-      </mesh>
-      <mesh position={[length / 2 - 1.5, 1, 0]}>
-        <boxGeometry args={[3, 2.5, Math.min(6, width * 0.4)]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
+      {cadUrl && (
+        <group position={[offset.x || 0, (offset.z || 0) - height / 2, -(offset.y || 0)]} rotation={[0, ((offset.headingDeg || 0) * Math.PI) / 180, 0]}>
+          <CadErrorBoundary onError={() => setCadReady(false)}>
+            <Suspense fallback={null}>
+              <RobotCad url={cadUrl} onReady={() => setCadReady(true)} />
+            </Suspense>
+          </CadErrorBoundary>
+        </group>
+      )}
+      {showBox && (
+        <>
+          <mesh>
+            <boxGeometry args={[length, height, width]} />
+            <meshStandardMaterial color={dynamic ? theme.chassis : theme.chassisIdle} transparent={Boolean(cadUrl)} opacity={cadUrl ? 0.28 : 1} />
+          </mesh>
+          <mesh position={[length / 2 - 1.5, 1, 0]}>
+            <boxGeometry args={[3, 2.5, Math.min(6, width * 0.4)]} />
+            <meshStandardMaterial color="#222" />
+          </mesh>
+        </>
+      )}
       {(design?.intakes || []).map((intake) => (
         <IntakeGizmo key={intake.id} intake={intake} chassisHeight={height} />
       ))}
@@ -193,22 +284,22 @@ export function RobotActor({
       {showFov && dynamic && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[20, 0.2, 0]}>
           <circleGeometry args={[40, 24, -0.6, 1.2]} />
-          <meshStandardMaterial color="#d4a574" transparent opacity={0.18} />
+          <meshStandardMaterial color={theme.gold} transparent opacity={0.18} />
         </mesh>
       )}
     </group>
   );
 }
 
-export function RobotPreview({ design, showFov = false }: { design: RobotDesign; showFov?: boolean }) {
+export function RobotPreview({ design, showFov = false, showHull = false }: { design: RobotDesign; showFov?: boolean; showHull?: boolean }) {
   const span = Math.max(design.chassis?.lengthIn || 18, design.chassis?.widthIn || 18, 24);
   return (
     <Canvas camera={{ position: [span * 0.9, span * 1.1, span * 0.9], fov: 40 }} style={{ width: "100%", height: "100%" }}>
-      <color attach="background" args={["#070b0e"]} />
+      <color attach="background" args={[theme.scene]} />
       <ambientLight intensity={0.7} />
       <directionalLight position={[40, 80, 30]} intensity={1} />
-      <Grid args={[span * 2, span * 2]} cellSize={6} sectionSize={18} cellColor="#2a4a3c" sectionColor="#3d6a52" fadeDistance={120} />
-      <RobotActor design={design} showFov={showFov} />
+      <Grid args={[span * 2, span * 2]} cellSize={6} sectionSize={18} cellColor={theme.grid} sectionColor={theme.gridSection} fadeDistance={120} />
+      <RobotActor design={design} showFov={showFov} showHull={showHull} />
       <OrbitControls makeDefault />
     </Canvas>
   );
@@ -218,30 +309,40 @@ function FieldMeshes({
   frame,
   showFov,
   path,
+  cadFallback,
 }: {
   frame: Frame;
   showFov: boolean;
   path: { x: number; y: number }[];
+  cadFallback?: string | null;
 }) {
   const w = frame.fieldSizeIn.width;
   const d = frame.fieldSizeIn.depth;
   const fieldArea = w * d;
   const elements = dedupe(frame.elements || []);
-  const cadUrl = frame.backgroundAsset ? `${API}/field-assets/${frame.backgroundAsset}` : null;
+  const cadPath = resolveBackgroundAsset(frame, cadFallback);
+  const cadUrl = cadPath ? `${API}/field-assets/${cadPath}?v=${CAD_ASSET_VERSION}` : null;
+  const [cadReady, setCadReady] = useState(false);
+  useEffect(() => {
+    setCadReady(false);
+    if (cadUrl) useGLTF.preload(cadUrl);
+  }, [cadUrl]);
   return (
     <group>
-      {!cadUrl && (
+      {!cadReady && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]}>
           <planeGeometry args={[w, d]} />
-          <meshStandardMaterial color="#1c4a38" />
+          <meshStandardMaterial color={theme.field} />
         </mesh>
       )}
       {cadUrl && (
-        <Suspense fallback={null}>
-          <CadBackground url={cadUrl} />
-        </Suspense>
+        <CadErrorBoundary onError={() => setCadReady(false)}>
+          <Suspense fallback={null}>
+            <CadBackground url={cadUrl} onReady={() => setCadReady(true)} />
+          </Suspense>
+        </CadErrorBoundary>
       )}
-      {!cadUrl &&
+      {!cadReady &&
         (
           [
             [0, d / 2, w + 2, 2],
@@ -252,14 +353,14 @@ function FieldMeshes({
         ).map(([x, y, bw, bd], i) => (
           <mesh key={`wall-${i}`} position={[x, 6, -y]}>
             <boxGeometry args={[bw, 12, bd]} />
-            <meshStandardMaterial color="#8aa0ae" />
+            <meshStandardMaterial color={theme.muted} />
           </mesh>
         ))}
       {elements.map((el, idx) => {
         const pose = el.pose || { x: 0, y: 0 };
         const sh = el.shape || { kind: "aabb" };
         if (el.type === "wall") return null;
-        if (hideSchematicSolid(el, Boolean(cadUrl))) return null;
+        if (hideSchematicSolid(el, cadReady)) return null;
         if (isFlatOverlay(el)) {
           return <ZoneOverlay key={`${overlayKey(el)}-${idx}`} el={el} fieldArea={fieldArea} />;
         }
@@ -267,7 +368,7 @@ function FieldMeshes({
           return (
             <mesh key={`${el.id}-${idx}`} position={[inch(pose.x), 2, inch(-pose.y)]}>
               <cylinderGeometry args={[sh.radius || 4, sh.radius || 4, 4, 20]} />
-              <meshStandardMaterial color="#3d6b8a" transparent opacity={0.5} />
+              <meshStandardMaterial color={theme.allianceBlue} transparent opacity={0.5} />
             </mesh>
           );
         }
@@ -275,12 +376,12 @@ function FieldMeshes({
         const depth = sh.depth || 8;
         const h = el.type === "goal" ? 16 : 8;
         const color = (el.tags || []).includes("gate")
-          ? "#d4a574"
+          ? theme.gold
           : el.alliance === "blue"
-            ? "#4a7aa8"
+            ? theme.allianceBlueBright
             : el.isOccluder
-              ? "#3d5a4c"
-              : "#2f6f55";
+              ? theme.occluder
+              : theme.maroon;
         return (
           <mesh key={`${el.id}-${idx}`} position={[inch(pose.x), h / 2, inch(-pose.y)]}>
             <boxGeometry args={[width, h, depth]} />
@@ -304,13 +405,14 @@ function FieldMeshes({
           headingDeg={r.headingDeg}
           dynamic={r.dynamic}
           design={frame.robotDesign}
+          showHull={frame.robotDesign?.collisionShape === "mesh" || frame.robotDesign?.chassis?.collisionShape === "mesh"}
           showFov={showFov}
         />
       ))}
       {path.length > 1 && (
         <Line
           points={path.map((p) => [inch(p.x), 0.5, inch(-p.y)] as [number, number, number])}
-          color="#d4a574"
+          color={theme.gold}
           lineWidth={2}
         />
       )}
@@ -323,23 +425,25 @@ export function FieldScene({
   showFov,
   path = [],
   view = "threeQuarter",
+  cadAsset,
 }: {
   frame: Frame | null;
   showFov: boolean;
   path?: { x: number; y: number }[];
   view?: SceneView;
+  cadAsset?: string | null;
 }) {
   const w = frame?.fieldSizeIn.width || 144;
   const d = frame?.fieldSizeIn.depth || 144;
   const span = Math.max(w, d);
   return (
     <Canvas camera={{ position: [0, span * 1.45, span * 0.95], fov: 40 }} style={{ width: "100%", height: "100%" }}>
-      <color attach="background" args={["#070b0e"]} />
+      <color attach="background" args={[theme.scene]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[80, 200, 60]} intensity={1.1} />
-      <Grid args={[w, d]} cellSize={24} sectionSize={72} cellColor="#2a4a3c" sectionColor="#3d6a52" fadeDistance={400} />
+      <Grid args={[w, d]} cellSize={24} sectionSize={72} cellColor={theme.grid} sectionColor={theme.gridSection} fadeDistance={400} />
       <CameraRig view={view} w={w} d={d} />
-      {frame && <FieldMeshes frame={frame} showFov={showFov} path={path} />}
+      {frame && <FieldMeshes frame={frame} showFov={showFov} path={path} cadFallback={cadAsset} />}
       <OrbitControls makeDefault />
     </Canvas>
   );

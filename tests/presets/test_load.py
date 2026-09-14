@@ -1,4 +1,4 @@
-from talongym.presets.loader import list_presets, load_bundle, load_preset, validate_document
+from talongym.presets.loader import list_presets, load_bundle, load_preset
 
 
 def test_all_shipped_presets_validate():
@@ -9,15 +9,10 @@ def test_all_shipped_presets_validate():
             load_preset(kind, item["id"])
 
 
-def test_decode_bundle_loads():
+def test_biobuzz_bundle_loads():
     bundle = load_bundle()
-    assert bundle.field["season"]["slug"] == "decode"
-    assert "planar_drive" in bundle.field["requiredCapabilities"]
+    assert bundle.field["season"]["slug"] == "biobuzz"
+    assert "mesh_field_collision" in bundle.field["requiredCapabilities"]
     assert bundle.scoring["provenance"]["verifyAgainstManual"] is True
-
-
-def test_into_the_deep_is_not_decode_shaped():
-    field = load_preset("field", "into_the_deep_2024_field")
-    types = {el["type"] for el in field["elements"]}
-    assert "submersible" in types
-    assert "obelisk" not in types
+    assert bundle.field["id"] == "biobuzz_2026_field_v1"
+    assert bundle.scoring["id"] == "biobuzz_2026_scoring_v1"

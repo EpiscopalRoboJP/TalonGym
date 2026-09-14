@@ -21,7 +21,7 @@ Serves FastAPI (`/api/v1/…`) and, if `web/dist` exists, the Lab SPA. See [LAB.
 ```bash
 python -m talongym train
 python -m talongym train --easy
-python -m talongym train --training decode_auto_workstation --steps 8192 --n-envs 16
+python -m talongym train --training biobuzz_auto_workstation --steps 8192 --n-envs 16
 python -m talongym train --allow-scripted
 python -m talongym train --algo rllib_ppo --steps 2048
 ```
@@ -68,7 +68,7 @@ Rolls the scripted policy, writes Road Runner 1.0 Java to `var/last_replay.java`
 ```bash
 python -m talongym defaults
 python -m talongym defaults --training biobuzz_auto_lightweight
-python -m talongym defaults --field decode_2025_field_tu32 --robot mecanum_meepmeep_defaults --scoring decode_2025_scoring_tu32
+python -m talongym defaults --field biobuzz_2026_field_v1 --robot mecanum_biobuzz_4cap --scoring biobuzz_2026_scoring_v1
 ```
 
 No flags: print the resolved bundle JSON (`fieldId`, `robotId`, `scoringId`, `trainingId`, `season`). With flags: write `var/defaults.json` after validating ids and that scoring’s `fieldPresetId` matches the field.
@@ -105,9 +105,18 @@ Compares planar 2D vs MuJoCo on a short chassis motion; prints pose RMSE. The ch
 ```bash
 python -m talongym import-field-cad
 python -m talongym import-field-cad --page https://ftc-resources.firstinspires.org/ftc/archive/2027/field
+python -m talongym import-field-cad --step "C:\Users\242440\Downloads\am-5850 BIOBUZZ.step"
 ```
 
-Writes `assets/seasons/<slug>/field.glb` and `field_mjcf.xml`. Tries official STEP from the archive page; HubSpot often hides the file, in which case the field preset AABBs are tessellated. Raw STEP is not committed (`var/cad/`).
+Writes `assets/seasons/<slug>/field.glb` (Lab) and `field_mjcf.xml` (MuJoCo AABBs). `--step` tessellates a local official STEP with `trimesh`/`cascadio` (`pip install -e ".[cad]"`). Without `--step`, it tries the archive page; HubSpot often hides the file, in which case field preset AABBs are tessellated. Raw STEP is copied to `var/cad/` and is not committed. Physics stays AABB even when the Lab mesh is official CAD, so robots can still drive under the hive.
+
+## `import-robot-cad`
+
+```bash
+python -m talongym import-robot-cad --robot team_hood_v1 --file path/to/robot.stl
+```
+
+Accepts GLB, glTF, STL, OBJ, or STEP (`pip install -e ".[cad]"`; STEP needs cascadio). Writes `var/assets/robots/<id>/visual.glb` and `collision.stl`, prints bbox + footprint JSON. Paste those paths onto the robot preset (`visualAsset`, `collisionAsset`, `chassis.footprint`). Lab **Robot** does the same via `POST /api/v1/presets/robot/{id}/model`.
 
 ## `distill`
 

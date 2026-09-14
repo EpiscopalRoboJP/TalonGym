@@ -1,6 +1,6 @@
 # BIOBUZZ 2026–2027 — Competition Manual V1
 
-Game: **BIOBUZZ™ presented by RTX**, FIRST CANOPY™. Preset ids `biobuzz_2026_field_v1` / `biobuzz_2026_scoring_v1`. Provenance: Competition Manual **V1** (2026-09-12). Geometry is `hand_authored` schematic AABBs tessellated into `assets/seasons/biobuzz_2026/field.glb` + MuJoCo colliders. Re-run `python -m talongym import-field-cad` when the official STEP URL is reachable.
+Game: **BIOBUZZ™ presented by RTX**, FIRST CANOPY™. Preset ids `biobuzz_2026_field_v1` / `biobuzz_2026_scoring_v1`. Provenance: Competition Manual **V1** (2026-09-12). Collision volumes are `hand_authored` schematic AABBs (`field_mjcf.xml`). Lab `field.glb` is tessellated from official **am-5850** Field CAD via `python -m talongym import-field-cad --step`. Raw STEP is not committed.
 
 GARDEN tape sits in the **same alliance corner as the LOADING ZONE** (audience-left for red).
 

@@ -166,10 +166,26 @@ def validate_3d(steps: int = 40) -> None:
 def import_field_cad_cmd(
     field: Path | None = typer.Option(None, "--field", help="Field preset JSON"),
     page: str = typer.Option("https://ftc-resources.firstinspires.org/ftc/archive/2027/field", "--page"),
+    step: Path | None = typer.Option(None, "--step", help="Official STEP/STP to tessellate into Lab glTF (copied to var/cad/, not committed)"),
+    tol_linear: float | None = typer.Option(None, "--tol-linear", help="OpenCASCADE linear deflection in STEP source units"),
 ) -> None:
     from talongym.assets.import_field_cad import import_field_cad
 
-    result = import_field_cad(field_path=field, page_url=page)
+    result = import_field_cad(field_path=field, page_url=page, step_path=step, tol_linear=tol_linear)
+    typer.echo(json.dumps(result, indent=2))
+
+
+@app.command("import-robot-cad")
+def import_robot_cad_cmd(
+    robot: str = typer.Option(..., "--robot", help="Robot preset id (assets stored under var/assets/robots/<id>/)"),
+    cad: Path = typer.Option(..., "--file", help="GLB, glTF, STL, OBJ, or STEP"),
+) -> None:
+    from talongym.assets.import_robot_cad import RobotCadError, import_robot_cad
+
+    try:
+        result = import_robot_cad(cad, robot)
+    except RobotCadError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     typer.echo(json.dumps(result, indent=2))
 
 

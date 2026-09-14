@@ -131,15 +131,39 @@ export type LauncherSpec = {
 };
 
 export type RobotDesign = {
-  chassis?: { lengthIn?: number; widthIn?: number; heightIn?: number; massKg?: number };
+  chassis?: { lengthIn?: number; widthIn?: number; heightIn?: number; massKg?: number; collisionShape?: string };
   intakes?: IntakeSpec[];
   launchers?: LauncherSpec[];
+  visualAsset?: string | null;
+  collisionAsset?: string | null;
+  visualOffset?: PoseOnRobot;
+  collisionShape?: string;
+};
+
+export type FrameExplain = { id: string; explain: string; points: number };
+
+export type FrameCollision = {
+  wall: boolean;
+  robot: boolean;
+  piece: boolean;
+  collisionTimeS?: number;
+  firstContactS?: number | null;
+  enteredRestricted?: boolean;
 };
 
 export type Frame = {
   t: number;
   trueScore: number;
-  robots: { id: string; x: number; y: number; headingDeg: number; held: string[]; dynamic: boolean; alliance?: string }[];
+  robots: {
+    id: string;
+    x: number;
+    y: number;
+    headingDeg: number;
+    held: string[];
+    dynamic: boolean;
+    alliance?: string;
+    enteredRestricted?: boolean;
+  }[];
   robotDesign?: RobotDesign;
   pieces: { id: string; x: number; y: number; z?: number; color?: string; heldBy?: string | null; inFlight?: boolean; scored?: boolean }[];
   elements: {

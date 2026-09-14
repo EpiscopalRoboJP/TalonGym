@@ -3,12 +3,16 @@
 Raw STEP is written under var/cad/ and is not committed. Converted assets live in
 assets/seasons/<slug>/. HubSpot often hides the direct CAD URL — we scrape the
 archive page, then fall back to tessellating the field preset AABBs.
+
+When a local STEP is supplied, Lab glTF is tessellated from that file. MuJoCo
+colliders stay as field-preset AABBs so robots can still drive under the hive.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
@@ -20,6 +24,20 @@ from talongym.paths import ASSETS_DIR, PRESETS_DIR, VAR_DIR
 DEFAULT_CAD_PAGE = "https://ftc-resources.firstinspires.org/ftc/archive/2027/field"
 STEP_RE = re.compile(r"""href=["']([^"']+\.(?:step|stp|STEP|STP))["']""", re.I)
 ONSHAPE_RE = re.compile(r"""href=["'](https://[^"']*onshape[^"']*)["']""", re.I)
+IN_PER_M = 39.37007874015748
+MM_PER_IN = 25.4
+FIELD_SPAN_IN = 144.0
+# OpenCASCADE linear deflection in source units (metres for Onshape AP242).
+# 20 mm is coarse enough for Lab; we still quadric-decimate after tessellation.
+DEFAULT_TOL_BY_UNIT = {"m": 0.02, "mm": 20.0, "in": 0.75, "unknown": 0.02}
+VISUAL_FACE_TARGET = 350_000
+# FTC (x, y floor, z height) -> Three/MuJoCo Y-up (x, height, -y).
+YUP_FROM_ZUP = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+    [0.0, -1.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0, 1.0],
+]
 
 
 class CadImportError(RuntimeError):
@@ -67,19 +85,243 @@ def download_step(url: str, dest: Path) -> Path:
     return dest
 
 
-def convert_step_to_trimesh(step_path: Path):
+def cad_cache_dir() -> Path:
+    dest = VAR_DIR / "cad"
+    dest.mkdir(parents=True, exist_ok=True)
+    return dest
+
+
+def stage_step(source: Path) -> Path:
+    source = Path(source)
+    if not source.is_file():
+        raise CadImportError(f"STEP not found: {source}")
+    suffix = source.suffix.lower()
+    if suffix not in {".step", ".stp"}:
+        raise CadImportError(f"expected .step/.stp, got {suffix or 'no suffix'}")
+    dest = cad_cache_dir() / re.sub(r"[^A-Za-z0-9._-]+", "_", source.name)
+    if dest.resolve() != source.resolve():
+        shutil.copy2(source, dest)
+    return dest
+
+
+def sniff_step_units(step_path: Path | None = None, text: str | None = None) -> str:
+    """Best-effort length unit from an AP242/Onshape STEP header or unit block."""
+    if text is None:
+        if step_path is None:
+            raise CadImportError("sniff_step_units needs a path or text")
+        with Path(step_path).open("rb") as fh:
+            fh.seek(0, 2)
+            size = fh.tell()
+            fh.seek(0)
+            head = fh.read(min(size, 750_000))
+            fh.seek(max(0, size - 2_000_000))
+            tail = fh.read()
+        text = (head + tail).decode("latin-1", errors="ignore")
+    blob = text.upper()
+    if "SI_UNIT(.MILLI.,.METRE.)" in blob:
+        return "mm"
+    if "SI_UNIT($,.METRE.)" in blob or "SI_UNIT(*,.METRE.)" in blob:
+        return "m"
+    if "CONVERSION_BASED_UNIT" in blob and "INCH" in blob:
+        return "in"
+    return "unknown"
+
+
+def guess_field_inch_scale(span: float) -> tuple[float, str]:
+    """Pick m/mm/in so the largest extent lands near a 144 in FTC field."""
+    candidates = [
+        (1.0, "in", abs(float(span) - FIELD_SPAN_IN)),
+        (1.0 / MM_PER_IN, "mm", abs(float(span) / MM_PER_IN - FIELD_SPAN_IN)),
+        (IN_PER_M, "m", abs(float(span) * IN_PER_M - FIELD_SPAN_IN)),
+    ]
+    _scale, units, _err = min(candidates, key=lambda row: row[2])
+    return _scale, units
+
+
+def infer_up_axis(extents: Any) -> int:
+    vals = [float(extents[0]), float(extents[1]), float(extents[2])]
+    return int(min(range(3), key=lambda i: vals[i]))
+
+
+def default_linear_deflection(units: str) -> float:
+    return float(DEFAULT_TOL_BY_UNIT.get(units, DEFAULT_TOL_BY_UNIT["unknown"]))
+
+
+def _require_trimesh():
     try:
         import trimesh
     except ImportError as exc:
         raise CadImportError("trimesh missing; pip install -e '.[cad]'") from exc
+    return trimesh
+
+
+def _require_cascadio():
     try:
-        import cascadio  # noqa: F401
-    except ImportError:
+        import cascadio
+    except ImportError as exc:
+        raise CadImportError("cascadio missing; pip install -e '.[cad]'") from exc
+    return cascadio
+
+
+def _face_count(obj: Any) -> int:
+    faces = getattr(obj, "faces", None)
+    if faces is not None:
+        try:
+            return int(len(faces))
+        except TypeError:
+            pass
+    geoms = getattr(obj, "geometry", None)
+    if isinstance(geoms, dict):
+        total = 0
+        for geom in geoms.values():
+            geom_faces = getattr(geom, "faces", None)
+            if geom_faces is None:
+                continue
+            total += int(len(geom_faces))
+        return total
+    return 0
+
+
+def _as_trimesh(obj: Any, trimesh: Any) -> Any:
+    if isinstance(obj, trimesh.Trimesh):
+        return obj
+    if isinstance(obj, trimesh.Scene):
+        dumped = obj.to_geometry() if hasattr(obj, "to_geometry") else obj.dump(concatenate=True)
+        if isinstance(dumped, trimesh.Trimesh):
+            return dumped
+        geoms = dumped if isinstance(dumped, (list, tuple)) else [dumped]
+        geoms = [g for g in geoms if isinstance(g, trimesh.Trimesh) and len(getattr(g, "faces", []))]
+        if not geoms:
+            raise CadImportError("STEP scene has no triangle mesh")
+        if len(geoms) == 1:
+            return geoms[0]
+        return trimesh.util.concatenate(geoms)
+    raise CadImportError(f"unsupported mesh type {type(obj).__name__}")
+
+
+def _paint_lab_mesh(mesh: Any) -> Any:
+    """Keep STEP tessellation exportable; Lab lights/materials are applied in FieldScene."""
+    try:
+        mesh.fix_normals()
+    except Exception:
         pass
-    mesh = trimesh.load(str(step_path), force="mesh")
-    if mesh is None:
-        raise CadImportError(f"trimesh could not load {step_path}")
     return mesh
+
+
+def _decimate_visual(obj: Any, trimesh: Any, target: int = VISUAL_FACE_TARGET) -> tuple[Any, bool]:
+    mesh = _as_trimesh(obj, trimesh)
+    if len(mesh.faces) <= target:
+        return _paint_lab_mesh(mesh), False
+    try:
+        reduced = mesh.simplify_quadric_decimation(face_count=int(target))
+    except Exception as exc:
+        raise CadImportError(
+            "field mesh is too dense and fast-simplification is missing; pip install -e '.[cad]'"
+        ) from exc
+    if reduced is None or len(getattr(reduced, "faces", [])) < 32:
+        return _paint_lab_mesh(mesh), False
+    return _paint_lab_mesh(reduced), True
+
+
+def align_field_mesh(obj: Any, units: str | None = None) -> tuple[Any, dict[str, Any]]:
+    """Scale to inches, Z-up CAD -> Y-up Lab, origin at field center, sit on the floor."""
+    extents = obj.extents
+    span = float(max(extents)) if len(extents) else 0.0
+    if span < 1e-9:
+        raise CadImportError("STEP mesh has zero size")
+    if units in (None, "", "unknown"):
+        scale, units_guess = guess_field_inch_scale(span)
+    elif units == "m":
+        scale, units_guess = IN_PER_M, "m"
+    elif units == "mm":
+        scale, units_guess = 1.0 / MM_PER_IN, "mm"
+    else:
+        scale, units_guess = 1.0, "in"
+    if abs(scale - 1.0) > 1e-9:
+        obj.apply_scale(scale)
+    up = infer_up_axis(obj.extents)
+    rotated = False
+    if up == 2:
+        obj.apply_transform(YUP_FROM_ZUP)
+        rotated = True
+    min_b, max_b = obj.bounds
+    cx = 0.5 * (float(min_b[0]) + float(max_b[0]))
+    cz = 0.5 * (float(min_b[2]) + float(max_b[2]))
+    # Official FTC CAD is origin-at-center; only slide if the assembly is clearly offset.
+    if abs(cx) > 8.0 or abs(cz) > 8.0:
+        obj.apply_translation([-cx, 0.0, -cz])
+        min_b, max_b = obj.bounds
+    floor = float(min_b[1])
+    if abs(floor) > 0.05:
+        obj.apply_translation([0.0, -floor, 0.0])
+    min_b, max_b = obj.bounds
+    meta = {
+        "unitsGuess": units_guess,
+        "rotatedZupToYup": rotated,
+        "faceCount": _face_count(obj),
+        "extentsIn": [round(float(v), 3) for v in obj.extents],
+        "minIn": [round(float(v), 3) for v in min_b],
+        "maxIn": [round(float(v), 3) for v in max_b],
+    }
+    return obj, meta
+
+
+def tessellate_step_to_glb(
+    step_path: Path,
+    dest_glb: Path,
+    *,
+    units: str = "unknown",
+    tol_linear: float | None = None,
+) -> Path:
+    cascadio = _require_cascadio()
+    dest_glb.parent.mkdir(parents=True, exist_ok=True)
+    tol = float(tol_linear) if tol_linear is not None else default_linear_deflection(units)
+    kwargs: dict[str, Any] = {
+        "tol_linear": tol,
+        "tol_angular": 0.5,
+        "merge_primitives": True,
+        "use_parallel": True,
+    }
+    try:
+        cascadio.step_to_glb(str(step_path), str(dest_glb), include_materials=True, **kwargs)
+    except TypeError:
+        cascadio.step_to_glb(str(step_path), str(dest_glb), **kwargs)
+    if not dest_glb.is_file() or dest_glb.stat().st_size < 64:
+        raise CadImportError(f"cascadio wrote no GLB at {dest_glb}")
+    return dest_glb
+
+
+def convert_step_to_trimesh(
+    step_path: Path,
+    *,
+    units: str | None = None,
+    tol_linear: float | None = None,
+    raw_glb: Path | None = None,
+) -> tuple[Any, dict[str, Any]]:
+    trimesh = _require_trimesh()
+    _require_cascadio()
+    step_path = Path(step_path)
+    sniffed = units or sniff_step_units(step_path)
+    raw_glb = raw_glb or (cad_cache_dir() / f"{step_path.stem}.raw.glb")
+    reuse = (
+        raw_glb.is_file()
+        and raw_glb.stat().st_size > 64
+        and raw_glb.stat().st_mtime >= step_path.stat().st_mtime
+        and tol_linear is None
+    )
+    if not reuse:
+        tessellate_step_to_glb(step_path, raw_glb, units=sniffed, tol_linear=tol_linear)
+    loaded = trimesh.load(str(raw_glb), force=None)
+    if loaded is None:
+        raise CadImportError(f"trimesh could not load tessellated {raw_glb}")
+    aligned, meta = align_field_mesh(loaded, units=sniffed)
+    visual, decimated = _decimate_visual(aligned, trimesh)
+    meta["rawGlb"] = str(raw_glb)
+    meta["sniffedUnits"] = sniffed
+    meta["tolLinear"] = float(tol_linear) if tol_linear is not None else default_linear_deflection(sniffed)
+    meta["decimated"] = decimated
+    meta["faceCount"] = _face_count(visual)
+    return visual, meta
 
 
 def write_assets_from_field(
@@ -98,11 +340,34 @@ def write_assets_from_field(
     return {"glb": str(glb_path), "mjcf": str(xml_path), "backgroundAsset": rel_glb, "collisionAsset": rel_xml}
 
 
+def write_step_visual_and_aabb_colliders(
+    field: dict[str, Any],
+    mesh: Any,
+    *,
+    year_hint: str = "2026",
+) -> dict[str, str]:
+    dest_dir = asset_dir_for(field, year_hint)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    glb_path = dest_dir / "field.glb"
+    xml_path = dest_dir / "field_mjcf.xml"
+    mesh.export(str(glb_path), file_type="glb")
+    xml_path.write_text(build_mjcf(field), encoding="utf-8")
+    rel_glb = str(glb_path.relative_to(ASSETS_DIR)).replace("\\", "/")
+    rel_xml = str(xml_path.relative_to(ASSETS_DIR)).replace("\\", "/")
+    return {
+        "glb": str(glb_path),
+        "mjcf": str(xml_path),
+        "backgroundAsset": rel_glb,
+        "collisionAsset": rel_xml,
+        "glbBytes": str(glb_path.stat().st_size),
+    }
+
+
 def try_official_step(page_url: str = DEFAULT_CAD_PAGE) -> Path | None:
     urls = discover_step_urls(page_url)
     if not urls:
         return None
-    dest = VAR_DIR / "cad" / "field.step"
+    dest = cad_cache_dir() / "field.step"
     try:
         return download_step(urls[-1], dest)
     except Exception:
@@ -113,26 +378,33 @@ def import_field_cad(
     field_path: Path | None = None,
     page_url: str = DEFAULT_CAD_PAGE,
     year_hint: str = "2026",
+    step_path: Path | None = None,
+    tol_linear: float | None = None,
 ) -> dict[str, Any]:
     field = load_field_json(field_path)
+    if step_path is not None:
+        staged = stage_step(Path(step_path))
+        mesh, meta = convert_step_to_trimesh(staged, tol_linear=tol_linear)
+        paths = write_step_visual_and_aabb_colliders(field, mesh, year_hint=year_hint)
+        return {
+            "ok": True,
+            "source": f"official_step:{staged.name}",
+            "step": str(staged),
+            **paths,
+            **meta,
+        }
     step = try_official_step(page_url)
     note = "aabb_tessellation"
     if step is not None:
         try:
-            mesh = convert_step_to_trimesh(step)
-            dest_dir = asset_dir_for(field, year_hint)
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            glb = dest_dir / "field.glb"
-            mesh.export(str(glb))
-            xml = dest_dir / "field_mjcf.xml"
-            xml.write_text(build_mjcf(field), encoding="utf-8")
-            note = f"official_step:{step.name}"
+            mesh, meta = convert_step_to_trimesh(step, tol_linear=tol_linear)
+            paths = write_step_visual_and_aabb_colliders(field, mesh, year_hint=year_hint)
             return {
                 "ok": True,
-                "source": note,
-                "glb": str(glb),
-                "mjcf": str(xml),
+                "source": f"official_step:{step.name}",
                 "step": str(step),
+                **paths,
+                **meta,
             }
         except Exception as exc:
             note = f"step_failed:{exc}"

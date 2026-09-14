@@ -11,15 +11,9 @@ presets/
     mecanum_meepmeep_defaults.json
     mecanum_biobuzz_4cap.json
   training/
-    decode_auto_{lightweight,workstation,cloud,easy}.json
-    into_the_deep_auto_*.json
-    centerstage_auto_*.json
-    biobuzz_auto_*.json
+    biobuzz_auto_{lightweight,workstation,cloud,easy}.json
   seasons/
-    decode_2025/                # field.json, scoring.json
-    into_the_deep_2024/
-    centerstage_2023/
-    biobuzz_2026/               # plus season README
+    biobuzz_2026/               # field.json, scoring.json, README
 schemas/                        # Draft 2020-12, normative
   field-preset.schema.json
   robot-preset.schema.json
@@ -31,16 +25,15 @@ Kind is inferred from JSON shape (`fieldSizeIn`, `drivetrain`, scoring `nodes`+`
 
 Robot presets may include optional `intakes[]` and `launchers[]` (pose on the robot, capture volume, muzzle speed/aim). Omitting them keeps the omnidirectional hull intake and curriculum teleport / auto-aim launch. Edit them in Lab **Robot** (`/build/robot`).
 
+Optional CAD fields: `visualAsset` (render GLB under `var/assets/`), `collisionAsset` (hull STL), `visualOffset`, and `chassis.collisionShape: "mesh"` with `chassis.footprint` (2D hull in robot-frame inches). Shipped robots stay boxes. Upload from the Lab or `python -m talongym import-robot-cad`. Do not commit team CAD.
+
 ## Switch the active bundle
 
 ```bash
-python -m talongym defaults --training decode_auto_easy
-python -m talongym defaults --training decode_auto_lightweight
-python -m talongym defaults --training decode_auto_workstation
-python -m talongym defaults --training decode_auto_cloud
-python -m talongym defaults --training into_the_deep_auto_lightweight
-python -m talongym defaults --training centerstage_auto_lightweight
+python -m talongym defaults --training biobuzz_auto_easy
 python -m talongym defaults --training biobuzz_auto_lightweight
+python -m talongym defaults --training biobuzz_auto_workstation
+python -m talongym defaults --training biobuzz_auto_cloud
 python -m talongym defaults
 ```
 
@@ -50,11 +43,10 @@ Scoring documents may declare `fieldPresetId`. `defaults` rejects a mismatch.
 
 ## Seasons shipped
 
+Only **BIOBUZZ™ 2026–2027** ships. Older games are not encoded here — their layouts and rules were not accurate enough to keep.
+
 | Season | Field id | Scoring id | Manual |
 |--------|----------|------------|--------|
-| DECODE™ presented by RTX | `decode_2025_field_tu32` | `decode_2025_scoring_tu32` | TU32 |
-| INTO THE DEEP℠ | `into_the_deep_2024_field` | `into_the_deep_2024_scoring` | archive |
-| CENTERSTAGE℠ | `centerstage_2023_field` | `centerstage_2023_scoring` | archive |
 | BIOBUZZ™ presented by RTX | `biobuzz_2026_field_v1` | `biobuzz_2026_scoring_v1` | V1 |
 
 BIOBUZZ notes and placeholders: [presets/seasons/biobuzz_2026/README.md](../presets/seasons/biobuzz_2026/README.md). Kickoff process: [NEW_SEASON_RUNBOOK.md](NEW_SEASON_RUNBOOK.md).

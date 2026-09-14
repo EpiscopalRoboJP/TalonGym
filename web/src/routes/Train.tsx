@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FieldScene } from "../scene/FieldScene";
 import { Sparkline } from "../Sparkline";
-import { getJson, loadReplayFrames, postJson, putJson, type ComputeInfo, type DefaultsBundle, type Frame, type PresetMeta, type RunRow } from "../api";
+import { theme } from "../theme";
+import { getJson, loadReplayFrames, postJson, putJson, robotPresetLabel, type ComputeInfo, type DefaultsBundle, type Frame, type PresetMeta, type RunRow } from "../api";
 
 type Profile = "demo" | "short" | "easy" | "preset";
 
@@ -33,10 +34,10 @@ export function TrainPage() {
   const [robots, setRobots] = useState<PresetMeta[]>([]);
   const [scoring, setScoring] = useState<PresetMeta[]>([]);
   const [training, setTraining] = useState<PresetMeta[]>([]);
-  const [fieldId, setFieldId] = useState("decode_2025_field_tu32");
-  const [robotId, setRobotId] = useState("mecanum_meepmeep_defaults");
-  const [scoringId, setScoringId] = useState("decode_2025_scoring_tu32");
-  const [trainingId, setTrainingId] = useState("decode_auto_lightweight");
+  const [fieldId, setFieldId] = useState("biobuzz_2026_field_v1");
+  const [robotId, setRobotId] = useState("mecanum_biobuzz_4cap");
+  const [scoringId, setScoringId] = useState("biobuzz_2026_scoring_v1");
+  const [trainingId, setTrainingId] = useState("biobuzz_auto_lightweight");
   const [defaultSeason, setDefaultSeason] = useState("");
   const [profile, setProfile] = useState<Profile>("demo");
   const [compute, setCompute] = useState<ComputeInfo | null>(null);
@@ -263,17 +264,17 @@ export function TrainPage() {
         </div>
         <div className="card">
           <h3>True score (leaderboard)</h3>
-          <Sparkline values={trueSeries} label="True score mean over time" color="#6fbfa3" />
+          <Sparkline values={trueSeries} label="True score mean over time" color={theme.gold} />
           <div className="stat">episode mean {fmt(metrics.trueScoreMean)}</div>
         </div>
         <div className="card">
           <h3>Held-out eval true score</h3>
-          <Sparkline values={evalSeries} label="Eval true score mean over time" color="#8ec5e8" />
+          <Sparkline values={evalSeries} label="Eval true score mean over time" color={theme.goldLight} />
           <div className="stat">eval mean {fmt(metrics.evalTrueScoreMean)}</div>
         </div>
         <div className="card">
           <h3>Shaping (not leaderboard)</h3>
-          <Sparkline values={shapeSeries} label="Shaping mean over time" color="#e0c36a" />
+          <Sparkline values={shapeSeries} label="Shaping mean over time" color={theme.goldBright} />
           <div className="stat">mean {fmt(metrics.shapingMean)}</div>
         </div>
         {current && (
@@ -345,7 +346,7 @@ export function TrainPage() {
           <select id="train-robot" value={robotId} onChange={(e) => setRobotId(e.target.value)}>
             {robots.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.displayName || p.id}
+                {robotPresetLabel(p)}
               </option>
             ))}
           </select>

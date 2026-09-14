@@ -1,7 +1,9 @@
+import { theme } from "./theme";
+
 export function Sparkline({
   values,
   label,
-  color = "#6fbfa3",
+  color = theme.gold,
 }: {
   values: number[];
   label: string;
@@ -13,7 +15,7 @@ export function Sparkline({
   if (nums.length < 1) {
     return (
       <svg className="chart" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={label}>
-        <text x="12" y="48" fill="#8aa0ae" fontSize="12">
+        <text x="12" y="48" fill={theme.muted} fontSize="12">
           Waiting for samples…
         </text>
       </svg>

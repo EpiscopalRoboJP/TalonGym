@@ -147,6 +147,7 @@ def write_glb(path: Path, solids: list[dict[str, Any]]) -> Path:
                     "metallicFactor": 0.05,
                     "roughnessFactor": 0.7,
                 },
+                "doubleSided": True,
                 "alphaMode": "BLEND" if rgba[3] < 0.99 else "OPAQUE",
             }
         )

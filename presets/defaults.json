@@ -1,6 +1,6 @@
 {
-  "fieldId": "decode_2025_field_tu32",
-  "robotId": "mecanum_meepmeep_defaults",
-  "scoringId": "decode_2025_scoring_tu32",
-  "trainingId": "decode_auto_lightweight"
+  "fieldId": "biobuzz_2026_field_v1",
+  "robotId": "mecanum_biobuzz_4cap",
+  "scoringId": "biobuzz_2026_scoring_v1",
+  "trainingId": "biobuzz_auto_lightweight"
 }

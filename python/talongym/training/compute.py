@@ -138,7 +138,7 @@ def training_id_for_profile(training_id: str, profile: str) -> str:
 def easy_training_id(current_id: str | None) -> str:
     from talongym.presets.loader import preset_index
 
-    base = current_id or "decode_auto_lightweight"
+    base = current_id or "biobuzz_auto_lightweight"
     candidate = training_id_for_profile(base, "auto")
     if candidate in preset_index()["training"]:
         return candidate
@@ -179,7 +179,7 @@ def resolve_training(
 def describe_compute(training_id: str | None = None) -> dict[str, Any]:
     hw = detect_hardware()
     profile = detect_compute_profile(hw)
-    current = training_id or "decode_auto_lightweight"
+    current = training_id or "biobuzz_auto_lightweight"
     return {
         "hardware": hw,
         "profile": profile,

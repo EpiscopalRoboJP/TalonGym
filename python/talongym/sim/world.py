@@ -148,6 +148,7 @@ class World:
         self.fire_counts: dict[str, int] = {}
         self.prev_occupancy: dict[str, set[str]] = {}
         self.explains: list[dict[str, Any]] = []
+        self.step_explains: list[dict[str, Any]] = []
         self.true_score = 0.0
         self.wall_hit = False
         self.robot_hit = False

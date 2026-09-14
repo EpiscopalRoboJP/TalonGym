@@ -1,12 +1,12 @@
 # Train a policy
 
-TalonGym trains an LSTM policy on a 30-second AUTO episode. DECODE uses scratch RecurrentPPO. BIOBUZZ uses **`bc_then_ppo`**: clone `scripted_biobuzz`, then asymmetric-critic PPO (actor encoder-only, critic sees privileged 3D state). Optional **`grpo`** is a value-free group baseline for sparse HIVE TIP. The leaderboard uses **true score** only.
+TalonGym trains an LSTM policy on a 30-second AUTO episode. BIOBUZZ uses **`bc_then_ppo`**: clone `scripted_biobuzz`, then asymmetric-critic PPO (actor encoder-only, critic sees privileged 3D state). Optional **`grpo`** is a value-free group baseline for sparse HIVE TIP. The leaderboard uses **true score** only.
 
 Algorithm and observation contract: [ARCHITECTURE.md](ARCHITECTURE.md) §4. This page is the operator path.
 
 ## 1. Pick the season bundle
 
-Repo default in [`presets/defaults.json`](../presets/defaults.json) is DECODE. Override without editing the repo:
+Repo default in [`presets/defaults.json`](../presets/defaults.json) is BIOBUZZ. Override without editing the repo:
 
 ```bash
 python -m talongym defaults --training biobuzz_auto_lightweight
@@ -15,13 +15,10 @@ python -m talongym defaults
 
 `--training` copies that preset’s `fieldId` / `robotId` / `scoringId` into `var/defaults.json`. CLI `train` / `evaluate` / `replay` and Lab jobs that omit ids all load this bundle.
 
-Shipped training ids (each season has four compute variants):
+Shipped training ids (four compute variants):
 
 | Family | lightweight | workstation | cloud (Ray) | easy (autodetect) |
 |--------|-------------|-------------|-------------|-------------------|
-| DECODE TU32 | `decode_auto_lightweight` | `decode_auto_workstation` | `decode_auto_cloud` | `decode_auto_easy` |
-| INTO THE DEEP | `into_the_deep_auto_lightweight` | `into_the_deep_auto_workstation` | `into_the_deep_auto_cloud` | `into_the_deep_auto_easy` |
-| CENTERSTAGE | `centerstage_auto_lightweight` | `centerstage_auto_workstation` | `centerstage_auto_cloud` | `centerstage_auto_easy` |
 | BIOBUZZ V1 | `biobuzz_auto_lightweight` | `biobuzz_auto_workstation` | `biobuzz_auto_cloud` | `biobuzz_auto_easy` |
 
 BIOBUZZ lightweight/workstation/easy keep `bc_then_ppo`. Cloud presets set `rllib_ppo` (Lab/CLI fall back to RecurrentPPO if `[scale]` is missing).
@@ -58,7 +55,7 @@ The loop:
 1. Builds `FTCAutoEnv` with Dict observations and `AsymmetricLstmPolicy` (actor drops `_privileged`).
 2. Optional BC warmup (`algorithm.bcWarmupSteps`) from the scripted AUTO.
 3. Wraps with `EncoderOnlyObsAssertWrapper` so privileged motif/match vars cannot leak into the actor.
-4. Applies curriculum unlocks on each reset (`scripted_launch` / `ballistic_launch` on BIOBUZZ; motif keys on DECODE).
+4. Applies curriculum unlocks on each reset (`scripted_launch` / `ballistic_launch` / `full_noise`).
 5. Saves `var/ckpts/latest.zip` every chunk and `var/ckpts/best.zip` when the held-out **objective** improves.
 6. Prints `true=` (episode true-score mean) and `eval=` (held-out true-score mean). Use `eval`, not shaping.
 
@@ -112,23 +109,24 @@ Early stop: `budget.earlyStopNoImproveSteps` (1e6 in the shipped presets). Wall 
 
 ## Curriculum
 
-Unlocks come from the training preset, not engine code. DECODE lightweight:
+Unlocks come from the training preset, not engine code. BIOBUZZ lightweight:
 
 ```json
 "curriculum": [
-  { "untilFrac": 0.2, "unlock": ["motif_known_at_t0"] },
-  { "untilFrac": 1.0, "unlock": ["motif_must_sense", "full_noise", "scripted_teammate"] }
+  { "untilFrac": 0.25, "unlock": ["scripted_launch"] },
+  { "untilFrac": 0.7, "unlock": ["ballistic_launch"] },
+  { "untilFrac": 1.0, "unlock": ["ballistic_launch", "full_noise"] }
 ]
 ```
 
 | Unlock | Effect |
 |--------|--------|
-| `motif_known_at_t0` | Match variable visible at reset (curriculum only) |
-| `motif_must_sense` | Policy must see the motif via sensors (`observeVia`) |
+| `scripted_launch` | Teleport / auto-aim into the CELL (early BC) |
+| `ballistic_launch` | 3D muzzle velocity vs the mesh field |
 | `full_noise` | Full domain randomization scales |
 | `scripted_teammate` / `scripted_opponent` | Override teammate/opponent policy for that stage |
 
-BIOBUZZ lightweight unlocks `full_noise` for the whole run (no motif in AUTO).
+BIOBUZZ AUTO has no motif. `motif_known_at_t0` remains a generic unlock for a future season that needs a match variable.
 
 ## Action tier
 

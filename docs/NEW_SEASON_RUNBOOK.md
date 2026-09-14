@@ -31,7 +31,7 @@ Do **not** invent scoring numbers. Leave `verifyAgainstManual: true` on every po
 3. Place scoring-element spawns as `GamePieceSpawn` records (type, pose list, physical properties).
 4. Add alliance start slots. Use MeepMeep-sane Cartesian poses in inches.
 5. Import an official field image or glTF as `backgroundAsset` for the 3D viewer. For mesh seasons, also set `collisionAsset` (MJCF) and `mesh_field_collision`.
-6. `python -m talongym import-field-cad` downloads Field CAD (STEP) when the archive page exposes a URL; otherwise it tessellates the field preset AABBs into `assets/seasons/<slug>/field.glb` + `field_mjcf.xml`. Raw STEP stays in `var/cad/` and is not committed.
+6. `python -m talongym import-field-cad --step path/to/official.step` tessellates local Field CAD into `assets/seasons/<slug>/field.glb`. Without `--step` it tries the archive page, then falls back to AABB tessellation. MuJoCo `field_mjcf.xml` stays schematic AABBs unless you deliberately replace colliders. Raw STEP stays in `var/cad/` and is not committed.
 
 If CAD extraction is slow, a tape-measure practice field is acceptable for a *rough* preset; mark `geometryProvenance: "practice-field-approximate"` so the UI shows a stale/approximate banner.
 
@@ -70,9 +70,9 @@ Do this **only** if lint reports `unsupportedCapability` and you cannot encode t
 
 1. Write a failing fixture in `tests/engine/test_capability_matrix.py` that states the new primitive in season-agnostic language (e.g. `requires_mid_episode_geometry_swap`), not “requires BIOBUZZ hive open.”
 2. Implement the primitive in the engine with a capability flag.
-3. Add the flag to DECODE / INTO THE DEEP / CENTERSTAGE presets as `false` so old presets stay valid.
+3. Add the flag to existing season presets as `false` so old presets stay valid.
 4. Bump `engineCapabilityVersion`.
-5. Re-run the historical capability matrix. A BIOBUZZ PR that changes DECODE scores is a failed gate.
+5. Re-run the historical capability matrix. A new-season PR that changes BIOBUZZ scores is a failed gate.
 
 ## Stale-preset hygiene during the season
 

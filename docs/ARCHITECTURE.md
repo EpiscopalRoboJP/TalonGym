@@ -1,7 +1,7 @@
 # TalonGym Architecture and Implementation Plan
 
 **Status:** buildable specification for a greenfield rewrite.  
-**Flagship season:** DECODE™ presented by RTX, 2025–2026, Competition Manual **TU32** (updated 2026-04-16).  
+**Flagship season:** BIOBUZZ™ presented by RTX, 2026–2027, Competition Manual **V1**.  
 **This document is the source of truth for implementation.** JSON Schema files in [`../schemas/`](../schemas/) are normative for preset files.
 
 **Deployment path (always and only):** train offline → export a trajectory → paste into an AUTO OpMode → Control Hub runs that OpMode. Intended-use boundary, hardware modes, and official source links: [README.md](../README.md). Kickoff procedure: [NEW_SEASON_RUNBOOK.md](NEW_SEASON_RUNBOOK.md).
@@ -10,17 +10,17 @@
 
 ## 1. Executive summary
 
-TalonGym is a **season-plugin, Gymnasium-first** FTC Autonomous trainer with a React/Three.js viewer that never runs physics. Default physics is **2.5D** (DECODE / ITD / CENTERSTAGE). BIOBUZZ AUTO uses an **opt-in MuJoCo mesh field** because launches into elevated CELLs must arc. A team loads a field + robot + scoring-rules preset, trains a policy offline, inspects rollouts, and exports Road Runner 1.0 Actions to paste into an AUTO OpMode. The Control Hub runs that OpMode; TalonGym does not command a robot during a MATCH. “Best” is a **pre-registered statistical objective** over ≥500 held-out trials, never a single lucky episode.
+TalonGym is a **season-plugin, Gymnasium-first** FTC Autonomous trainer with a React/Three.js viewer that never runs physics. The engine default is **2.5D** planar contacts. BIOBUZZ AUTO opts into a **MuJoCo mesh field** because launches into elevated CELLs must arc. A team loads a field + robot + scoring-rules preset, trains a policy offline, inspects rollouts, and exports Road Runner 1.0 Actions to paste into an AUTO OpMode. The Control Hub runs that OpMode; TalonGym does not command a robot during a MATCH. “Best” is a **pre-registered statistical objective** over ≥500 held-out trials, never a single lucky episode.
 
 ### Decisions (not a menu)
 
 | Decision | Choice | Why |
 |----------|--------|-----|
-| Physics | **2.5D default** (Rapier2D / planar contacts + scoring volumes). BIOBUZZ sets `mesh_field_collision` and runs **MuJoCo 3D** (Y-up inches) against CAD-derived colliders. | DECODE AUTO is planar classify. BIOBUZZ AUTO is launch-into-cell; robots must drive under the hive. Missing MuJoCo **refuses** a mesh-field training run — no silent planar fallback. |
+| Physics | **2.5D default** (Rapier2D / planar contacts + scoring volumes). BIOBUZZ sets `mesh_field_collision` and runs **MuJoCo 3D** (Y-up inches) against CAD-derived colliders. | BIOBUZZ AUTO is launch-into-cell; robots must drive under the hive. Missing MuJoCo **refuses** a mesh-field training run — no silent planar fallback. |
 | Rapier vs Box2D | **Project-owned Rapier2D batched PyO3 ABI**, with a **Phase 0 benchmark gate** and Box2D v3 subprocess fallback | Off-the-shelf Box2D v3 Python bindings are early and one-world-per-call. Official Rapier Python packages are unpublished. A narrow batched `step(n_worlds)` is the only path to the throughput budget. If the Rust spike slips, drop to Box2D workers rather than inventing a third engine. |
 | 3D physics | **Opt-in `MujocoFieldBackend`** when the field declares `collisionAsset` / `mesh_field_collision`. The old chassis-only adapter remains for `talongym validate-3d`. | Required for ballistic CELL launches. Viewer still does not run physics. |
 | Action space MVP | **High-level waypoint / spline** executed by a Road Runner-like follower | Trains faster; maps onto exportable RR 1.0 segments. Low-level `(vx, vy, ω)` is Phase 5 transfer/validation. |
-| Algorithm | **DECODE:** scratch RecurrentPPO. **BIOBUZZ:** `bc_then_ppo` (scripted clone, then asymmetric-critic PPO). Optional `grpo` for sparse TIP. Actor stays encoder-only. | Scratch LSTM PPO does not learn a 30s +20 TIP. 2025–26 robot RL is BC then on-policy RL, often with a privileged critic or group baseline. Not a VLA. |
+| Algorithm | **BIOBUZZ:** `bc_then_ppo` (scripted clone, then asymmetric-critic PPO). Optional `grpo` for sparse TIP. Actor stays encoder-only. | Scratch LSTM PPO does not learn a 30s +20 TIP. 2025–26 robot RL is BC then on-policy RL, often with a privileged critic or group baseline. Not a VLA. |
 | Frontend | React + react-three-fiber; FastAPI BFF; **no localStorage** | Matches the product requirement. Persistence is SQLite (MVP) → Postgres (Phase 5). |
 | Multi-agent | Gymnasium single-agent MVP; **PettingZoo parallel API** from Phase 4 | Two robots per alliance is real; it is not the first learning problem. |
 | Export | **Road Runner 1.0 `TrajectoryActionBuilder` / Actions** default; 0.5.x `TrajectorySequence` as compatibility | RR 1.0 replaced trajectory sequences. Emitting deprecated APIs as the primary path would strand teams. |
@@ -29,7 +29,7 @@ TalonGym is a **season-plugin, Gymnasium-first** FTC Autonomous trainer with a R
 ### What 2.5D means, precisely
 
 - **Simulated in Rapier2D:** chassis vs walls, chassis vs chassis, floor pieces vs floor pieces, floor pieces vs chassis (pushing). Gravity is off in-plane; friction and restitution are data.
-- **Not simulated as rigid-body flight:** an artifact “in the goal” is an FSM: `held → launched → in_goal_volume → passed_archway → passed_square → classified|overflow` with timers and occupancy of a **retained queue** (DECODE RAMP holds 9 classified before overflow).
+- **Not simulated as rigid-body flight by default:** a piece “in the goal” can be an FSM (`held → launched → in_goal_volume → scored`) with timers. BIOBUZZ uses ballistic launches against the mesh when `ballistic_launch` is unlocked; `retained_queue` remains an engine capability for seasons that need an ordered overflow buffer.
 - **Visualizer:** extrudes `WorldState` (2D poses + FSM + queue) into meshes. It is a renderer.
 
 ---
@@ -52,14 +52,12 @@ talongym/
     api/                     # OpenAPI fragments live here when generated
   presets/
     seasons/
-      decode_2025/           # flagship, TU32
-      into_the_deep_2024/    # season-agnostic proof
-      centerstage_2023/      # third regression
-      biobuzz_2026/          # V1 Kickoff preset
+      biobuzz_2026/          # V1 flagship
     robots/
       mecanum_meepmeep_defaults.json
+      mecanum_biobuzz_4cap.json
     training/
-      decode_auto_{lightweight,workstation,cloud,easy}.json
+      biobuzz_auto_{lightweight,workstation,cloud,easy}.json
   assets/
     seasons/biobuzz_2026/    # field.glb (Lab) + field_mjcf.xml (MuJoCo); no raw STEP
   engine/                    # Rust crate: Rapier2D batched worlds
@@ -117,7 +115,7 @@ flowchart LR
 
 ### Engine primitives (strict superset target)
 
-The engine implements only these capabilities. Seasons declare which they need. Adding a season must not add a DECODE-shaped code path.
+The engine implements only these capabilities. Seasons declare which they need. Adding a season must not add a BIOBUZZ-shaped code path.
 
 | Capability id | Meaning |
 |---------------|---------|
@@ -134,7 +132,7 @@ The engine implements only these capabilities. Seasons declare which they need. 
 | `alliance_aggregate_scoring` | `allAlliance` / `anyAlliance` |
 | `ranking_point_thresholds` | Threshold tables; UI must say AUTO proxy |
 | `mid_episode_geometry_change` | Lock/swap colliders (rare; Centerstage door analog) |
-| `retained_queue` | Ordered slots with overflow (DECODE ramp) |
+| `retained_queue` | Ordered slots with overflow |
 | `scripted_mechanism_fsm` | Named FSMs parameterized by robot/field data |
 | `multi_robot_collision` | 2–4 chassis contacts + penalty hooks |
 | `phase_clock` | AUTO / TRANSITION / TELEOP timers |
@@ -153,11 +151,10 @@ Normative JSON Schema:
 
 Instance data lives under `presets/`. Example instances:
 
-- [`presets/seasons/decode_2025/field.json`](../presets/seasons/decode_2025/field.json)
-- [`presets/seasons/decode_2025/scoring.json`](../presets/seasons/decode_2025/scoring.json)
-- [`presets/seasons/into_the_deep_2024/field.json`](../presets/seasons/into_the_deep_2024/field.json)
-- [`presets/robots/mecanum_meepmeep_defaults.json`](../presets/robots/mecanum_meepmeep_defaults.json)
-- [`presets/training/decode_auto_lightweight.json`](../presets/training/decode_auto_lightweight.json) (workstation / cloud / easy siblings per season)
+- [`presets/seasons/biobuzz_2026/field.json`](../presets/seasons/biobuzz_2026/field.json)
+- [`presets/seasons/biobuzz_2026/scoring.json`](../presets/seasons/biobuzz_2026/scoring.json)
+- [`presets/robots/mecanum_biobuzz_4cap.json`](../presets/robots/mecanum_biobuzz_4cap.json)
+- [`presets/training/biobuzz_auto_lightweight.json`](../presets/training/biobuzz_auto_lightweight.json) (workstation / cloud / easy siblings)
 
 **Rule:** season nouns (ARTIFACT, MOTIF, POLLEN, SAMPLE, PIXEL) appear only in instance `type` / `id` / `explain` strings, never as Python/Rust identifiers in `engine/` or `python/talongym/sim/`.
 
@@ -172,26 +169,23 @@ Use the official FTC field coordinate system:
 - Units in presets and exports: **inches**.
 - Viewer convention: MeepMeep-style **non-rotated** Cartesian. Do not store audience-rotated poses.
 
-DECODE’s red/blue alliance-area swap inverts which way +X/+Y point relative to the audience; the Red Wall definition still holds. Document that in the DECODE field preset `coordinateSystem.notes`.
+The Red Wall definition still holds for BIOBUZZ. Document alliance-specific notes in the field preset `coordinateSystem.notes`.
 
-### DECODE GATE (do not get this wrong)
+### BIOBUZZ scoring (preset data; verify)
 
-The GATE **retains CLASSIFIED artifacts on the RAMP**. Opening it **releases** them. Classification happens at the diverting SQUARE (enter GOAL top → exit archway → pass SQUARE → classified if the ramp queue has a slot, else overflow). PATTERN is assessed at end of AUTO iff artifacts are **directly on the RAMP and retained by a closed GATE**.
-
-### DECODE point values (preset data; verify)
-
-From Competition Manual Game Details Table 10-2 as published in the TU32 HTML (`manual-10`). **Re-verify at implementation time.**
+From Competition Manual V1 Table 10-2. **Re-verify at implementation time.** Details: [presets/seasons/biobuzz_2026/README.md](../presets/seasons/biobuzz_2026/README.md).
 
 | Achievement | AUTO points | Notes |
 |-------------|-------------|--------|
-| LEAVE | 3 | Assessed at end of AUTO |
-| CLASSIFIED | 3 | Per artifact through SQUARE onto ramp |
-| OVERFLOW | 1 | Through SQUARE but not classified |
-| PATTERN per matching index | 2 | End of AUTO; retained on ramp |
+| LEAVE | 3 | Assessed at end of AUTO if the ROBOT is in `leave_interior` |
+| PARK | 5 | At least partially in the LOADING ZONE |
+| HIVE TIP | 20 | Placeholder threshold: 7 in the upward CELL (3 staged NECTAR + 4 launched) |
 
-DEPOT and BASE are TELEOP/endgame — model in the graph as `enabledPhases: ["TELEOP"]` but do not train on them in MVP.
+CELL / FLOWER / GARDEN points are end-of-match only — model in the graph as `enabledPhases: ["TELEOP"]` but do not train on them in MVP.
 
-RP thresholds (Table 10-3) are **match-wide**. AUTO-only training may optimize a **proxy** (classified count, pattern points). The UI must never label that proxy “Ranking Points earned.”
+RP thresholds (Table 10-3) are **match-wide**. AUTO-only training may optimize a **proxy** (LEAVE+PARK, tip count). The UI must never label that proxy “Ranking Points earned.”
+
+POLLEN is 2.8 in yellow; NECTAR is 3.6 in red/blue. Preload 4 POLLEN per ROBOT.
 
 AprilTags (manual §9.10): Goal red 24, blue 20; Obelisk faces 21/22/23. Community mapping GPP→21, PGP→22, PPG→23 is **widely used but must be confirmed against the printed tag artwork** before freeze (`verifyAgainstManual: true` on the DECODE field preset).
 
@@ -378,7 +372,7 @@ Resume: reconnect with `?afterSeq=`.
 | `/build/robot` | Drivetrain, MeepMeep constraint sliders, sensors, mechanism capacity/cycle times |
 | `/compare` | Leaderboard of evaluations with CI whiskers; Export RR per row |
 
-Stale preset: if `provenance.manualRevision` is older than `engine.latestKnownManual[season]`, banner: “Preset matches TU32; a newer Team Update exists.”
+Stale preset: if `provenance.manualRevision` is older than `engine.latestKnownManual[season]`, banner: “Preset matches V1; a newer Team Update exists.”
 
 ---
 
@@ -389,23 +383,23 @@ Stale preset: if `provenance.manualRevision` is older than `engine.latestKnownMa
 - Schemas frozen at `1.0.0`; compiler rejects unknown capabilities.
 - Rapier batched stepping **or** documented fallback to Box2D workers.
 - **Throughput gate (measure, then lock):**
-  - Lightweight laptop: **≥ 5×10³** control-steps/s at 8 envs, DECODE single robot, no viewer.
+  - Lightweight laptop: **≥ 5×10³** control-steps/s at 8 envs, BIOBUZZ single robot, no viewer.
   - Workstation 16-core: **≥ 5×10⁴** control-steps/s at 256 envs.
   - If Rapier spike misses 50% of workstation gate after two weeks, ship Box2D fallback and do not block Phase 1.
 - Deterministic replay: same seed + action log → bit-stable poses at 1e-4 in.
-- DECODE + INTO THE DEEP field presets compile; provenance fields populated; `verifyAgainstManual` still true until mentor sign-off.
+- BIOBUZZ field + scoring presets compile; provenance fields populated; `verifyAgainstManual` still true until mentor sign-off.
 - No frontend physics.
 
 ### Phase 1 — Single-robot vertical slice (MVP product)
 
-- DECODE AUTO, high-level actions, motif sentinel, occluders, retained-queue classify/overflow/pattern, LEAVE.
+- BIOBUZZ AUTO, high-level actions, mesh field, LEAVE / PARK / HIVE TIP.
 - RecurrentPPO, lightweight + workstation profiles.
 - SQLite jobs, WS telemetry, `/replay` + `/train`.
 - Evaluation report: n=500, bootstrap 95% CI, objective `mean_true_score`.
 - RR 1.0 Actions export from a decimated waypoint log.
 - **Done:** a student can train overnight on a desktop, scrub the best mean-score rollout, and paste Java into an AUTO OpMode for the Control Hub.
 
-Time-to-useful-policy is a **measured** number after Phase 1, not a promise. Planning target to hold the design honest: workstation reaches mean AUTO score **strictly above a scripted “leave + one classify” baseline** within **4 hours** wall clock at the workstation env count. If missed, cut shaping bugs and n_envs before adding 3D physics.
+Time-to-useful-policy is a **measured** number after Phase 1, not a promise. Planning target to hold the design honest: workstation reaches mean AUTO score **strictly above a scripted “leave + park” baseline** within **4 hours** wall clock at the workstation env count. If missed, cut shaping bugs and n_envs before adding more 3D physics.
 
 ### Phase 2 — Season tooling
 

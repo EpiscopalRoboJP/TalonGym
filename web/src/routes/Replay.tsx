@@ -2,10 +2,37 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FieldScene, type SceneView } from "../scene/FieldScene";
 import { KeyValues } from "../KeyValues";
-import { getJson, loadReplayFrames, postJson, postText, type Frame } from "../api";
+import { getJson, loadReplayFrames, postJson, postText, type Frame, type FrameExplain } from "../api";
 
 type ReplayMeta = { id: string; trueScore?: number; source?: string };
 type Tab = "score" | "field" | "export";
+type Marker = { i: number; kind: "foul" | "contact" };
+
+function signedPoints(n: number) {
+  if (n > 0) return `+${n}`;
+  if (n < 0) return `\u2212${Math.abs(n)}`;
+  return "0";
+}
+
+function isFoulExplain(e: FrameExplain) {
+  return e.points < 0;
+}
+
+function frameHasFoulStep(frame: Frame | null | undefined) {
+  return (frame?.stepExplains || []).some(isFoulExplain);
+}
+
+function frameHasContact(frame: Frame | null | undefined) {
+  return Boolean(frame?.collision?.wall || frame?.collision?.robot);
+}
+
+function contactLabel(frame: Frame | null | undefined) {
+  const parts: string[] = [];
+  if (frame?.collision?.wall) parts.push("wall");
+  if (frame?.collision?.robot) parts.push("robot");
+  if (frame?.collision?.piece) parts.push("piece");
+  return parts.length ? `contact: ${parts.join(" · ")}` : "";
+}
 
 export function ReplayPage() {
   const { replayId } = useParams();
@@ -88,6 +115,26 @@ export function ReplayPage() {
         .map((r) => ({ x: r.x, y: r.y })),
     [frames],
   );
+  const markers = useMemo(() => {
+    const out: Marker[] = [];
+    let prevContact = false;
+    frames.forEach((f, idx) => {
+      if (frameHasFoulStep(f)) out.push({ i: idx, kind: "foul" });
+      const contact = frameHasContact(f);
+      if (contact && !prevContact) out.push({ i: idx, kind: "contact" });
+      prevContact = contact;
+    });
+    return out;
+  }, [frames]);
+  const firstFoul = useMemo(
+    () => frames.find((f) => frameHasFoulStep(f) || (f.penalties || []).length > 0),
+    [frames],
+  );
+  const penalties = frame?.penalties || [];
+  const scoreExplains = (frame?.explains || []).filter((e) => e.points >= 0);
+  const foulNow = frameHasFoulStep(frame);
+  const foulT = foulNow ? frame?.t : firstFoul?.t;
+  const foulBanner = foulNow || penalties.length > 0 ? `FOUL at t=${(foulT ?? 0).toFixed(2)}` : null;
 
   function selectReplay(id: string) {
     setActive(id);
@@ -112,6 +159,7 @@ export function ReplayPage() {
     <div className="page">
       <div className="scene">
         <FieldScene frame={frame} showFov={showFov} path={path} view={view} />
+        {foulBanner && <div className="scene-banner">{foulBanner}</div>}
         <div className="dock">
           <div className="dock-row">
             <button type="button" onClick={() => setPlaying((p) => !p)} aria-pressed={playing}>
@@ -139,16 +187,29 @@ export function ReplayPage() {
               <input type="checkbox" checked={showFov} onChange={(e) => setShowFov(e.target.checked)} /> FOV
             </label>
           </div>
-          <input
-            id="replay-scrub"
-            className="scrub"
-            type="range"
-            aria-label="Scrub"
-            min={0}
-            max={Math.max(0, frames.length - 1)}
-            value={i}
-            onChange={(e) => setI(Number(e.target.value))}
-          />
+          <div className="scrub-wrap">
+            {markers.length > 0 && (
+              <div className="scrub-marks" aria-hidden="true">
+                {markers.map((m) => (
+                  <i
+                    key={`${m.kind}-${m.i}`}
+                    className={m.kind}
+                    style={{ left: `${frames.length > 1 ? (m.i / (frames.length - 1)) * 100 : 0}%` }}
+                  />
+                ))}
+              </div>
+            )}
+            <input
+              id="replay-scrub"
+              className="scrub"
+              type="range"
+              aria-label="Scrub"
+              min={0}
+              max={Math.max(0, frames.length - 1)}
+              value={i}
+              onChange={(e) => setI(Number(e.target.value))}
+            />
+          </div>
         </div>
       </div>
       <aside className="side">
@@ -188,10 +249,23 @@ export function ReplayPage() {
             <div className="stat">
               true score <b>{frame?.trueScore ?? 0}</b>
             </div>
+            {penalties.length > 0 && (
+              <>
+                <p className="stat">Penalties</p>
+                <ul className="list">
+                  {penalties.map((e, n) => (
+                    <li key={`p-${e.id}-${n}`} className="foul">
+                      {signedPoints(e.points)} {e.explain}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {frameHasContact(frame) && <p className="stat foul-note">{contactLabel(frame)}</p>}
             <ul className="list">
-              {(frame?.explains || []).map((e, n) => (
-                <li key={n}>
-                  +{e.points} {e.explain}
+              {scoreExplains.map((e, n) => (
+                <li key={`s-${e.id}-${n}`}>
+                  {signedPoints(e.points)} {e.explain}
                 </li>
               ))}
             </ul>

@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { getJson, postJson, putJson, type DefaultsBundle, type PresetMeta } from "../api";
+import { getJson, postJson, putJson, type DefaultsBundle, type Frame, type PresetMeta } from "../api";
+import { FieldScene } from "../scene/FieldScene";
+import { theme } from "../theme";
 
 const SEASON_LABEL: Record<string, string> = {
-  decode: "DECODE",
-  into_the_deep: "INTO THE DEEP",
-  centerstage: "CENTERSTAGE",
   biobuzz: "BIOBUZZ",
 };
 
@@ -28,7 +27,7 @@ type FieldDoc = {
 export function FieldBuilderPage() {
   const [list, setList] = useState<PresetMeta[]>([]);
   const [doc, setDoc] = useState<FieldDoc | null>(null);
-  const [id, setId] = useState("decode_2025_field_tu32");
+  const [id, setId] = useState("biobuzz_2026_field_v1");
   const [selected, setSelected] = useState<string>("");
   const [msg, setMsg] = useState("");
   const [tab, setTab] = useState<"field" | "scoring">("field");
@@ -83,6 +82,31 @@ export function FieldBuilderPage() {
   }, [doc]);
   const current = elements.find((e) => e.id === selected);
   const fieldArea = size.width * size.depth;
+  const cadPreview = useMemo<Frame | null>(() => {
+    if (!doc) return null;
+    return {
+      t: 0,
+      trueScore: 0,
+      robots: [],
+      pieces: [],
+      elements: elements.map((el) => ({
+        id: el.id,
+        type: el.type,
+        alliance: el.alliance,
+        pose: { x: el.pose?.x ?? 0, y: el.pose?.y ?? 0, headingDeg: el.pose?.headingDeg },
+        shape: { kind: el.shape?.kind || "aabb", width: el.shape?.width, depth: el.shape?.depth, radius: el.shape?.radius },
+        tags: el.tags,
+      })),
+      matchVarsPrivileged: {},
+      observedMatchVars: {},
+      fieldSizeIn: { width: size.width, depth: size.depth },
+      backgroundAsset: typeof doc.backgroundAsset === "string" ? doc.backgroundAsset : null,
+      explains: [],
+      queues: {},
+      gate: {},
+      vision: [],
+    };
+  }, [doc, elements, size.depth, size.width]);
 
   function seasonName(row: PresetMeta) {
     return SEASON_LABEL[row.season || ""] || row.displayName || row.id;
@@ -102,10 +126,10 @@ export function FieldBuilderPage() {
 
   function elColor(el: NonNullable<FieldDoc["elements"]>[number]) {
     const tags = el.tags || [];
-    if (tags.some((t) => t.includes("restricted"))) return "#d16b6b";
-    if (el.type === "tape" || tags.some((t) => t.includes("launch"))) return "#e0c36a";
-    if (el.alliance === "blue") return "#3d6b8a";
-    return "#6fbfa3";
+    if (tags.some((t) => t.includes("restricted"))) return theme.restricted;
+    if (el.type === "tape" || tags.some((t) => t.includes("launch"))) return theme.gold;
+    if (el.alliance === "blue") return theme.allianceBlue;
+    return theme.maroon;
   }
 
   function updatePose(partial: { x?: number; y?: number; headingDeg?: number }) {
@@ -209,6 +233,11 @@ export function FieldBuilderPage() {
             </div>
             <div className="field-work">
               <div>
+                {cadPreview && (
+                  <div className="field-cad-preview" aria-label="Field 3D mesh">
+                    <FieldScene frame={cadPreview} showFov={false} />
+                  </div>
+                )}
                 <svg
                   className="field-grid"
                   viewBox={`${-size.width / 2} ${-size.depth / 2} ${size.width} ${size.depth}`}
@@ -221,21 +250,21 @@ export function FieldBuilderPage() {
                     y={-size.depth / 2}
                     width={size.width}
                     height={size.depth}
-                    fill="#1c4a38"
+                    fill={theme.field}
                   />
                   {gridTicks.map((v) => (
                     <g key={v}>
-                      <line x1={v} y1={-size.depth / 2} x2={v} y2={size.depth / 2} stroke="#2a4a3c" strokeWidth="0.6" />
-                      <line x1={-size.width / 2} y1={v} x2={size.width / 2} y2={v} stroke="#2a4a3c" strokeWidth="0.6" />
+                      <line x1={v} y1={-size.depth / 2} x2={v} y2={size.depth / 2} stroke={theme.grid} strokeWidth="0.6" />
+                      <line x1={-size.width / 2} y1={v} x2={size.width / 2} y2={v} stroke={theme.grid} strokeWidth="0.6" />
                     </g>
                   ))}
                   {[-size.width / 2, 0, size.width / 2].map((v) => (
-                    <text key={`x-${v}`} x={v + 1} y={size.depth / 2 - 2} fill="#8aa0ae" fontSize="4">
+                    <text key={`x-${v}`} x={v + 1} y={size.depth / 2 - 2} fill={theme.muted} fontSize="4">
                       {v}
                     </text>
                   ))}
                   {[-size.depth / 2, 0, size.depth / 2].map((v) => (
-                    <text key={`y-${v}`} x={-size.width / 2 + 1} y={-v + 4} fill="#8aa0ae" fontSize="4">
+                    <text key={`y-${v}`} x={-size.width / 2 + 1} y={-v + 4} fill={theme.muted} fontSize="4">
                       {v}
                     </text>
                   ))}
@@ -255,7 +284,7 @@ export function FieldBuilderPage() {
                           height={d}
                           fill={elColor(el)}
                           fillOpacity={0.06}
-                          stroke={on ? "#e6eef3" : elColor(el)}
+                          stroke={on ? theme.cream : elColor(el)}
                           strokeWidth={on ? 1.6 : 0.9}
                         />
                       );
@@ -273,7 +302,7 @@ export function FieldBuilderPage() {
                           y={y - d / 2}
                           width={w}
                           height={d}
-                          fill="#e0c36a"
+                          fill={theme.gold}
                           opacity={0.9}
                         />
                       );
@@ -292,9 +321,9 @@ export function FieldBuilderPage() {
                           y={y - d / 2}
                           width={w}
                           height={d}
-                          fill={on ? "#d4a574" : elColor(el)}
+                          fill={on ? theme.gold : elColor(el)}
                           opacity={0.9}
-                          stroke={on ? "#e6eef3" : "transparent"}
+                          stroke={on ? theme.cream : "transparent"}
                           strokeWidth={on ? 1.6 : 0}
                         />
                       );
@@ -302,16 +331,16 @@ export function FieldBuilderPage() {
                 </svg>
                 <div className="legend">
                   <span>
-                    <i style={{ background: "#d16b6b" }} /> restricted
+                    <i style={{ background: theme.restricted }} /> restricted
                   </span>
                   <span>
-                    <i style={{ background: "#e0c36a" }} /> tape
+                    <i style={{ background: theme.gold }} /> tape
                   </span>
                   <span>
-                    <i style={{ background: "#6fbfa3" }} /> element
+                    <i style={{ background: theme.maroon }} /> element
                   </span>
                   <span>
-                    <i style={{ background: "#d4a574" }} /> selected
+                    <i style={{ background: theme.gold }} /> selected
                   </span>
                 </div>
               </div>

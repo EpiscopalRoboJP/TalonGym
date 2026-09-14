@@ -18,7 +18,7 @@ That extra set is the laptop/workstation path: tests (`dev`) plus RecurrentPPO (
 | `rl` | Training a policy | RecurrentPPO |
 | `scale` | Optional Ray trainer | `python -m talongym train --algo rllib_ppo` |
 | `mujoco` | BIOBUZZ 3D mesh physics (and `validate-3d`) | `MujocoFieldBackend` |
-| `cad` | Official STEP conversion | trimesh + cascadio |
+| `cad` | Official field STEP *and* team robot CAD upload (STL/OBJ/GLB/STEP) | trimesh + cascadio + fast-simplification |
 | `postgres` | Shared DB | used if `TALONGYM_DATABASE_URL` starts with `postgres` |
 
 Entry points after install: `talongym` and `python -m talongym`.

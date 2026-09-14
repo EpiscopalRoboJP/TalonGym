@@ -1,13 +1,13 @@
-# Mentor sign-off — DECODE TU32 preset freeze
+# Mentor sign-off — BIOBUZZ V1 preset freeze
 
-Do not treat these as engine work. Until they are answered, every DECODE preset keeps `"verifyAgainstManual": true` and the UI shows an unverified banner.
+Do not treat these as engine work. Until they are answered, every BIOBUZZ preset keeps `"verifyAgainstManual": true` and the UI shows an unverified banner.
 
 Official documents:
 
-- Competition Manual TU32: https://ftc-resources.firstinspires.org/ftc/archive/2026/game/manual
-- Game Details HTML: https://ftc-resources.firstinspires.org/ftc/game/manual-10
-- Field CAD/STEP: https://ftc-resources.firstinspires.org/ftc/archive/2026/field
-- Combined Team Updates (TU32 final): https://ftc-resources.firstinspires.org/ftc/game/tu-combined
+- Competition Manual / Game Details: https://ftc-resources.firstinspires.org/ftc/game/manual-10
+- Field CAD/STEP: https://ftc-resources.firstinspires.org/ftc/archive/2027/field
+
+Encoded facts and remaining placeholders: [presets/seasons/biobuzz_2026/README.md](../presets/seasons/biobuzz_2026/README.md).
 
 ## Point values and RP (Tables 10-2 and 10-3)
 
@@ -16,28 +16,28 @@ Confirm the PDF you will ship still lists AUTO as:
 | Achievement | Value in our preset | Mentor OK? |
 |-------------|---------------------|------------|
 | LEAVE | 3 | |
-| CLASSIFIED | 3 | |
-| OVERFLOW | 1 | |
-| PATTERN per matching index | 2 | |
+| PARK | 5 | |
+| HIVE TIP | 20 | |
 
-RP thresholds we encoded as **match-wide proxies** (not AUTO-complete):
+RP thresholds we encoded as **match-wide proxies** (not AUTO-complete), other events:
 
-| RP | Championship | Regional championship | Other events |
-|----|--------------|----------------------|--------------|
-| GOAL (artifacts through square) | 67 | 42 | 36 |
-| PATTERN points | 22 | 22 | 18 |
+| RP | Other events |
+|----|--------------|
+| SWARM (LEAVE+PARK) | ≥ 16 |
+| POLLINATOR 1 | tips ≥ 4 |
+| POLLINATOR 2 | tips ≥ 7 |
 
-AUTO-only training must not be labeled “Ranking Points earned.” Which default **optimization objective** should the team leaderboard use: mean match points, 10th percentile, LCB, or RP-proxy probability?
+Championship / regional championship columns are TBA. AUTO-only training must not be labeled “Ranking Points earned.” Which default **optimization objective** should the team leaderboard use: mean match points, 10th percentile, LCB, or RP-proxy probability?
 
-## Motif / AprilTags
+## HIVE TIP and geometry
 
-Manual: Obelisk tags 21, 22, 23; goal tags red 24, blue 20. Community code often maps GPP→21, PGP→22, PPG→23. Confirm against official artwork. Side faces of the Obelisk are partially obstructed (TU32); front face is the intended read.
+Preset threshold is `red_up_cell_load ≥ 7` (3 staged NECTAR + 4 launched). Confirm against CAD / Field Setup Guide. The same `red_cell_up` volume stays the “up” cell after a tip; spilled pieces are consumed rather than dumped to the floor.
 
-## GATE and PATTERN Q&A
+Exact FLOWER / hive x-offsets are schematic until official STEP is reachable. CAD general tolerance ±1 in becomes domain-randomization default, not a collision shrink.
 
-Official Q&A: if the GATE is open at the end of AUTO, PATTERN is not assessed because artifacts are not retained. Should the sim use a binary `gateRetaining` flag or a continuous opening angle?
+## AprilTags
 
-Overflow when a high-speed launch skips the 9th slot: stochastic (fit from logs) or deterministic occupancy only?
+Manual extract confirmed ids 0, 7, and 38–41. Clusters 1–3, 4–6, and 42–45 are inferred. Confirm against official artwork.
 
 ## Rules we can encode as data
 
@@ -47,4 +47,4 @@ Overflow when a high-speed launch skips the 9th slot: stochastic (fit from logs)
 
 ## Geometry freeze
 
-Replace schematic poses in `presets/seasons/decode_2025/field.json` with CAD-extracted inches. Record `contentSha256` of the STEP/Onshape export. CAD general tolerance ±1 in becomes domain-randomization default, not a collision shrink.
+Replace schematic poses in `presets/seasons/biobuzz_2026/field.json` with CAD-extracted inches when the official STEP URL is reachable. Record `contentSha256` of the STEP/Onshape export. Re-run `python -m talongym import-field-cad`.

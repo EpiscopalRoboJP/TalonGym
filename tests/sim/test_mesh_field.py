@@ -12,6 +12,7 @@ def test_snapshot_includes_background_asset():
     assert field.get("backgroundAsset")
     glb = ASSETS_DIR / field["backgroundAsset"]
     assert glb.is_file()
+    assert glb.stat().st_size > 100_000
     bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
     world = World(bundle, seed=0, allow_missing_mesh=True)
     world.reset(seed=0, static_teammate=False)
@@ -23,6 +24,7 @@ def test_snapshot_includes_background_asset():
     assert all(p["y"] < -60 for p in pollen["poses"])
 
 
+@pytest.mark.require_mesh
 def test_mesh_required_refuses_planar_fallback(monkeypatch):
     from talongym.sim.mujoco_backend import MeshFieldRequiredError
     import talongym.sim.mujoco_backend as mb

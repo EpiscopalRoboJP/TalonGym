@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from talongym import __version__
 from talongym.api import db, jobs
+from talongym.api.cad_frames import ensure_background_asset
 from talongym.eval.harness import run_trials
 from talongym.export.roadrunner import export_from_replay
 from talongym.paths import WEB_DIST
@@ -248,7 +251,7 @@ def replay_chunks(replay_id: str, fromStep: int = 0, limit: int = 500) -> dict[s
     row = db.get_replay(replay_id)
     if not row:
         raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": replay_id}})
-    frames = row["frames"][fromStep : fromStep + min(limit, 500)]
+    frames = [ensure_background_asset(fr) or fr for fr in row["frames"][fromStep : fromStep + min(limit, 500)]]
     return {"fromStep": fromStep, "frames": frames, "done": fromStep + len(frames) >= len(row["frames"])}
 
 
@@ -390,6 +393,77 @@ async def ws_run(websocket: WebSocket, run_id: str) -> None:
         jobs.unsubscribe(run_id, push)
 
 
+def _asset_media(dest: Path) -> str:
+    suffix = dest.suffix.lower()
+    if suffix == ".glb":
+        return "model/gltf-binary"
+    if suffix in {".gltf", ".json"}:
+        return "model/gltf+json"
+    if suffix in {".xml", ".mjcf"}:
+        return "application/xml"
+    if suffix == ".stl":
+        return "model/stl"
+    return "application/octet-stream"
+
+
+@app.post(f"{API}/presets/robot/{{preset_id}}/model")
+async def upload_robot_model(preset_id: str, file: UploadFile = File(...)) -> dict[str, Any]:
+    from talongym.assets.import_robot_cad import (
+        ALLOWED_SUFFIXES,
+        MAX_UPLOAD_BYTES,
+        ROBOT_ID_RE,
+        RobotCadError,
+        import_robot_cad,
+    )
+
+    if not ROBOT_ID_RE.match(preset_id):
+        raise HTTPException(400, {"error": {"code": "BAD_ID", "message": preset_id}})
+    suffix = Path(file.filename or "robot.stl").suffix.lower()
+    if suffix not in ALLOWED_SUFFIXES:
+        raise HTTPException(400, {"error": {"code": "BAD_FORMAT", "message": suffix or "missing extension"}})
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, {"error": {"code": "TOO_LARGE", "message": "32 MB max"}})
+    tmp_dir = Path(tempfile.mkdtemp(prefix="talongym-cad-"))
+    tmp = tmp_dir / f"upload{suffix}"
+    try:
+        tmp.write_bytes(data)
+        return import_robot_cad(tmp, preset_id)
+    except RobotCadError as exc:
+        msg = str(exc)
+        extra = "trimesh" in msg or "cascadio" in msg
+        raise HTTPException(
+            503 if extra else 422,
+            {"error": {"code": "CAD_EXTRA" if extra else "CAD_IMPORT", "message": msg}},
+        ) from exc
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+@app.delete(f"{API}/presets/robot/{{preset_id}}/model")
+def delete_robot_model(preset_id: str) -> dict[str, bool]:
+    from talongym.assets.import_robot_cad import ROBOT_ID_RE, RobotCadError, delete_robot_assets
+
+    try:
+        delete_robot_assets(preset_id)
+    except RobotCadError as exc:
+        raise HTTPException(400, {"error": {"code": "BAD_ID", "message": str(exc)}}) from exc
+    return {"ok": True}
+
+
+@app.get(f"{API}/robot-assets/{{asset_path:path}}")
+def robot_asset(asset_path: str) -> FileResponse:
+    from talongym.assets.import_robot_cad import RobotCadError, resolve_robot_asset
+
+    try:
+        dest = resolve_robot_asset(asset_path)
+    except RobotCadError as exc:
+        raise HTTPException(400, {"error": {"code": "BAD_ASSET", "message": asset_path}}) from exc
+    if not dest.is_file():
+        raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": asset_path}})
+    return FileResponse(dest, media_type=_asset_media(dest))
+
+
 @app.get(f"{API}/field-assets/{{asset_path:path}}")
 def field_asset(asset_path: str) -> FileResponse:
     from talongym.paths import ASSETS_DIR
@@ -404,12 +478,11 @@ def field_asset(asset_path: str) -> FileResponse:
         raise HTTPException(400, {"error": {"code": "BAD_ASSET", "message": asset_path}}) from exc
     if not dest.is_file():
         raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": asset_path}})
-    media = "model/gltf-binary" if dest.suffix.lower() == ".glb" else "application/octet-stream"
-    if dest.suffix.lower() in {".gltf", ".json"}:
-        media = "model/gltf+json"
-    if dest.suffix.lower() in {".xml", ".mjcf"}:
-        media = "application/xml"
-    return FileResponse(dest, media_type=media)
+    return FileResponse(
+        dest,
+        media_type=_asset_media(dest),
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 def mount_frontend(application: FastAPI) -> None:

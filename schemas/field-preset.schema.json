@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://talongym.dev/schemas/field-preset.schema.json",
   "title": "FieldPreset",
-  "description": "Season-agnostic FTC field. DECODE-specific nouns (ARTIFACT, OBELISK, RAMP) appear only as type/tag strings in instance data, never as schema enums that would force an engine change.",
+  "description": "Season-agnostic FTC field. Season nouns (POLLEN, HIVE, CELL) appear only as type/tag strings in instance data, never as schema enums that would force an engine change.",
   "type": "object",
   "additionalProperties": false,
   "required": [

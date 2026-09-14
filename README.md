@@ -1,6 +1,6 @@
 # TalonGym
 
-A **training and strategy-discovery aid** for FIRST Tech Challenge (FTC) autonomous periods. Teams configure a field, robot, and scoring-rules preset; train a control policy in a 2.5D simulator (DECODE) or a MuJoCo 3D mesh field (BIOBUZZ); inspect *why* a strategy scored; and export a Road Runner 1.0 Actions snippet they paste into an AUTO OpMode.
+A **training and strategy-discovery aid** for FIRST Tech Challenge (FTC) autonomous periods. Teams configure a field, robot, and scoring-rules preset; train a control policy on the BIOBUZZ™ MuJoCo mesh field; inspect *why* a strategy scored; and export a Road Runner 1.0 Actions snippet they paste into an AUTO OpMode.
 
 **Status:** 0.1.0 alpha. APIs and presets still move. Licensed **GPL-3.0-or-later**. TalonGym is not affiliated with, endorsed by, or sponsored by FIRST.
 
@@ -11,7 +11,7 @@ A **training and strategy-discovery aid** for FIRST Tech Challenge (FTC) autonom
 1. Simulates the 30-second FTC Autonomous Period with enough physical and rules fidelity that a policy trained here can discover strategies meaningfully close to deployable on a real robot.
 2. Trains a robot control policy via reinforcement learning and ranks candidates only after a statistical evaluation harness (hundreds of randomized trials, confidence intervals).
 3. Exposes a browser 3D visualizer (MeepMeep-style replay, live training, preset builders, leaderboard).
-4. Treats the current game as a **preset**, not an engine shape. DECODE™ presented by RTX (2025–2026, Competition Manual **TU32**) ships as the flagship preset. INTO THE DEEP℠ (2024–2025) ships as the season-agnostic regression proof. CENTERSTAGE℠ (2023–2024) is the third regression preset. BIOBUZZ™ (2026–2027) is the Kickoff-week acceptance test: a team must stand it up from data + a small rule graph, without a core-engine PR.
+4. Treats the current game as a **preset**, not an engine shape. BIOBUZZ™ presented by RTX (2026–2027, Competition Manual **V1**) is the shipped season. Earlier games are not included — only this season’s field and scoring are encoded accurately enough to train against.
 
 ## Deployment path (always and only)
 
@@ -38,8 +38,7 @@ Throughput and time-to-policy numbers are **Phase 0 benchmark gates**, not claim
 
 ## Official sources
 
-- DECODE Competition Manual TU32: https://ftc-resources.firstinspires.org/ftc/archive/2026/game/manual
-- DECODE Game Details (HTML): https://ftc-resources.firstinspires.org/ftc/game/manual-10
+- BIOBUZZ Competition Manual / Game Details: https://ftc-resources.firstinspires.org/ftc/game/manual-10
 - BIOBUZZ field CAD / STEP: https://ftc-resources.firstinspires.org/ftc/archive/2027/field
 - FTC field coordinate system: https://ftc-docs.firstinspires.org/en/latest/game_specific_resources/field_coordinate_system/field-coordinate-system.html
 - Road Runner 1.0 Actions: https://rr.brott.dev/docs/v1-0/actions/
@@ -54,7 +53,7 @@ python -m pip install -e ".[dev,rl]"
 python -m talongym lab
 ```
 
-Optional extras: `[scale]` Ray/RLlib, `[mujoco]` required for BIOBUZZ 3D mesh physics (DECODE stays planar), `[cad]` official STEP tessellation, `[postgres]` when `TALONGYM_DATABASE_URL` is set. LSTM ONNX export is 501; `python -m talongym distill` writes a feed-forward demo and is not a deployment path. The only match-bound artifact is a Road Runner 1.0 snippet pasted into an AUTO OpMode.
+Optional extras: `[scale]` Ray/RLlib, `[mujoco]` required for BIOBUZZ 3D mesh physics, `[cad]` official STEP tessellation, `[postgres]` when `TALONGYM_DATABASE_URL` is set. LSTM ONNX export is 501; `python -m talongym distill` writes a feed-forward demo and is not a deployment path. The only match-bound artifact is a Road Runner 1.0 snippet pasted into an AUTO OpMode.
 
 Open http://127.0.0.1:8765 after `cd web && npm install && npm run build`, or use Vite (`npm run dev` in `web/`, API on :8765). State lives in `var/talongym.db` — not in the browser.
 
@@ -62,7 +61,7 @@ Train, evaluate, replay, and export (full flags and Lab budgets): **[docs/TRAINI
 
 ```bash
 python -m talongym detect
-python -m talongym defaults --training decode_auto_easy
+python -m talongym defaults --training biobuzz_auto_easy
 python -m talongym train --easy
 python -m talongym train --steps 8192
 python -m talongym replay
@@ -87,7 +86,7 @@ How-to index: **[docs/README.md](docs/README.md)**.
 | [docs/EXPORT.md](docs/EXPORT.md) | Road Runner, distill ONNX, log calibration |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Gymnasium contract, API, roadmap, risks |
 | [docs/NEW_SEASON_RUNBOOK.md](docs/NEW_SEASON_RUNBOOK.md) | Kickoff preset without an engine PR |
-| [docs/MENTOR_SIGNOFF.md](docs/MENTOR_SIGNOFF.md) | DECODE TU32 freeze questions |
+| [docs/MENTOR_SIGNOFF.md](docs/MENTOR_SIGNOFF.md) | BIOBUZZ V1 freeze questions |
 
 JSON Schema files live in [`schemas/`](schemas/).
 
@@ -95,7 +94,7 @@ JSON Schema files live in [`schemas/`](schemas/).
 
 Setup, PR checklist, and the steps to flip the GitHub repo from private to public: **[CONTRIBUTING.md](CONTRIBUTING.md)**. Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Security reports: [SECURITY.md](SECURITY.md).
 
-Do not commit `var/` (logs, SQLite, checkpoints), virtualenvs, or official FIRST STEP/CAD. Preset geometry in-repo is schematic; `python -m talongym import-field-cad` writes raw STEP under `var/cad/` (gitignored).
+Do not commit `var/` (logs, SQLite, checkpoints), virtualenvs, or official FIRST STEP/CAD. Preset collision geometry in-repo is schematic AABBs; `python -m talongym import-field-cad --step official.step` tessellates Lab glTF from local CAD and copies the raw STEP under `var/cad/` (gitignored).
 
 ## License
 
@@ -105,4 +104,4 @@ TalonGym is free software: you can redistribute it and/or modify it under the te
 
 **Additional permission (export snippets):** Java emitted by `python -m talongym` export / Lab export is generated output for pasting into *your* AUTO OpMode. Those snippets are dedicated to the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). Your robot code does not become GPL just because you pasted a trajectory.
 
-FIRST®, FIRST® Tech Challenge, FTC®, DECODE™, INTO THE DEEP℠, CENTERSTAGE℠, BIOBUZZ™, and FIRST CANOPY™ are trademarks or service marks of FIRST. Road Runner and MeepMeep are third-party projects; we are not affiliated with them. Point values and field facts in presets come from public Competition Manuals — if a Team Update changes them, bump `manualRevision` rather than treating this repo as rules authority.
+FIRST®, FIRST® Tech Challenge, FTC®, BIOBUZZ™, and FIRST CANOPY™ are trademarks or service marks of FIRST. Road Runner and MeepMeep are third-party projects; we are not affiliated with them. Point values and field facts in presets come from public Competition Manuals — if a Team Update changes them, bump `manualRevision` rather than treating this repo as rules authority.

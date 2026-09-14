@@ -33,9 +33,6 @@ ENGINE_CAPABILITIES = frozenset(
 )
 
 LATEST_KNOWN_MANUAL = {
-    "decode": "TU32",
-    "into_the_deep": "archive-2025",
-    "centerstage": "archive-2024",
     "biobuzz": "V1",
 }
 

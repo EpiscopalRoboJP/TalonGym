@@ -4,10 +4,10 @@ from talongym.sim.world import World
 
 def _bundle_with_dr(**kwargs):
     bundle = load_bundle(
-        "decode_2025_field_tu32",
-        "mecanum_meepmeep_defaults",
-        "decode_2025_scoring_tu32",
-        "decode_auto_lightweight",
+        "biobuzz_2026_field_v1",
+        "mecanum_biobuzz_4cap",
+        "biobuzz_2026_scoring_v1",
+        "biobuzz_auto_lightweight",
     )
     dr = dict(bundle.training.get("domainRandomization") or {})
     dr.update(kwargs)

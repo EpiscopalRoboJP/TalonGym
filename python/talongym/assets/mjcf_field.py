@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
 
@@ -25,6 +26,7 @@ def build_mjcf(
     robot_hx: float = 9.0,
     robot_hy: float = 9.0,
     robot_hz: float = 5.0,
+    robot_mesh: Path | None = None,
 ) -> str:
     fw = float(field["fieldSizeIn"]["width"])
     fd = float(field["fieldSizeIn"]["depth"])
@@ -67,14 +69,31 @@ def build_mjcf(
             )
 
     robot_ids = ["red_0", "red_1", "blue_0", "blue_1"][: max(1, n_robots)]
+    mesh_file = None
+    meshdir = None
+    if robot_mesh is not None:
+        mesh_path = Path(robot_mesh)
+        if mesh_path.is_file():
+            mesh_file = mesh_path.name
+            meshdir = mesh_path.parent.resolve().as_posix()
     bodies: list[str] = []
     for rid in robot_ids:
+        if mesh_file:
+            geom = (
+                f'<geom name="{rid}_geom" type="mesh" mesh="robot_hull" mass="15" '
+                f'rgba="0.9 0.8 0.6 1" contype="1" conaffinity="1"/>'
+            )
+        else:
+            geom = (
+                f'<geom name="{rid}_geom" type="box" size="{robot_hx:.3f} {robot_hz:.3f} {robot_hy:.3f}" '
+                f'mass="15" rgba="0.9 0.8 0.6 1" contype="1" conaffinity="1"/>'
+            )
         bodies.append(
             f"""    <body name="{rid}" pos="0 {robot_hz + 0.2:.3f} 0">
       <joint name="{rid}_sx" type="slide" axis="1 0 0" damping="2"/>
       <joint name="{rid}_sz" type="slide" axis="0 0 1" damping="2"/>
       <joint name="{rid}_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
-      <geom name="{rid}_geom" type="box" size="{robot_hx:.3f} {robot_hz:.3f} {robot_hy:.3f}" mass="15" rgba="0.9 0.8 0.6 1" contype="1" conaffinity="1"/>
+      {geom}
     </body>"""
         )
     for i in range(n_pieces):
@@ -89,12 +108,20 @@ def build_mjcf(
     </body>"""
         )
 
+    compiler = '<compiler angle="radian" inertiafromgeom="true"/>'
+    assets = ""
+    if mesh_file and meshdir:
+        compiler = f'<compiler angle="radian" inertiafromgeom="true" meshdir="{escape(meshdir)}"/>'
+        assets = f"""
+  <asset>
+    <mesh name="robot_hull" file="{escape(mesh_file)}"/>
+  </asset>"""
     xml = f"""<mujoco model="talongym_field">
-  <compiler angle="radian" inertiafromgeom="true"/>
+  {compiler}
   <option gravity="0 {-IN_G:.4f} 0" timestep="0.01" integrator="Euler" cone="pyramidal"/>
   <default>
     <geom condim="3" solref="0.02 1" solimp="0.9 0.95 0.001"/>
-  </default>
+  </default>{assets}
   <worldbody>
 {chr(10).join(geoms)}
 {chr(10).join(bodies)}

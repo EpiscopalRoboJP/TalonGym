@@ -97,7 +97,7 @@
           },
           "repeat": {
             "type": "object",
-            "description": "e.g. DECODE motif repeated 3 times onto 9 ramp indices.",
+            "description": "Repeat a match-variable sequence into an accumulator (season-specific counts live in the preset, not the schema).",
             "properties": {
               "times": { "type": "integer", "minimum": 1 },
               "intoAccumulator": { "type": "string" }

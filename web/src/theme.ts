@@ -1,0 +1,23 @@
+/** Brand colors sampled from https://esj.org (header, hero, gold headings). */
+export const theme = {
+  maroon: "#910028",
+  maroonHero: "#62041e",
+  maroonDark: "#56031a",
+  maroonMid: "#8b0026",
+  gold: "#b4975a",
+  goldLight: "#d4c4a0",
+  goldBright: "#e0c98a",
+  cream: "#f4efe4",
+  scene: "#1a0008",
+  field: "#4a0a1c",
+  grid: "#6e1430",
+  gridSection: "#b4975a",
+  muted: "#d4c6a3",
+  chassis: "#d4c4a0",
+  chassisIdle: "#8a7a62",
+  intake: "#910028",
+  restricted: "#e07080",
+  allianceBlue: "#3d6b8a",
+  allianceBlueBright: "#4a7aa8",
+  occluder: "#3a0a16",
+} as const;

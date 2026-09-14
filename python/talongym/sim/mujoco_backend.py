@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from pathlib import Path
 
 import numpy as np
 
@@ -118,6 +119,7 @@ class MujocoFieldBackend:
         field_half_w: float,
         field_half_d: float,
         robot_hz: float = 5.0,
+        xml_path: Path | None = None,
     ) -> None:
         if not available():
             raise MeshFieldRequiredError("MuJoCo extra missing; pip install -e '.[mujoco]'")
@@ -127,7 +129,10 @@ class MujocoFieldBackend:
         self.hd = field_half_d
         self.robot_hz = robot_hz
         self._mujoco = mujoco
-        self._mj = mujoco.MjModel.from_xml_string(xml)
+        if xml_path is not None:
+            self._mj = mujoco.MjModel.from_xml_path(str(xml_path))
+        else:
+            self._mj = mujoco.MjModel.from_xml_string(xml)
         self._data = mujoco.MjData(self._mj)
         self._contacts = [ContactSet()]
         self._robot_jnt: dict[str, tuple[int, int, int]] = {}

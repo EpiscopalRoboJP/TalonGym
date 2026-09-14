@@ -24,7 +24,7 @@ def test_biobuzz_curriculum_has_launch_stages():
 def test_collect_full_actions_includes_mechanism():
     from talongym.presets.loader import load_bundle
 
-    bundle = load_bundle("decode_2025_field_tu32", "mecanum_meepmeep_defaults", "decode_2025_scoring_tu32")
+    bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
     xs, ys = collect_full_actions(n_steps=8, bundle=bundle, seed=0)
     assert len(xs) >= 8
     assert ys.shape[1] == 5
@@ -43,7 +43,7 @@ def test_bc_warmup_reduces_or_runs(tmp_path: Path):
     from talongym.training.distill import bc_warmup
     from talongym.training.privileged import PrivilegedObsWrapper
 
-    bundle = load_bundle("decode_2025_field_tu32", "mecanum_meepmeep_defaults", "decode_2025_scoring_tu32")
+    bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
 
     def make():
         env = FTCAutoEnv(bundle=bundle, record=False)

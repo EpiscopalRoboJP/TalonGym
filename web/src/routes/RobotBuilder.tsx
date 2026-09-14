@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getJson, postJson, putJson, type DefaultsBundle, type IntakeSpec, type LauncherSpec, type PoseOnRobot, type PresetMeta } from "../api";
+import { getJson, postJson, putJson, robotPresetLabel, uploadRobotModel, deleteRobotModel, type DefaultsBundle, type IntakeSpec, type LauncherSpec, type PoseOnRobot, type PresetMeta, type VisualOffset } from "../api";
 import { RobotPreview } from "../scene/FieldScene";
+import { theme } from "../theme";
 
 type RobotDoc = {
   schemaVersion: string;
@@ -13,7 +14,14 @@ type RobotDoc = {
     wheelbaseIn?: number;
     strafeMultiplier?: number;
   };
-  chassis: { lengthIn: number; widthIn: number; heightIn?: number; massKg: number; collisionShape?: string };
+  chassis: {
+    lengthIn: number;
+    widthIn: number;
+    heightIn?: number;
+    massKg: number;
+    collisionShape?: string;
+    footprint?: { x: number; y: number }[];
+  };
   motors: Record<string, number>;
   constraints: {
     maxVelInPerS: number;
@@ -35,6 +43,9 @@ type RobotDoc = {
   launchers?: LauncherSpec[];
   sensors: { id: string; kind: string; fovDeg?: number; rangeIn?: number; poseOnRobot?: PoseOnRobot }[];
   defaultActionTier: string;
+  visualAsset?: string | null;
+  collisionAsset?: string | null;
+  visualOffset?: VisualOffset;
   [k: string]: unknown;
 };
 
@@ -119,13 +130,16 @@ function aimLine(launcher: LauncherSpec) {
 
 export function RobotBuilderPage() {
   const [list, setList] = useState<PresetMeta[]>([]);
-  const [id, setId] = useState("mecanum_meepmeep_defaults");
+  const [id, setId] = useState("mecanum_biobuzz_4cap");
   const [doc, setDoc] = useState<RobotDoc | null>(null);
   const [sel, setSel] = useState<Sel>({ kind: "chassis" });
   const [msg, setMsg] = useState("");
   const [errs, setErrs] = useState<string[]>([]);
   const [saveAsId, setSaveAsId] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [lastBbox, setLastBbox] = useState<{ lengthIn: number; widthIn: number; heightIn: number } | null>(null);
   const drag = useRef<{ kind: "intake" | "launcher"; id: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getJson<PresetMeta[]>("/presets/robot").then(setList);
@@ -144,6 +158,7 @@ export function RobotBuilderPage() {
       setErrs([]);
       setSel({ kind: "chassis" });
       setSaveAsId("");
+      setLastBbox(null);
     });
   }, [id]);
 
@@ -299,6 +314,87 @@ export function RobotBuilderPage() {
     }
   }
 
+  async function onUploadModel(file: File | undefined) {
+    if (!doc || !file) return;
+    setUploading(true);
+    setMsg("Converting CAD…");
+    try {
+      const imported = await uploadRobotModel(doc.id, file);
+      const offset = doc.visualOffset || {};
+      setLastBbox(imported.bbox);
+      setDoc({
+        ...doc,
+        visualAsset: imported.visualAsset,
+        collisionAsset: imported.collisionAsset,
+        visualOffset: { x: offset.x || 0, y: offset.y || 0, z: offset.z || 0, yawDeg: offset.yawDeg || 0, scale: offset.scale || 1 },
+        chassis: { ...doc.chassis, footprint: imported.footprint },
+      });
+      setMsg(`Imported ${file.name} (${imported.unitsGuess}, ${imported.bbox.lengthIn.toFixed(1)}×${imported.bbox.widthIn.toFixed(1)}×${imported.bbox.heightIn.toFixed(1)} in). Fit chassis if you want the box to match.`);
+      setErrs([]);
+    } catch (e) {
+      setMsg("");
+      setErrs([e instanceof Error ? e.message : String(e)]);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  function fitChassis() {
+    if (!doc) return;
+    if (lastBbox) {
+      setDoc({
+        ...doc,
+        chassis: {
+          ...doc.chassis,
+          lengthIn: Math.round(lastBbox.lengthIn * 100) / 100,
+          widthIn: Math.round(lastBbox.widthIn * 100) / 100,
+          heightIn: Math.round(lastBbox.heightIn * 100) / 100,
+        },
+      });
+      setMsg("Chassis length/width/height set from the model bounds.");
+      return;
+    }
+    if (!doc.chassis.footprint?.length) {
+      setErrs(["Upload a model first, then fit chassis to its bounds."]);
+      return;
+    }
+    const xs = doc.chassis.footprint.map((p) => p.x);
+    const ys = doc.chassis.footprint.map((p) => p.y);
+    const lengthIn = Math.max(...xs) - Math.min(...xs);
+    const widthIn = Math.max(...ys) - Math.min(...ys);
+    setDoc({
+      ...doc,
+      chassis: {
+        ...doc.chassis,
+        lengthIn: Math.round(lengthIn * 100) / 100,
+        widthIn: Math.round(widthIn * 100) / 100,
+      },
+    });
+    setMsg("Chassis length/width set from the model footprint.");
+  }
+
+  async function clearModel() {
+    if (!doc) return;
+    try {
+      await deleteRobotModel(doc.id);
+    } catch {
+      /* files may already be gone */
+    }
+    const { visualAsset: _v, collisionAsset: _c, visualOffset: _o, ...rest } = doc;
+    const chassis = { ...doc.chassis };
+    delete chassis.footprint;
+    if (chassis.collisionShape === "mesh") chassis.collisionShape = "aabb";
+    setDoc({ ...rest, chassis });
+    setLastBbox(null);
+    setMsg("Cleared custom 3D model.");
+  }
+
+  function patchOffset(partial: VisualOffset) {
+    if (!doc) return;
+    setDoc({ ...doc, visualOffset: { ...(doc.visualOffset || {}), ...partial } });
+  }
+
   if (!doc) return <div className="page single">Loading…</div>;
   const camera = cam(doc);
 
@@ -323,7 +419,7 @@ export function RobotBuilderPage() {
         <select id="robot-preset" value={id} onChange={(e) => setId(e.target.value)} style={{ maxWidth: 420 }}>
           {list.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.displayName || p.id}
+              {robotPresetLabel(p)}
             </option>
           ))}
         </select>
@@ -352,11 +448,11 @@ export function RobotBuilderPage() {
                 drag.current = null;
               }}
             >
-              <rect x={-span} y={-span} width={span * 2} height={span * 2} fill="#0d1a14" />
+              <rect x={-span} y={-span} width={span * 2} height={span * 2} fill={theme.scene} />
               {ticks.map((v) => (
                 <g key={v}>
-                  <line x1={v} y1={-span} x2={v} y2={span} stroke="#2a4a3c" strokeWidth="0.35" />
-                  <line x1={-span} y1={v} x2={span} y2={v} stroke="#2a4a3c" strokeWidth="0.35" />
+                  <line x1={v} y1={-span} x2={v} y2={span} stroke={theme.grid} strokeWidth="0.35" />
+                  <line x1={-span} y1={v} x2={span} y2={v} stroke={theme.grid} strokeWidth="0.35" />
                 </g>
               ))}
               <rect
@@ -364,19 +460,19 @@ export function RobotBuilderPage() {
                 y={-width / 2}
                 width={length}
                 height={width}
-                fill="#e8c9a3"
+                fill={theme.chassis}
                 fillOpacity={0.85}
-                stroke={sel.kind === "chassis" ? "#e6eef3" : "#8aa0ae"}
+                stroke={sel.kind === "chassis" ? theme.cream : theme.muted}
                 strokeWidth={sel.kind === "chassis" ? 0.7 : 0.35}
               />
-              <polygon points={`${length / 2 - 1.5},0 ${length / 2},${-2} ${length / 2},${2}`} fill="#222" />
+              <polygon points={`${length / 2 - 1.5},0 ${length / 2},${-2} ${length / 2},${2}`} fill={theme.maroonDark} />
               {intakes.map((intake) => (
                 <polygon
                   key={intake.id}
                   points={intakePoly(intake)}
-                  fill="#6fbfa3"
+                  fill={theme.intake}
                   fillOpacity={sel.kind === "intake" && sel.id === intake.id ? 0.85 : 0.45}
-                  stroke={sel.kind === "intake" && sel.id === intake.id ? "#e6eef3" : "#6fbfa3"}
+                  stroke={sel.kind === "intake" && sel.id === intake.id ? theme.cream : theme.intake}
                   strokeWidth={0.45}
                 />
               ))}
@@ -386,25 +482,25 @@ export function RobotBuilderPage() {
                 const on = sel.kind === "launcher" && sel.id === launcher.id;
                 return (
                   <g key={launcher.id}>
-                    <line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke="#e0c36a" strokeWidth={0.5} />
-                    <circle cx={pose.x || 0} cy={-(pose.y || 0)} r={1.4} fill="#d4a574" stroke={on ? "#e6eef3" : "transparent"} strokeWidth={0.4} />
+                    <line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={theme.goldBright} strokeWidth={0.5} />
+                    <circle cx={pose.x || 0} cy={-(pose.y || 0)} r={1.4} fill={theme.gold} stroke={on ? theme.cream : "transparent"} strokeWidth={0.4} />
                   </g>
                 );
               })}
-              <line x1={0} y1={0} x2={6} y2={0} stroke="#d4a574" strokeWidth={0.35} />
-              <text x={span - 8} y={span - 2} fill="#8aa0ae" fontSize="2.2">
+              <line x1={0} y1={0} x2={6} y2={0} stroke={theme.gold} strokeWidth={0.35} />
+              <text x={span - 8} y={span - 2} fill={theme.muted} fontSize="2.2">
                 +x fwd
               </text>
             </svg>
             <div className="legend">
               <span>
-                <i style={{ background: "#e8c9a3" }} /> chassis
+                <i style={{ background: theme.chassis }} /> chassis
               </span>
               <span>
-                <i style={{ background: "#6fbfa3" }} /> intake
+                <i style={{ background: theme.intake }} /> intake
               </span>
               <span>
-                <i style={{ background: "#d4a574" }} /> launcher
+                <i style={{ background: theme.gold }} /> launcher
               </span>
             </div>
             <div className="robot-preview" aria-label="Robot 3D preview">
@@ -413,7 +509,11 @@ export function RobotBuilderPage() {
                   chassis: doc.chassis,
                   intakes,
                   launchers,
+                  visualAsset: typeof doc.visualAsset === "string" ? doc.visualAsset : null,
+                  visualOffset: doc.visualOffset,
+                  collisionShape: doc.chassis.collisionShape,
                 }}
+                showHull={doc.chassis.collisionShape === "mesh"}
               />
             </div>
           </div>
@@ -536,6 +636,93 @@ export function RobotBuilderPage() {
                 step={1}
                 unit=""
                 onChange={(n) => setDoc({ ...doc, mechanisms: { ...doc.mechanisms, capacity: n } })}
+              />
+            </div>
+
+            <div className="card">
+              <h3>3D model</h3>
+              <p className="note">
+                Upload STL, OBJ, GLB, glTF, or STEP. Files convert to a light GLB for the viewer. Physics stays the chassis box unless you enable mesh collision (slower; for fidelity, not overnight PPO).
+              </p>
+              <input
+                ref={fileRef}
+                id="robot-cad"
+                type="file"
+                accept=".glb,.gltf,.stl,.obj,.step,.stp"
+                hidden
+                onChange={(e) => onUploadModel(e.target.files?.[0])}
+              />
+              <div className="row">
+                <button type="button" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                  {uploading ? "Converting…" : "Upload model"}
+                </button>
+                <button type="button" disabled={!doc.visualAsset} onClick={fitChassis}>
+                  Fit chassis to model
+                </button>
+                <button type="button" disabled={!doc.visualAsset} onClick={() => void clearModel()}>
+                  Clear model
+                </button>
+              </div>
+              {typeof doc.visualAsset === "string" && doc.visualAsset && (
+                <p className="note">Loaded {doc.visualAsset}</p>
+              )}
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={doc.chassis.collisionShape === "mesh"}
+                  disabled={!doc.visualAsset}
+                  onChange={(e) =>
+                    setDoc({
+                      ...doc,
+                      chassis: { ...doc.chassis, collisionShape: e.target.checked ? "mesh" : "aabb" },
+                    })
+                  }
+                />
+                Use mesh for collision
+              </label>
+              <div className="form-grid">
+                <label htmlFor="off-x">Offset x (in)</label>
+                <input
+                  id="off-x"
+                  className="narrow"
+                  type="number"
+                  value={doc.visualOffset?.x ?? 0}
+                  onChange={(e) => patchOffset({ x: Number(e.target.value) })}
+                />
+                <label htmlFor="off-y">Offset y (in)</label>
+                <input
+                  id="off-y"
+                  className="narrow"
+                  type="number"
+                  value={doc.visualOffset?.y ?? 0}
+                  onChange={(e) => patchOffset({ y: Number(e.target.value) })}
+                />
+                <label htmlFor="off-z">Offset z (in)</label>
+                <input
+                  id="off-z"
+                  className="narrow"
+                  type="number"
+                  value={doc.visualOffset?.z ?? 0}
+                  onChange={(e) => patchOffset({ z: Number(e.target.value) })}
+                />
+                <label htmlFor="off-yaw">Yaw (deg)</label>
+                <input
+                  id="off-yaw"
+                  className="narrow"
+                  type="number"
+                  value={doc.visualOffset?.yawDeg ?? 0}
+                  onChange={(e) => patchOffset({ yawDeg: Number(e.target.value) })}
+                />
+              </div>
+              <Slider
+                id="off-scale"
+                label="Scale"
+                value={doc.visualOffset?.scale ?? 1}
+                min={0.1}
+                max={4}
+                step={0.05}
+                unit="×"
+                onChange={(n) => patchOffset({ scale: n })}
               />
             </div>
 

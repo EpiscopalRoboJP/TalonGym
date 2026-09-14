@@ -5,7 +5,14 @@ from typing import Protocol
 
 import numpy as np
 
-from talongym.sim.geometry import AABB, wrap_angle
+from talongym.sim.geometry import (
+    AABB,
+    aabb_polygon,
+    polygon_vs_circle,
+    polygons_overlap,
+    world_polygon,
+    wrap_angle,
+)
 
 
 @dataclass
@@ -28,11 +35,17 @@ class Body:
     z: float = 5.0
     vz: float = 0.0
     kick: bool = False
+    footprint: tuple[tuple[float, float], ...] | None = None
 
     def aabb(self) -> AABB:
         if self.kind == "circle" and self.radius > 0:
             return AABB(self.x, self.y, self.radius, self.radius, self.heading)
         return AABB(self.x, self.y, self.hx, self.hy, self.heading)
+
+    def world_footprint(self) -> list[tuple[float, float]] | None:
+        if self.kind != "mesh" or not self.footprint or len(self.footprint) < 3:
+            return None
+        return world_polygon(self.x, self.y, self.heading, self.footprint)
 
 
 @dataclass
@@ -227,14 +240,44 @@ def _resolve_chassis(
         body.y = margin_y
         body.vy = 0.0
         wall_hit = True
+    poly = body.world_footprint()
     me = body.aabb()
     for box in boxes:
+        if poly is not None:
+            hit, mtv = polygons_overlap(poly, aabb_polygon(box))
+            if hit and mtv is not None:
+                wall_hit = True
+                body.x += mtv[0]
+                body.y += mtv[1]
+                body.vx = 0.0
+                body.vy = 0.0
+                poly = body.world_footprint()
+            continue
         if me.overlaps_aabb(box):
             wall_hit = True
             _separate_aabb(body, box)
             me = body.aabb()
     for ob in others:
         if ob.id == body.id:
+            continue
+        other_poly = ob.world_footprint()
+        if poly is not None and other_poly is not None:
+            hit, mtv = polygons_overlap(poly, other_poly)
+            if hit and mtv is not None:
+                robot_hit = True
+                body.x += mtv[0]
+                body.y += mtv[1]
+                body.vx = 0.0
+                poly = body.world_footprint()
+            continue
+        if poly is not None:
+            hit, mtv = polygons_overlap(poly, aabb_polygon(ob.aabb()))
+            if hit and mtv is not None:
+                robot_hit = True
+                body.x += mtv[0]
+                body.y += mtv[1]
+                body.vx = 0.0
+                poly = body.world_footprint()
             continue
         if me.overlaps_aabb(ob.aabb()):
             robot_hit = True
@@ -358,8 +401,18 @@ def _separate_circles(a: Body, b: Body) -> bool:
 
 
 def _chassis_vs_circle(robot: Body, piece: Body) -> bool:
-    box = robot.aabb()
     r = piece.radius or max(piece.hx, piece.hy)
+    poly = robot.world_footprint()
+    if poly is not None:
+        hit, push = polygon_vs_circle(poly, piece.x, piece.y, r)
+        if not hit or push is None:
+            return False
+        piece.x += push[0]
+        piece.y += push[1]
+        piece.vx += robot.vx * 0.45
+        piece.vy += robot.vy * 0.45
+        return True
+    box = robot.aabb()
     if not box.overlaps_circle(piece.x, piece.y, r):
         return False
     nx = min(max(piece.x, box.minx), box.maxx)

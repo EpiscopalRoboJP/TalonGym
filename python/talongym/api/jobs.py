@@ -8,6 +8,7 @@ import numpy as np
 from talongym import paths
 from talongym.api import db
 from talongym.eval.harness import run_trials
+from talongym.api.cad_frames import ensure_background_asset
 from talongym.export.roadrunner import export_from_replay
 from talongym.presets.loader import load_bundle
 from talongym.training.policies import scripted_auto
@@ -61,11 +62,14 @@ def ws_rollout_frames(frames: list[dict[str, Any]] | None) -> list[dict[str, Any
     """Downsample and JSON-sanitize frames so Lab WebSocket payloads stay small."""
     if not frames:
         return []
-    keep = ("t", "trueScore", "robots", "pieces", "elements", "fieldSizeIn", "vision", "aprilTags", "backgroundAsset")
+    keep = ("t", "trueScore", "robots", "pieces", "elements", "fieldSizeIn", "vision", "aprilTags", "backgroundAsset", "robotDesign")
     step = max(1, len(frames) // 48)
     out: list[dict[str, Any]] = []
     for fr in frames[::step][:48]:
-        out.append({k: _jsonable(fr.get(k)) for k in keep if isinstance(fr, dict) and k in fr})
+        if not isinstance(fr, dict):
+            continue
+        slim = ensure_background_asset({k: _jsonable(fr.get(k)) for k in keep if k in fr}) or {}
+        out.append(slim)
     return out
 
 

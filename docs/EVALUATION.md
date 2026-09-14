@@ -59,7 +59,7 @@ From [`python/talongym/eval/harness.py`](../python/talongym/eval/harness.py):
 | `mean`, `lo`, `hi`, `median`, `p10`, `p90`, `min`, `max` | True-score distribution + bootstrap CI on the mean |
 | `nTrials`, `seeds`, `scores` | Raw trials |
 | `collisionRate`, `collisionTimeMean`, `firstContactS` | Contact with walls/robots |
-| `restrictedEntryRate` | Data rule / accumulator `restricted_entry` (G402-style), not a hardcoded DECODE name |
+| `restrictedEntryRate` | Data rule / accumulator `restricted_entry` (G402-style), not a hardcoded season name. The same node also deducts −15 from `trueScore` (training foul proxy); the rate remains a side metric. |
 | `bestScore`, `bestFrames` | Highest true score this batch (frames dropped after the API saves a replay) |
 | `bestLabelEligible` | n ≥ 500 for a single batch |
 

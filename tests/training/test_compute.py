@@ -27,18 +27,17 @@ def test_env_override(monkeypatch):
 
 
 def test_training_family_and_easy_ids():
-    assert training_family("decode_auto_lightweight") == "decode_auto"
+    assert training_family("biobuzz_auto_lightweight") == "biobuzz_auto"
     assert training_id_for_profile("biobuzz_auto_workstation", "auto") == "biobuzz_auto_easy"
-    assert easy_training_id("centerstage_auto_cloud") == "centerstage_auto_easy"
+    assert easy_training_id("biobuzz_auto_cloud") == "biobuzz_auto_easy"
     idx = preset_index(refresh=True)["training"]
-    for season in ("decode_auto", "into_the_deep_auto", "centerstage_auto", "biobuzz_auto"):
-        for suffix in ("lightweight", "workstation", "cloud", "easy"):
-            assert f"{season}_{suffix}" in idx
+    for suffix in ("lightweight", "workstation", "cloud", "easy"):
+        assert f"biobuzz_auto_{suffix}" in idx
 
 
 def test_easy_preset_autodetects_n_envs(monkeypatch):
     monkeypatch.delenv("TALONGYM_COMPUTE_PROFILE", raising=False)
-    training = load_preset("training", "decode_auto_easy")
+    training = load_preset("training", "biobuzz_auto_easy")
     assert training["computeProfile"] == "auto"
     resolved = resolve_training(training, hardware={"cpuCount": 16, "ramGb": 32.0, "cuda": False})
     assert resolved["computeProfile"] == "workstation"
@@ -47,7 +46,7 @@ def test_easy_preset_autodetects_n_envs(monkeypatch):
 
 
 def test_explicit_workstation_keeps_json_n_envs():
-    training = load_preset("training", "decode_auto_workstation")
+    training = load_preset("training", "biobuzz_auto_workstation")
     resolved = resolve_training(training, hardware={"cpuCount": 4, "ramGb": 8.0, "cuda": False})
     assert resolved["computeProfile"] == "workstation"
     assert resolved["nEnvs"] == 256

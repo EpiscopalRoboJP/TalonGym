@@ -20,29 +20,29 @@
     <geom name="flower_2" type="box" size="2.5000 5.0000 2.5000" pos="36.000 21.500 69.500" rgba="0.4 0.35 0.3 1" contype="1" conaffinity="1"/>
     <geom name="flower_3" type="box" size="2.5000 5.0000 2.5000" pos="-36.000 21.500 -69.500" rgba="0.4 0.35 0.3 1" contype="1" conaffinity="1"/>
     <geom name="flower_4" type="box" size="2.5000 5.0000 2.5000" pos="36.000 21.500 -69.500" rgba="0.4 0.35 0.3 1" contype="1" conaffinity="1"/>
-    <body name="red_0" pos="0 7.000 0">
+    <body name="red_0" pos="0 5.200 0">
       <joint name="red_0_sx" type="slide" axis="1 0 0" damping="2"/>
       <joint name="red_0_sz" type="slide" axis="0 0 1" damping="2"/>
       <joint name="red_0_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
-      <geom name="red_0_geom" type="box" size="9.000 7.000 9.000" mass="15" rgba="0.9 0.8 0.6 1" contype="1" conaffinity="1"/>
+      <geom name="red_0_geom" type="box" size="9.000 5.000 9.000" mass="15" rgba="0.9 0.8 0.6 1" contype="1" conaffinity="1"/>
     </body>
-    <body name="red_1" pos="0 7.000 0">
+    <body name="red_1" pos="0 5.200 0">
       <joint name="red_1_sx" type="slide" axis="1 0 0" damping="2"/>
       <joint name="red_1_sz" type="slide" axis="0 0 1" damping="2"/>
       <joint name="red_1_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
-      <geom name="red_1_geom" type="box" size="9.000 7.000 9.000" mass="15" rgba="0.9 0.8 0.6 1" contype="1" conaffinity="1"/>
+      <geom name="red_1_geom" type="box" size="9.000 5.000 9.000" mass="15" rgba="0.9 0.8 0.6 1" contype="1" conaffinity="1"/>
     </body>
-    <body name="blue_0" pos="0 7.000 0">
+    <body name="blue_0" pos="0 5.200 0">
       <joint name="blue_0_sx" type="slide" axis="1 0 0" damping="2"/>
       <joint name="blue_0_sz" type="slide" axis="0 0 1" damping="2"/>
       <joint name="blue_0_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
-      <geom name="blue_0_geom" type="box" size="9.000 7.000 9.000" mass="15" rgba="0.9 0.8 0.6 1" contype="1" conaffinity="1"/>
+      <geom name="blue_0_geom" type="box" size="9.000 5.000 9.000" mass="15" rgba="0.9 0.8 0.6 1" contype="1" conaffinity="1"/>
     </body>
-    <body name="blue_1" pos="0 7.000 0">
+    <body name="blue_1" pos="0 5.200 0">
       <joint name="blue_1_sx" type="slide" axis="1 0 0" damping="2"/>
       <joint name="blue_1_sz" type="slide" axis="0 0 1" damping="2"/>
       <joint name="blue_1_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
-      <geom name="blue_1_geom" type="box" size="9.000 7.000 9.000" mass="15" rgba="0.9 0.8 0.6 1" contype="1" conaffinity="1"/>
+      <geom name="blue_1_geom" type="box" size="9.000 5.000 9.000" mass="15" rgba="0.9 0.8 0.6 1" contype="1" conaffinity="1"/>
     </body>
     <body name="piece_00" pos="0 0 0">
       <joint name="piece_00_sx" type="slide" axis="1 0 0" damping="0.05"/>

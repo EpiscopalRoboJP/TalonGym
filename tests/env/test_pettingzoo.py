@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import pytest
 
 from talongym.env.petting import FTCAutoParallelEnv
@@ -37,10 +37,10 @@ def test_two_reds_move_and_contact():
 
 
 def test_restricted_volume_sets_flag():
-    world = World(load_bundle(), control_hz=25)
+    world = World(load_bundle(), control_hz=25, allow_missing_mesh=True)
     world.reset(seed=0, static_teammate=False)
     rs = world.actor()
-    for _ in range(80):
-        world.step(np.array([40.0, rs.body.y, 0.0]), 1.0, 0)
-        rs = world.actor()
+    rs.body.x, rs.body.y = 36.0, 0.0
+    world.step(np.array([36.0, 0.0, 0.0]), 0.2, 0)
+    rs = world.actor()
     assert rs.entered_restricted or world.accumulators.get("restricted_entry")

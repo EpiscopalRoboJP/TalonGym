@@ -15,10 +15,11 @@
     },
     "sourceUrl": "https://ftc-resources.firstinspires.org/ftc/game/manual-10",
     "cadUrl": "https://ftc-resources.firstinspires.org/ftc/archive/2027/field",
+    "cadVersion": "am-5850",
     "effectiveDate": "2026-09-12",
     "geometryProvenance": "hand_authored",
     "verifyAgainstManual": true,
-    "notes": "GARDEN tape is in the same alliance corner as the LOADING ZONE (Figure 9-3). Mesh from field AABB tessellation unless official STEP is imported via talongym import-field-cad. VERIFY: hive x-offsets; tip threshold is scoring-side; AprilTag IDs 1–3, 4–6, 42–45 are inferred (manual extract only confirmed 0, 7, 38–41). POLLEN diameter 2.8 in per §9.8. Official field ~144 x 144 in inside perimeter. CAD general tolerance +/- 1 in."
+    "notes": "GARDEN tape is in the same alliance corner as the LOADING ZONE (Figure 9-3). Lab backgroundAsset is tessellated from official am-5850 BIOBUZZ STEP (raw STEP stays in var/cad/, not committed). MuJoCo colliders remain schematic AABBs so robots can drive under the hive. VERIFY: hive x-offsets; tip threshold is scoring-side; AprilTag IDs 1–3, 4–6, 42–45 are inferred (manual extract only confirmed 0, 7, 38–41). POLLEN diameter 2.8 in per §9.8. Official field ~144 x 144 in inside perimeter. CAD general tolerance +/- 1 in."
   },
   "coordinateSystem": {
     "convention": "ftc_official_red_wall",

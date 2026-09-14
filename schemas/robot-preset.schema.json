@@ -42,7 +42,21 @@
         "widthIn": { "type": "number", "default": 18 },
         "heightIn": { "type": "number" },
         "massKg": { "type": "number", "exclusiveMinimum": 0 },
-        "collisionShape": { "type": "string", "enum": ["aabb", "circle"] }
+        "collisionShape": { "type": "string", "enum": ["aabb", "circle", "mesh"] },
+        "footprint": {
+          "type": "array",
+          "description": "Convex hull vertices in the robot frame (+x forward, +y left), inches. Used when collisionShape is mesh so planar physics does not need the CAD file.",
+          "minItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y"],
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" }
+            }
+          }
+        }
       }
     },
     "motors": {
@@ -107,7 +121,7 @@
       "additionalProperties": false,
       "required": ["capacity"],
       "properties": {
-        "capacity": { "type": "integer", "minimum": 0, "description": "Held scoring elements. DECODE preload max is 3 (verify vs current manual)." },
+        "capacity": { "type": "integer", "minimum": 0, "description": "Held scoring elements. BIOBUZZ preload is 4 POLLEN (verify vs current manual)." },
         "intakeCycleTimeS": { "type": "number", "minimum": 0 },
         "scoreCycleTimeS": { "type": "number", "minimum": 0 },
         "canIntakeWhileMoving": { "type": "boolean" },
@@ -120,6 +134,26 @@
     "defaultActionTier": {
       "type": "string",
       "enum": ["high_level_waypoint", "low_level_velocity"]
+    },
+    "visualAsset": {
+      "type": "string",
+      "description": "Render-only robot glTF/GLB under var/assets/. Physics ignores this."
+    },
+    "collisionAsset": {
+      "type": "string",
+      "description": "Simplified convex-hull STL used when chassis.collisionShape is mesh (MuJoCo)."
+    },
+    "visualOffset": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Align CAD origin with chassis center. Inches, robot frame (+x forward, +y left, +z up).",
+      "properties": {
+        "x": { "type": "number", "default": 0 },
+        "y": { "type": "number", "default": 0 },
+        "z": { "type": "number", "default": 0 },
+        "yawDeg": { "type": "number", "default": 0 },
+        "scale": { "type": "number", "exclusiveMinimum": 0, "default": 1 }
+      }
     }
   },
   "$defs": {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 
+import pytest
 from fastapi.testclient import TestClient
 
 from talongym.api.app import app
@@ -24,9 +25,8 @@ def test_health_and_presets():
     fields = client.get("/api/v1/presets/field")
     assert fields.status_code == 200
     ids = {row["id"] for row in fields.json()}
-    assert "decode_2025_field_tu32" in ids
-    assert "into_the_deep_2024_field" in ids
     assert "biobuzz_2026_field_v1" in ids
+    assert ids == {"biobuzz_2026_field_v1"}
 
 
 def test_defaults_get_and_put():
@@ -34,22 +34,24 @@ def test_defaults_get_and_put():
     got = client.get("/api/v1/defaults")
     assert got.status_code == 200
     body = got.json()
-    assert body["fieldId"] == "decode_2025_field_tu32"
-    assert body["scoringId"] == "decode_2025_scoring_tu32"
-    assert body["season"] == "decode"
-    put = client.put("/api/v1/defaults", json={"trainingId": "biobuzz_auto_lightweight"})
+    assert body["fieldId"] == "biobuzz_2026_field_v1"
+    assert body["scoringId"] == "biobuzz_2026_scoring_v1"
+    assert body["season"] == "biobuzz"
+    put = client.put("/api/v1/defaults", json={"trainingId": "biobuzz_auto_easy"})
     assert put.status_code == 200
     switched = put.json()
     assert switched["fieldId"] == "biobuzz_2026_field_v1"
     assert switched["robotId"] == "mecanum_biobuzz_4cap"
     assert switched["scoringId"] == "biobuzz_2026_scoring_v1"
     assert switched["season"] == "biobuzz"
+    assert switched["trainingId"] == "biobuzz_auto_easy"
     bundle = load_bundle()
     assert bundle.field["id"] == "biobuzz_2026_field_v1"
     assert bundle.scoring["id"] == "biobuzz_2026_scoring_v1"
-    restore = client.put("/api/v1/defaults", json={"trainingId": "decode_auto_lightweight"})
+    restore = client.put("/api/v1/defaults", json={"trainingId": "biobuzz_auto_lightweight"})
     assert restore.status_code == 200
-    assert restore.json()["season"] == "decode"
+    assert restore.json()["trainingId"] == "biobuzz_auto_lightweight"
+    assert restore.json()["season"] == "biobuzz"
 
 
 def test_demo_replay_and_export():
@@ -73,7 +75,7 @@ def test_demo_replay_and_export():
 
 def test_preset_validate_is_not_swallowed_by_create_route():
     client = TestClient(app)
-    scoring = client.get("/api/v1/presets/scoring/decode_2025_scoring_tu32")
+    scoring = client.get("/api/v1/presets/scoring/biobuzz_2026_scoring_v1")
     assert scoring.status_code == 200
     doc = scoring.json()
     doc.pop("_kind", None)
@@ -166,7 +168,7 @@ def test_cancel_run(monkeypatch):
 
     monkeypatch.setattr("talongym.api.jobs.train_ppo", fake_train)
     client = TestClient(app)
-    res = client.post("/api/v1/runs", json={"demo": True, "presets": {"trainingId": "decode_auto_lightweight"}})
+    res = client.post("/api/v1/runs", json={"demo": True, "presets": {"trainingId": "biobuzz_auto_lightweight"}})
     assert res.status_code == 202
     run_id = res.json()["runId"]
     _wait_run(client, run_id, {"running", "queued", "cancelled"})
@@ -198,14 +200,14 @@ def test_easy_run_uses_autodetect_training_id(monkeypatch):
             "demo": False,
             "easy": True,
             "computeProfile": "auto",
-            "presets": {"trainingId": "decode_auto_lightweight"},
+            "presets": {"trainingId": "biobuzz_auto_lightweight"},
         },
     )
     assert res.status_code == 202
     run_id = res.json()["runId"]
     row = _wait_run(client, run_id, {"succeeded", "failed"})
     assert row["state"] == "succeeded"
-    assert captured["bundle"].training["id"] == "decode_auto_easy"
+    assert captured["bundle"].training["id"] == "biobuzz_auto_easy"
     assert captured["n_envs"] >= 1
 
 
@@ -218,3 +220,51 @@ def test_field_asset_glb_served():
     assert missing.status_code == 404
     traversal = client.get("/api/v1/field-assets/../pyproject.toml")
     assert traversal.status_code in {400, 404}
+
+
+def test_robot_asset_traversal_rejected():
+    client = TestClient(app)
+    traversal = client.get("/api/v1/robot-assets/../pyproject.toml")
+    assert traversal.status_code in {400, 404}
+    missing = client.get("/api/v1/robot-assets/robots/nope/visual.glb")
+    assert missing.status_code == 404
+
+
+def test_robot_model_upload_and_delete(tmp_path):
+    pytest.importorskip("trimesh")
+    from talongym.assets.import_robot_cad import delete_robot_assets, write_ascii_box_stl
+
+    stl = write_ascii_box_stl(tmp_path / "box.stl", 18, 14, 10)
+    client = TestClient(app)
+    robot_id = "test_api_cube"
+    try:
+        with stl.open("rb") as fh:
+            res = client.post(
+                f"/api/v1/presets/robot/{robot_id}/model",
+                files={"file": ("box.stl", fh, "model/stl")},
+            )
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert body["visualAsset"].endswith("visual.glb")
+        glb = client.get(f"/api/v1/robot-assets/{body['visualAsset']}")
+        assert glb.status_code == 200
+        assert glb.content[:4] == b"glTF"
+        gone = client.delete(f"/api/v1/presets/robot/{robot_id}/model")
+        assert gone.status_code == 200
+        missing = client.get(f"/api/v1/robot-assets/{body['visualAsset']}")
+        assert missing.status_code == 404
+    finally:
+        delete_robot_assets(robot_id)
+
+
+def test_biobuzz_frames_get_cad_background():
+    from talongym.api.cad_frames import ensure_background_asset
+
+    frame = {
+        "elements": [{"id": "red_cell_up", "type": "goal", "tags": ["hive", "up_cell"]}],
+        "fieldSizeIn": {"width": 144, "depth": 144},
+    }
+    stamped = ensure_background_asset(frame)
+    assert stamped["backgroundAsset"] == "seasons/biobuzz_2026/field.glb"
+    kept = ensure_background_asset({**frame, "backgroundAsset": "custom.glb"})
+    assert kept["backgroundAsset"] == "custom.glb"

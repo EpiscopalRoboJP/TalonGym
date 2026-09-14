@@ -31,7 +31,7 @@ Every CLI command, including calibrate and distill: [CLI.md](CLI.md).
 |-----|------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Gymnasium contract, API, roadmap, risks (implementation spec) |
 | [NEW_SEASON_RUNBOOK.md](NEW_SEASON_RUNBOOK.md) | Stand up a new game from the Competition Manual without an engine PR |
-| [MENTOR_SIGNOFF.md](MENTOR_SIGNOFF.md) | DECODE TU32 freeze questions |
+| [MENTOR_SIGNOFF.md](MENTOR_SIGNOFF.md) | BIOBUZZ V1 freeze questions |
 | [../presets/seasons/biobuzz_2026/README.md](../presets/seasons/biobuzz_2026/README.md) | BIOBUZZ V1 encoded facts and placeholders |
 
 JSON Schema for presets lives in [`../schemas/`](../schemas/).
