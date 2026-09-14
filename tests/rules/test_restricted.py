@@ -12,12 +12,12 @@ def test_restricted_entry_is_a_foul():
     rs.body.x, rs.body.y = 20.0, 0.0
     world.step(np.array([20.0, 0.0, 0.0]), 0.2, 0, end_phase=False)
     assert world.accumulators.get("restricted_entry") is True
-    assert world.true_score == -15
+    assert world.true_score == -20
     assert any(float(e.get("points") or 0) < 0 for e in world.explains)
     snap = world.snapshot()
     assert snap["penalties"]
     assert any(float(e.get("points") or 0) < 0 for e in snap["stepExplains"])
-    assert snap["trueScore"] == -15
+    assert snap["trueScore"] == -20
 
 
 def test_opponent_in_its_own_territory_is_not_a_red_foul():
