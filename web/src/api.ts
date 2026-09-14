@@ -180,7 +180,10 @@ export type Frame = {
   observedMatchVars: Record<string, string | null>;
   fieldSizeIn: { width: number; depth: number };
   backgroundAsset?: string | null;
-  explains: { id: string; explain: string; points: number }[];
+  explains: FrameExplain[];
+  stepExplains?: FrameExplain[];
+  penalties?: FrameExplain[];
+  collision?: FrameCollision;
   queues: Record<string, string[]>;
   gate: Record<string, string>;
   vision: { tagId: number; visible: boolean; occluded: boolean; bearing: number; range: number }[];

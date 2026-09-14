@@ -70,6 +70,12 @@ nav a.active { color: var(--accent); border-bottom: 2px solid var(--accent); pad
   font-size: 0.75rem; color: var(--muted); background: rgba(42, 1, 13, 0.78);
   padding: 0.2rem 0.5rem; border-radius: 4px; pointer-events: none;
 }
+.scene-banner {
+  position: absolute; top: 10px; left: 12px; z-index: 4;
+  font-size: 0.8rem; font-weight: 600; color: var(--bad);
+  background: rgba(58, 10, 20, 0.92); border: 1px solid var(--bad);
+  padding: 0.3rem 0.55rem; border-radius: 4px; pointer-events: none;
+}
 .side {
   border-left: 1px solid var(--line); padding: 1rem; overflow: auto; background: var(--panel);
 }
@@ -90,6 +96,7 @@ label { color: var(--muted); font-size: 0.85rem; display: block; margin: 0.45rem
 }
 .list { list-style: none; padding: 0; margin: 0; }
 .list li { padding: 0.55rem 0; border-bottom: 1px solid var(--line); font-size: 0.85rem; }
+.list li.foul, .foul-note { color: var(--bad); }
 .form-grid {
   display: grid;
   grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
@@ -101,6 +108,13 @@ label { color: var(--muted); font-size: 0.85rem; display: block; margin: 0.45rem
 .form-grid label { margin: 0; }
 .form-grid input[type="number"] { max-width: 8rem; }
 .scrub { width: 100%; }
+.scrub-wrap { position: relative; width: 100%; margin-top: 0.35rem; }
+.scrub-marks { position: absolute; left: 0; right: 0; top: -4px; height: 14px; pointer-events: none; }
+.scrub-marks i {
+  position: absolute; top: 0; width: 2px; height: 10px; margin-left: -1px; border-radius: 1px;
+}
+.scrub-marks i.foul { background: var(--bad); }
+.scrub-marks i.contact { background: var(--warn); }
 .note { color: var(--muted); font-size: 0.8rem; line-height: 1.45; }
 .toasts {
   position: fixed; top: 64px; right: 16px; z-index: 20; display: flex; flex-direction: column; gap: 0.5rem; max-width: 360px;

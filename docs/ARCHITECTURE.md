@@ -442,7 +442,7 @@ Do not treat the following as engine work. They are **preset sign-off** question
 1. Confirm Table 10-2 AUTO values still 3 / 5 / 20 for LEAVE / PARK / HIVE TIP.
 2. Confirm HIVE TIP threshold (preset uses 7 in the upward CELL) against CAD / Field Setup Guide.
 3. Confirm AprilTag cluster ids against official artwork (0, 7, 38–41 confirmed; 1–3, 4–6, 42–45 inferred).
-4. G402 (no AUTO opponent-side interference): encode as a scoring/foul node for training, or only as an eval metric?
+4. G402 (no AUTO opponent-side interference): **encoded as a scoring/foul node.** Restricted-volume entry `addScore`s −15 on `trueScore` (training proxy for opponent Major Foul; VERIFY AGAINST MANUAL). The flag still feeds `restrictedEntryRate`. Replay highlights the foul; wall/robot contact stays shaping-only.
 5. Championship 15 s transition vs 8 s: ignore for AUTO policy training?
 6. Which optimization objective should the default leaderboard use for *your* team: mean match points, 10th percentile (robust), or RP-proxy probability (SWARM ≥ 16, POLLINATOR 1/2 — **verify Table 10-3**)?
 7. Legal start poses for your region’s typical field build: which start slots are actually used in AUTO?

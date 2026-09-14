@@ -37,7 +37,7 @@ The top bar health chip is `GET /api/v1/health` (`engine`, `db`, ok). If it says
 - **Record scripted AUTO** — POST `/replays/demo`, then select the new id.
 - Play / pause, 0.25× / 1× / 2×, 3/4 or top camera, FOV cones, scrub slider.
 - Keys: Space play/pause, arrows step, Home/End jump (when focus is not in an input).
-- **Score** tab: running `trueScore` and per-event explains.
+- **Score** tab: running `trueScore` (net of fouls), sticky penalties, signed explains. Restricted-entry fouls and wall/robot contact are marked on the scrubber and flashed on the robot.
 - **Field state** tab: ramp queue, gate, privileged vs observed match variables (inspection only).
 - **Export** tab: Road Runner 1.0 Actions from the decimated path. Paste into an AUTO OpMode; the Control Hub runs it. TalonGym does not stream this during a MATCH.
 

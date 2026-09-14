@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import math
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -11,7 +12,16 @@ from talongym.robot.drivetrain import clip_twist
 from talongym.robot.mechanisms import chassis_moving, launcher_aim, muzzle_velocity, piece_in_intake, pose_world
 from talongym.robot.sensors import camera_world_pose, detect_tags
 from talongym.rules.engine import MECHANISM_VERBS, RuleContext, RuleEngine, TickEvent
-from talongym.sim.geometry import AABB, deg_to_rad, point_in_shape, point_in_volume, rad_to_deg, shape_from_element, wrap_angle
+from talongym.sim.geometry import (
+    AABB,
+    deg_to_rad,
+    point_in_shape,
+    point_in_volume,
+    polygons_overlap,
+    rad_to_deg,
+    shape_from_element,
+    wrap_angle,
+)
 from talongym.sim.physics import Body, WorldStep, default_backend, perimeter_walls
 
 
@@ -101,6 +111,19 @@ class World:
         self.robot_hx = float(chassis.get("widthIn", 18)) / 2.0
         self.robot_hy = float(chassis.get("lengthIn", 18)) / 2.0
         self.robot_hz = 5.0
+        self._robot_footprint: tuple[tuple[float, float], ...] | None = None
+        self._robot_kind = str(chassis.get("collisionShape") or "aabb")
+        if self._robot_kind == "mesh":
+            raw = chassis.get("footprint") or []
+            pts = []
+            for p in raw:
+                if isinstance(p, dict) and "x" in p and "y" in p:
+                    pts.append((float(p["x"]), float(p["y"])))
+            if len(pts) >= 3:
+                self._robot_footprint = tuple(pts)
+            else:
+                self._robot_kind = "aabb"
+            self.robot_hz = float(chassis.get("heightIn") or 10) / 2.0
         self.backend = self._make_backend(fw / 2.0, fd / 2.0)
         if getattr(self.backend, "name", "") == "mujoco_field":
             self.obstacles = []
@@ -172,14 +195,40 @@ class World:
             raise MeshFieldRequiredError(
                 "This field requires mesh_field_collision; pip install -e '.[mujoco]'"
             )
-        xml = self._collision_xml()
-        return MujocoFieldBackend(xml, half_w, half_d, robot_hz=self.robot_hz)
+        xml, xml_path = self._collision_xml()
+        return MujocoFieldBackend(xml, half_w, half_d, robot_hz=self.robot_hz, xml_path=xml_path)
 
-    def _collision_xml(self) -> str:
+    def _robot_mesh_path(self):
+        from talongym.assets.import_robot_cad import RobotCadError, resolve_robot_asset
+
+        if self._robot_kind != "mesh":
+            return None
+        rel = self.robot.get("collisionAsset")
+        if not rel:
+            return None
+        try:
+            dest = resolve_robot_asset(str(rel))
+        except RobotCadError:
+            return None
+        return dest if dest.is_file() else None
+
+    def _collision_xml(self) -> tuple[str, Path | None]:
         from talongym.assets.mjcf_field import build_mjcf
 
-        # Rebuild so chassis size matches this robot. Field AABBs match collisionAsset.
-        return build_mjcf(self.field, robot_hx=self.robot_hx, robot_hy=self.robot_hy, robot_hz=self.robot_hz)
+        mesh = self._robot_mesh_path()
+        xml = build_mjcf(
+            self.field,
+            robot_hx=self.robot_hx,
+            robot_hy=self.robot_hy,
+            robot_hz=self.robot_hz,
+            robot_mesh=mesh,
+        )
+        xml_path = None
+        if mesh is not None:
+            dest = mesh.parent / "mjcf_robots.xml"
+            dest.write_text(xml, encoding="utf-8")
+            xml_path = dest
+        return xml, xml_path
 
     def _domain_randomization(self) -> dict[str, Any]:
         return ((self.bundle.training or {}).get("domainRandomization") or {})
@@ -223,6 +272,7 @@ class World:
         self.phase = "AUTO"
         self.true_score = 0.0
         self.explains = []
+        self.step_explains = []
         self.fire_counts = {}
         self.gate_state = {gid: "closed" for gid in self.gate_ids}
         self.queues = {sid: [] for sid in self.seq_accs}
@@ -299,6 +349,8 @@ class World:
                 z=self.robot_hz,
                 dynamic=dynamic,
                 alliance=alliance,
+                kind=self._robot_kind,
+                footprint=self._robot_footprint,
             ),
             held=[],
         )
@@ -686,9 +738,16 @@ class World:
                 self.vision_hits = hits
 
     def _chassis_hits_other(self, rs: RobotState, slack: float = 0.6) -> bool:
+        me_poly = rs.body.world_footprint()
         me = rs.body.aabb()
         for other in self.robots.values():
             if other.body.id == rs.body.id:
+                continue
+            other_poly = other.body.world_footprint()
+            if me_poly is not None and other_poly is not None:
+                hit, _mtv = polygons_overlap(me_poly, other_poly)
+                if hit:
+                    return True
                 continue
             ob = other.body.aabb()
             if (
@@ -735,6 +794,7 @@ class World:
             piece_ops=self.pending_piece_ops,
         )
         explains, delta = self.engine.evaluate(ctx)
+        self.step_explains = list(explains)
         self.explains.extend(explains)
         self.true_score = float(self.accumulators.get(self.engine.true_score_id) or self.true_score)
         self.prev_occupancy = occ
@@ -898,6 +958,9 @@ class World:
                 "chassis": dict(self.robot.get("chassis") or {}),
                 "intakes": list(self.intakes),
                 "launchers": list(self.launchers),
+                "visualAsset": self.robot.get("visualAsset"),
+                "visualOffset": dict(self.robot.get("visualOffset") or {}),
+                "collisionShape": (self.robot.get("chassis") or {}).get("collisionShape"),
             },
             "pieces": [
                 {
@@ -920,6 +983,8 @@ class World:
             "vision": self.vision_hits,
             "events": [e.explain if hasattr(e, "explain") else e.kind for e in self.last_events[-8:]],
             "explains": list(self.explains[-6:]),
+            "stepExplains": list(self.step_explains),
+            "penalties": [e for e in self.explains if float(e.get("points") or 0) < 0],
             "collision": {
                 "wall": self.wall_hit,
                 "robot": self.robot_hit,
@@ -929,6 +994,7 @@ class World:
                 "enteredRestricted": rs.entered_restricted,
             },
             "fieldSizeIn": self.field["fieldSizeIn"],
+            "fieldId": self.field.get("id"),
             "backgroundAsset": self.field.get("backgroundAsset"),
             "collisionAsset": self.field.get("collisionAsset"),
             "physicsBackend": getattr(self.backend, "name", None),

@@ -41,7 +41,7 @@ Manual extract confirmed ids 0, 7, and 38–41. Clusters 1–3, 4–6, and 42–
 
 ## Rules we can encode as data
 
-- G402 no AUTO opponent-side interference: foul during training, eval-only metric, or ignore in MVP?
+- G402 no AUTO opponent-side interference: **foul during training.** Restricted-volume entry deducts −15 from `trueScore` (Major Foul proxy, VERIFY AGAINST MANUAL) and is highlighted in replay. Point value still needs mentor confirmation against the current manual.
 - Championship TRANSITION is 15 s vs 8 s typical: ignore for AUTO policy training?
 - Which start slots does *this* team actually use?
 

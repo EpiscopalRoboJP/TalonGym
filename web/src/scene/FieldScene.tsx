@@ -99,7 +99,7 @@ function CameraRig({ view, w, d }: { view: SceneView; w: number; d: number }) {
   return null;
 }
 
-function ZoneOverlay({ el, fieldArea }: { el: El; fieldArea: number }) {
+function ZoneOverlay({ el, fieldArea, active }: { el: El; fieldArea: number; active?: boolean }) {
   const pose = el.pose || { x: 0, y: 0 };
   const sh = el.shape || { kind: "aabb" };
   const width = sh.width || sh.radius || 24;
@@ -125,11 +125,11 @@ function ZoneOverlay({ el, fieldArea }: { el: El; fieldArea: number }) {
         <meshStandardMaterial
           color={color}
           transparent
-          opacity={el.type === "tape" ? 0.85 : large ? 0.06 : 0.22}
+          opacity={el.type === "tape" ? 0.85 : large ? (active ? 0.22 : 0.06) : active ? 0.45 : 0.22}
           depthWrite={false}
         />
       </mesh>
-      {large && <Line points={loop} color={color} lineWidth={1.5} />}
+      {large && <Line points={loop} color={color} lineWidth={active ? 2.5 : 1.5} />}
     </group>
   );
 }
@@ -231,6 +231,7 @@ export function RobotActor({
   design,
   showFov = false,
   showHull = false,
+  highlight = null,
 }: {
   x?: number;
   y?: number;
@@ -239,6 +240,7 @@ export function RobotActor({
   design?: RobotDesign;
   showFov?: boolean;
   showHull?: boolean;
+  highlight?: "foul" | "contact" | null;
 }) {
   const length = design?.chassis?.lengthIn ?? 18;
   const width = design?.chassis?.widthIn ?? 18;
@@ -251,7 +253,9 @@ export function RobotActor({
     setCadReady(false);
     if (cadUrl) useGLTF.preload(cadUrl);
   }, [cadUrl]);
-  const showBox = !cadUrl || !cadReady || showHull;
+  const showBox = !cadUrl || !cadReady || showHull || Boolean(highlight);
+  const chassisColor = highlight ? theme.restricted : dynamic ? theme.chassis : theme.chassisIdle;
+  const emissiveIntensity = highlight === "foul" ? 0.55 : highlight === "contact" ? 0.35 : 0;
   return (
     <group position={[inch(x), height / 2, inch(-y)]} rotation={[0, (headingDeg * Math.PI) / 180, 0]}>
       {cadUrl && (
@@ -267,7 +271,13 @@ export function RobotActor({
         <>
           <mesh>
             <boxGeometry args={[length, height, width]} />
-            <meshStandardMaterial color={dynamic ? theme.chassis : theme.chassisIdle} transparent={Boolean(cadUrl)} opacity={cadUrl ? 0.28 : 1} />
+            <meshStandardMaterial
+              color={chassisColor}
+              transparent={Boolean(cadUrl) || Boolean(highlight)}
+              opacity={highlight ? (cadUrl ? 0.45 : 0.92) : cadUrl ? 0.28 : 1}
+              emissive={highlight ? theme.restricted : "#000000"}
+              emissiveIntensity={emissiveIntensity}
+            />
           </mesh>
           <mesh position={[length / 2 - 1.5, 1, 0]}>
             <boxGeometry args={[3, 2.5, Math.min(6, width * 0.4)]} />
@@ -323,6 +333,10 @@ function FieldMeshes({
   const cadPath = resolveBackgroundAsset(frame, cadFallback);
   const cadUrl = cadPath ? `${API}/field-assets/${cadPath}?v=${CAD_ASSET_VERSION}` : null;
   const [cadReady, setCadReady] = useState(false);
+  const enteredRestricted =
+    (frame.robots || []).some((r) => r.enteredRestricted) || Boolean(frame.collision?.enteredRestricted);
+  const foulStep = (frame.stepExplains || []).some((e) => e.points < 0);
+  const contact = Boolean(frame.collision?.wall || frame.collision?.robot);
   useEffect(() => {
     setCadReady(false);
     if (cadUrl) useGLTF.preload(cadUrl);
@@ -362,7 +376,15 @@ function FieldMeshes({
         if (el.type === "wall") return null;
         if (hideSchematicSolid(el, cadReady)) return null;
         if (isFlatOverlay(el)) {
-          return <ZoneOverlay key={`${overlayKey(el)}-${idx}`} el={el} fieldArea={fieldArea} />;
+          const restricted = (el.tags || []).some((t) => t.includes("restricted"));
+          return (
+            <ZoneOverlay
+              key={`${overlayKey(el)}-${idx}`}
+              el={el}
+              fieldArea={fieldArea}
+              active={restricted && enteredRestricted}
+            />
+          );
         }
         if (sh.kind === "circle") {
           return (
@@ -407,6 +429,7 @@ function FieldMeshes({
           design={frame.robotDesign}
           showHull={frame.robotDesign?.collisionShape === "mesh" || frame.robotDesign?.chassis?.collisionShape === "mesh"}
           showFov={showFov}
+          highlight={r.dynamic ? (foulStep || r.enteredRestricted ? "foul" : contact ? "contact" : null) : null}
         />
       ))}
       {path.length > 1 && (
