@@ -400,8 +400,9 @@ class World:
             prev = self.prev_occupancy.get(tid, set())
             for ident in now - prev:
                 if ident in self.robots:
-                    events.append(TickEvent("volumeEnter", volume_id=tid, robot_id=ident))
-                    events.append(TickEvent("contactStart", volume_id=tid, robot_id=ident))
+                    alliance = self.robots[ident].body.alliance
+                    events.append(TickEvent("volumeEnter", volume_id=tid, robot_id=ident, robot_alliance=alliance))
+                    events.append(TickEvent("contactStart", volume_id=tid, robot_id=ident, robot_alliance=alliance))
                 elif ident in self.pieces:
                     p = self.pieces[ident]
                     events.append(
@@ -415,7 +416,9 @@ class World:
                     )
             for ident in prev - now:
                 if ident in self.robots:
-                    events.append(TickEvent("volumeExit", volume_id=tid, robot_id=ident))
+                    events.append(
+                        TickEvent("volumeExit", volume_id=tid, robot_id=ident, robot_alliance=self.robots[ident].body.alliance)
+                    )
         return events
 
     def _apply_follower(self, rs: RobotState, target: np.ndarray, speed_frac: float, dt: float) -> None:
@@ -596,6 +599,7 @@ class World:
                             "contactStart",
                             volume_id=gate_el.get("triggerId") or gate_el["id"],
                             robot_id=rs.body.id,
+                            robot_alliance=rs.body.alliance,
                             fsm_id=gate_el["id"],
                         )
                     )
@@ -926,7 +930,7 @@ class World:
         self._sense()
         rs = self.actor()
         if end_phase or self.time_s >= self.auto_s - 1e-9:
-            events.append(TickEvent("phaseEnd", phase="AUTO", robot_id=rs.body.id))
+            events.append(TickEvent("phaseEnd", phase="AUTO", robot_id=rs.body.id, robot_alliance=rs.body.alliance))
         verb = MECHANISM_VERBS[int((actions.get("red_0") or {}).get("mechanism", 0)) % len(MECHANISM_VERBS)]
         delta = self._run_rules(events)
         occ = self.prev_occupancy

@@ -11,24 +11,34 @@ def scripted_auto(obs: dict[str, np.ndarray], info: dict[str, Any] | None = None
     return scripted_biobuzz(obs, info)
 
 
+def _mirror_for_alliance(x: float, y: float, heading: float, alliance: str | None) -> tuple[float, float, float]:
+    """BIOBUZZ AUTO field targets are defined for red; blue's side is the same layout
+    rotated 180 degrees, so mirror position and heading rather than hardcode both."""
+    if alliance != "blue":
+        return x, y, heading
+    mirrored = (heading + math.pi + math.pi) % (2 * math.pi) - math.pi
+    return -x, -y, mirrored
+
+
 def scripted_biobuzz(obs: dict[str, np.ndarray], info: dict[str, Any] | None = None) -> dict[str, Any]:
     pose = obs["pose_noisy"]
     x, y = float(pose[0]), float(pose[1])
     held = float(obs["held_count"][0])
     pieces = obs["nearest_pieces"]
     t_left = float(obs["time_remaining_s"][0])
-    cell_x, cell_y = -9.4, 9.4
-    park_x, park_y = -54.0, -48.0
+    alliance = (info or {}).get("alliance", "red")
+    cell_x, cell_y, cell_heading = _mirror_for_alliance(-9.4, 9.4, math.pi / 2, alliance)
+    park_x, park_y, park_heading = _mirror_for_alliance(-54.0, -48.0, -math.pi / 2, alliance)
     if t_left < 5:
         return {
-            "target_pose": np.array([park_x, park_y, -math.pi / 2], dtype=np.float32),
+            "target_pose": np.array([park_x, park_y, park_heading], dtype=np.float32),
             "speed_frac": np.array([1.0], dtype=np.float32),
             "mechanism": 0,
         }
     if held >= 1:
         dist = math.hypot(x - cell_x, y - cell_y)
         return {
-            "target_pose": np.array([cell_x, cell_y, math.pi / 2], dtype=np.float32),
+            "target_pose": np.array([cell_x, cell_y, cell_heading], dtype=np.float32),
             "speed_frac": np.array([0.95], dtype=np.float32),
             "mechanism": 2 if dist < 22 else 0,
         }
@@ -44,7 +54,7 @@ def scripted_biobuzz(obs: dict[str, np.ndarray], info: dict[str, Any] | None = N
                 "mechanism": 1 if dist < 16 else 0,
             }
     return {
-        "target_pose": np.array([park_x, park_y, -math.pi / 2], dtype=np.float32),
+        "target_pose": np.array([park_x, park_y, park_heading], dtype=np.float32),
         "speed_frac": np.array([1.0], dtype=np.float32),
         "mechanism": 0,
     }

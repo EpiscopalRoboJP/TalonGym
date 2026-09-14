@@ -319,6 +319,7 @@ class FTCAutoEnv(gym.Env):
             "true_score": self.world.true_score,
             "true_score_delta": true_delta,
             "shaping": shaping,
+            "alliance": rs.body.alliance,
             "collision_time_s": rs.collision_time_s,
             "first_contact_s": rs.first_contact_s,
             "entered_restricted": rs.entered_restricted,
