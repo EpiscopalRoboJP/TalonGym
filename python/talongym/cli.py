@@ -73,7 +73,7 @@ def train(
 
 @app.command()
 def detect() -> None:
-    """Print CPU/RAM/CUDA and the recommended compute profile."""
+    """Print CPU/RAM/CUDA/Metal and the recommended compute profile and torch device."""
     from talongym.presets.defaults import get_defaults
     from talongym.training.compute import describe_compute
 

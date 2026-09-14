@@ -212,10 +212,15 @@ def train_ppo(
     latest = save_dir / "latest.zip"
     best_path = save_dir / "best.zip"
 
+    from talongym.training.compute import resolve_torch_device
+
+    device = resolve_torch_device()
+    emit(f"torch device: {device}")
+
     loaded = False
     if resume and latest.exists():
         try:
-            model = RecurrentPPO.load(str(latest), env=venv)
+            model = RecurrentPPO.load(str(latest), env=venv, device=device)
             loaded = True
             emit(f"Resumed RecurrentPPO from {latest}")
         except Exception as exc:
@@ -226,6 +231,7 @@ def train_ppo(
             AsymmetricLstmPolicy,
             venv,
             verbose=0,
+            device=device,
             n_steps=n_steps,
             batch_size=batch,
             learning_rate=float(algo_cfg.get("learningRate") or 3e-4),
@@ -383,7 +389,7 @@ def train_ppo(
 
     adapter = RecurrentPolicyAdapter(model)
     try:
-        adapter.model = RecurrentPPO.load(str(ckpt))
+        adapter.model = RecurrentPPO.load(str(ckpt), device=device)
     except Exception:
         pass
     frames = record_policy_episode(adapter, bundle=bundle, seed=7)
@@ -443,9 +449,11 @@ class RecurrentPolicyAdapter:
 def load_trained_policy(path: str | Path) -> RecurrentPolicyAdapter:
     from sb3_contrib import RecurrentPPO
     from talongym.training.asymmetric import AsymmetricLstmPolicy
+    from talongym.training.compute import resolve_torch_device
 
+    device = resolve_torch_device()
     try:
-        model = RecurrentPPO.load(str(path), custom_objects={"AsymmetricLstmPolicy": AsymmetricLstmPolicy})
+        model = RecurrentPPO.load(str(path), device=device, custom_objects={"AsymmetricLstmPolicy": AsymmetricLstmPolicy})
     except Exception:
-        model = RecurrentPPO.load(str(path))
+        model = RecurrentPPO.load(str(path), device=device)
     return RecurrentPolicyAdapter(model)

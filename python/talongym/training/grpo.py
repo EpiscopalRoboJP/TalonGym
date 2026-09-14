@@ -67,12 +67,17 @@ def train_grpo(
 
         return _init
 
+    from talongym.training.compute import resolve_torch_device
+
+    device = resolve_torch_device()
+    emit(f"torch device: {device}")
     venv = DummyVecEnv([make_env()])
     n_steps = int(algo_cfg.get("nSteps") or 128)
     model = RecurrentPPO(
         AsymmetricLstmPolicy,
         venv,
         verbose=0,
+        device=device,
         n_steps=n_steps,
         batch_size=min(256, n_steps),
         learning_rate=float(algo_cfg.get("learningRate") or 3e-4),
@@ -161,7 +166,7 @@ def train_grpo(
     venv.close()
     ckpt = best_path if best_path.exists() else latest
     try:
-        adapter.model = RecurrentPPO.load(str(ckpt))
+        adapter.model = RecurrentPPO.load(str(ckpt), device=device)
     except Exception:
         pass
     frames = record_policy_episode(adapter, bundle=bundle, seed=7)

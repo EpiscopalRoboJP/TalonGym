@@ -23,7 +23,7 @@ Shipped training ids (four compute variants):
 
 BIOBUZZ lightweight/workstation/easy keep `bc_then_ppo`. Cloud presets set `rllib_ppo` (Lab/CLI fall back to RecurrentPPO if `[scale]` is missing).
 
-`computeProfile: "auto"` (the `*_easy` files) resolves at train time from CPU count, RAM, and CUDA. Override with `TALONGYM_COMPUTE_PROFILE=lightweight_cpu|workstation|cloud`. Print the detection:
+`computeProfile: "auto"` (the `*_easy` files) resolves at train time from CPU count, RAM, and an accelerator (CUDA/ROCm or Apple Metal). Override with `TALONGYM_COMPUTE_PROFILE=lightweight_cpu|workstation|cloud`. Print the detection:
 
 ```bash
 python -m talongym detect
@@ -31,6 +31,10 @@ python -m talongym train --easy
 ```
 
 More: [PRESETS.md](PRESETS.md).
+
+### Hardware acceleration
+
+RecurrentPPO's torch device is picked automatically, independent of `computeProfile`: NVIDIA CUDA (or an AMD ROCm build of torch, which reports through the same `torch.cuda` API) if present, else Apple Silicon Metal (`mps`), else CPU. `python -m talongym detect` prints the resolved device as `torchDevice`. Force a specific device with `TALONGYM_TORCH_DEVICE=cuda|mps|cpu` (or a specific index, e.g. `cuda:1`) — useful on a multi-GPU box or to force CPU for a reproducible run. Ray/RLlib (`rllib_ppo`, the cloud profile) only supports CUDA GPUs; it stays on CPU elsewhere.
 
 ## 2. Train from the CLI
 

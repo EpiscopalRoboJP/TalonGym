@@ -9,6 +9,7 @@ from typing import Any
 
 PROFILES = ("lightweight_cpu", "workstation", "cloud")
 ENV_PROFILE = "TALONGYM_COMPUTE_PROFILE"
+ENV_DEVICE = "TALONGYM_TORCH_DEVICE"
 
 PROFILE_N_ENVS = {
     "lightweight_cpu": 8,
@@ -74,6 +75,8 @@ def ram_gb() -> float | None:
 
 
 def cuda_available() -> bool:
+    """True for NVIDIA CUDA, and also for AMD ROCm builds of torch (ROCm exposes
+    itself through the same torch.cuda API)."""
     try:
         import torch
 
@@ -82,11 +85,38 @@ def cuda_available() -> bool:
         return False
 
 
+def mps_available() -> bool:
+    """True on Apple Silicon with a torch build that has Metal (MPS) support."""
+    try:
+        import torch
+
+        backend = getattr(torch.backends, "mps", None)
+        return bool(backend and backend.is_available())
+    except Exception:
+        return False
+
+
+def resolve_torch_device(preferred: str | None = None) -> str:
+    """Pick the best torch device for this machine: CUDA/ROCm, then Apple Silicon
+    Metal, else CPU. Override with TALONGYM_TORCH_DEVICE=cuda|mps|cpu (or a specific
+    device string such as cuda:1); an explicit `preferred` wins over the env var."""
+    forced = (preferred or os.environ.get(ENV_DEVICE) or "").strip()
+    if forced:
+        return forced
+    if cuda_available():
+        return "cuda"
+    if mps_available():
+        return "mps"
+    return "cpu"
+
+
 def detect_hardware() -> dict[str, Any]:
     return {
         "cpuCount": cpu_count(),
         "ramGb": ram_gb(),
         "cuda": cuda_available(),
+        "mps": mps_available(),
+        "torchDevice": resolve_torch_device(),
         "platform": sys.platform,
     }
 
@@ -99,10 +129,10 @@ def detect_compute_profile(hardware: dict[str, Any] | None = None) -> str:
     cpu = int(hw.get("cpuCount") or 4)
     ram = hw.get("ramGb")
     ram_f = float(ram) if ram is not None else None
-    cuda = bool(hw.get("cuda"))
-    if cpu >= 32 and (cuda or ram_f is None or ram_f >= 64):
+    accelerator = bool(hw.get("cuda") or hw.get("mps"))
+    if cpu >= 32 and (accelerator or ram_f is None or ram_f >= 64):
         return "cloud"
-    if cuda or cpu >= 12 or (ram_f is not None and ram_f >= 24):
+    if accelerator or cpu >= 12 or (ram_f is not None and ram_f >= 24):
         return "workstation"
     return "lightweight_cpu"
 
@@ -189,4 +219,7 @@ def describe_compute(training_id: str | None = None) -> dict[str, Any]:
         "easyTrainingId": easy_training_id(current),
         "profileTrainingId": training_id_for_profile(current, profile),
         "envVar": ENV_PROFILE,
+        "torchDevice": hw.get("torchDevice"),
+        "deviceOverride": (os.environ.get(ENV_DEVICE) or "").strip() or None,
+        "deviceEnvVar": ENV_DEVICE,
     }

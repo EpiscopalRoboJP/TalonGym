@@ -34,6 +34,8 @@ That is the only supported way a TalonGym result may be used at an event. It mat
 
 `python -m talongym detect` prints which mode this machine is. `python -m talongym train --easy` loads that season’s easy run config and fills `nEnvs` from the detection (override with `TALONGYM_COMPUTE_PROFILE=lightweight_cpu|workstation|cloud`).
 
+Independent of that mode, RecurrentPPO auto-picks the best available torch device — NVIDIA CUDA, AMD ROCm, or Apple Silicon Metal (`mps`) — falling back to CPU where none is present. No setup needed; override with `TALONGYM_TORCH_DEVICE=cuda|mps|cpu` if you need to pin it.
+
 Throughput and time-to-policy numbers are **Phase 0 benchmark gates**, not claimed facts. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Official sources
