@@ -2,6 +2,8 @@
 
 TalonGym is a training aid for FTC Autonomous, licensed **GPL-3.0-or-later**. PRs that keep that boundary — train offline, export a trajectory, paste into an AUTO OpMode — are welcome. By contributing, you license your work under the same terms. Exported Road Runner snippets stay CC0 (see the README) so team OpModes are not copylefted.
 
+Named contributors for substantial work are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
 ## Setup
 
 ```bash

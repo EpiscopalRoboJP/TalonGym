@@ -92,7 +92,7 @@ JSON Schema files live in [`schemas/`](schemas/).
 
 ## Contributing
 
-Setup, PR checklist, and the steps to flip the GitHub repo from private to public: **[CONTRIBUTING.md](CONTRIBUTING.md)**. Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Security reports: [SECURITY.md](SECURITY.md).
+Setup, PR checklist, and the steps to flip the GitHub repo from private to public: **[CONTRIBUTING.md](CONTRIBUTING.md)**. People who contributed substantial work: **[CONTRIBUTORS.md](CONTRIBUTORS.md)**. Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Security reports: [SECURITY.md](SECURITY.md).
 
 Do not commit `var/` (logs, SQLite, checkpoints), virtualenvs, official FIRST STEP/CAD, or team robot CAD. BIOBUZZ derived tessellation (`assets/seasons/biobuzz_2026/`: `field.glb`, `collision/`, `pieces/`, `mechanisms/`, `cad_manifest.json`, `field_mjcf.xml`) is committed so a clone can train and open Lab without regenerating meshes. Rebuild from a new official STEP with `python -m talongym import-field-cad`. That command downloads the official binary STEP endpoint, verifies hashes, and refuses AABB fallback on `mesh_field_collision` seasons. Raw STEP stays under `var/cad/` (gitignored).
 
