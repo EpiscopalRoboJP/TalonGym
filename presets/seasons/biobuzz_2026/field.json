@@ -246,6 +246,28 @@
       "tags": ["cell", "hive", "down_cell"]
     },
     {
+      "id": "red_launch_spot",
+      "type": "zone",
+      "alliance": "red",
+      "pose": { "x": -12, "y": -40, "headingDeg": 90 },
+      "shape": { "kind": "aabb", "width": 18, "depth": 18 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": false,
+      "tags": ["launch_spot"]
+    },
+    {
+      "id": "blue_launch_spot",
+      "type": "zone",
+      "alliance": "blue",
+      "pose": { "x": 12, "y": 40, "headingDeg": -90 },
+      "shape": { "kind": "aabb", "width": 18, "depth": 18 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": false,
+      "tags": ["launch_spot"]
+    },
+    {
       "id": "flower_1",
       "type": "flower",
       "alliance": "neutral",

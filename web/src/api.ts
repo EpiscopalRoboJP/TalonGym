@@ -13,6 +13,19 @@ function emitError(code: string, message: string) {
   window.dispatchEvent(new CustomEvent("talongym-error", { detail: { code, message } }));
 }
 
+export type ToastKind = "success" | "error" | "info";
+
+export function notify(message: string, kind: ToastKind = "success", title?: string) {
+  window.dispatchEvent(new CustomEvent("talongym-toast", { detail: { kind, message, title } }));
+}
+
+export function statePill(state: string) {
+  if (state === "succeeded") return "pill state ok";
+  if (state === "failed" || state === "cancelled") return "pill state bad";
+  if (state === "running" || state === "queued" || state === "cancelling") return "pill state warn live";
+  return "pill state";
+}
+
 async function readError(res: Response, path: string): Promise<ApiError> {
   try {
     const body = await res.json();
@@ -66,6 +79,19 @@ export async function postText(path: string, body: unknown = {}): Promise<string
   });
   if (!res.ok) await fail(res, path);
   return res.text();
+}
+
+export async function postForm<T>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(`${API}${path}`, { method: "POST", body: form });
+  if (!res.ok) await fail(res, path);
+  return res.json() as Promise<T>;
+}
+
+export async function deleteJson<T>(path: string): Promise<T> {
+  const res = await fetch(`${API}${path}`, { method: "DELETE" });
+  if (!res.ok) await fail(res, path);
+  const text = await res.text();
+  return text ? (JSON.parse(text) as T) : ({} as T);
 }
 
 export type Health = {
@@ -446,6 +472,7 @@ export type FrameRobot = {
 
 export type Frame = {
   t: number;
+  phase?: string;
   trueScore: number;
   robots: FrameRobot[];
   robotDesign?: RobotDesign;

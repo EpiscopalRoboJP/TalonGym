@@ -91,8 +91,8 @@ class FTCAutoEnv(gym.Env):
         static_teammate: bool = True,
         motif_known_at_t0: bool = False,
         record: bool = False,
-        teammate_policy: str = "none",
-        opponent_policy: str = "none",
+        teammate_policy: str | None = None,
+        opponent_policy: str | None = None,
         frozen_policy: Any = None,
         action_tier: str = "high_level_waypoint",
         learner_id: str = "red_0",
@@ -108,13 +108,14 @@ class FTCAutoEnv(gym.Env):
         self.static_teammate = static_teammate
         self.motif_known_at_t0 = motif_known_at_t0
         self.record = record
-        self.teammate_policy = teammate_policy
-        self.opponent_policy = opponent_policy
+        run_presets = (self.bundle.training or {}).get("presets") or {}
+        self.teammate_policy = str(teammate_policy or run_presets.get("teammatePolicy") or "none")
+        self.opponent_policy = str(opponent_policy or run_presets.get("opponentPolicy") or "none")
         self.frozen_policy = frozen_policy
         self.action_tier = action_tier
         self.learner_id = learner_id
         self.fill_others = fill_others
-        self.shared_alliance_reward = shared_alliance_reward or teammate_policy == "shared_reward"
+        self.shared_alliance_reward = shared_alliance_reward or self.teammate_policy == "shared_reward"
         self.match_setup = match_setup
         self.world = World(self.bundle, control_hz=self.control_hz, substeps=substeps)
         self.K = 6

@@ -11,6 +11,8 @@ def test_biobuzz_auto_volumes():
     ids = {el["id"] for el in field["elements"]}
     assert "red_cell_up" in ids
     assert "red_park" in ids
+    assert "red_launch_spot" in ids
+    assert "blue_launch_spot" in ids
     assert "leave_interior" in ids
     assert "red_garden" in ids
     flowers = [el["id"] for el in field["elements"] if el["type"] == "flower"]

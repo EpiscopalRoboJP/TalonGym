@@ -155,8 +155,8 @@ function overlayColor(el: El) {
   const tags = el.tags || [];
   if (tags.some((t) => t.includes("restricted"))) return theme.restricted;
   if (el.type === "tape" || tags.some((t) => t.includes("launch"))) return theme.gold;
-  if (tags.some((t) => t.includes("start"))) return el.alliance === "blue" ? theme.allianceBlue : theme.maroon;
-  return el.alliance === "blue" ? theme.allianceBlue : theme.maroon;
+  if (tags.some((t) => t.includes("start"))) return el.alliance === "blue" ? theme.allianceBlue : theme.allianceRed;
+  return el.alliance === "blue" ? theme.allianceBlue : theme.allianceRed;
 }
 
 function overlayKey(el: El) {
@@ -198,7 +198,7 @@ function ZoneOverlay({ el, fieldArea, active }: { el: El; fieldArea: number; act
   const depth = sh.depth || sh.radius || 4;
   const large = width * depth > 0.15 * fieldArea;
   const color = overlayColor(el);
-  const y = el.type === "tape" ? 0.12 : large ? 0.04 : 0.08;
+  const y = el.type === "tape" ? 0.3 : large ? 0.2 : 0.25;
   const hw = width / 2;
   const hd = depth / 2;
   const x = inch(pose.x);
@@ -808,6 +808,7 @@ function FieldMeshes({
         const pose = el.pose || { x: 0, y: 0 };
         const sh = el.shape || { kind: "aabb" };
         if (el.type === "wall") return null;
+        if ((el.tags || []).includes("launch_spot")) return null;
         if (hideSchematicSolid(el, hasFieldCad)) return null;
         if (isFlatOverlay(el)) {
           const restricted = (el.tags || []).some((t) => t.includes("restricted"));
@@ -837,7 +838,7 @@ function FieldMeshes({
             ? theme.allianceBlueBright
             : el.isOccluder
               ? theme.occluder
-              : theme.maroon;
+              : theme.allianceRed;
         return (
           <mesh key={`${el.id}-${idx}`} position={[inch(pose.x), h / 2, inch(-pose.y)]}>
             <boxGeometry args={[width, h, depth]} />

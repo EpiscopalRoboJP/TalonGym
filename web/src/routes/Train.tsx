@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FieldScene } from "../scene/FieldScene";
 import { Sparkline } from "../Sparkline";
@@ -6,9 +6,11 @@ import { theme } from "../theme";
 import {
   getJson,
   loadReplayFrames,
+  notify,
   postJson,
   putJson,
   robotPresetLabel,
+  statePill,
   type ComputeInfo,
   type DefaultsBundle,
   type Frame,
@@ -17,47 +19,9 @@ import {
   type RunRow,
   type StartSlot,
 } from "../api";
+import { Empty, Field, Icon, NumberField, Panel, Segmented, Switch } from "../ui";
 
 type Profile = "demo" | "short" | "easy" | "preset";
-type FieldSetupPreset = { startSlots?: StartSlot[] };
-
-const ROBOT_IDS = ["red_0", "red_1", "blue_0", "blue_1"] as const;
-
-function defaultRobotSetup(id: (typeof ROBOT_IDS)[number]): MatchRobotSetup {
-  return {
-    id,
-    enabled: id === "red_0",
-    dynamic: id === "red_0",
-    startSlotId: id,
-    offset: { x: 0, y: 0, headingDeg: 0 },
-  };
-}
-
-function legalOffsetBounds(slot: StartSlot | undefined) {
-  const legal = slot?.legalRegion;
-  if (!legal) return { x: 0, y: 0 };
-  if (legal.kind === "aabb") {
-    return { x: (legal.width || 0) / 2, y: (legal.depth || 0) / 2 };
-  }
-  if (legal.kind === "circle") {
-    const radius = legal.radius || 0;
-    return { x: radius, y: radius };
-  }
-  return { x: 0, y: 0 };
-}
-
-function clampStartOffset(
-  slot: StartSlot | undefined,
-  offset: MatchRobotSetup["offset"],
-): MatchRobotSetup["offset"] {
-  const bounds = legalOffsetBounds(slot);
-  const heading = Number.isFinite(offset.headingDeg) ? offset.headingDeg : 0;
-  return {
-    x: Math.max(-bounds.x, Math.min(bounds.x, Number.isFinite(offset.x) ? offset.x : 0)),
-    y: Math.max(-bounds.y, Math.min(bounds.y, Number.isFinite(offset.y) ? offset.y : 0)),
-    headingDeg: Math.max(-180, Math.min(180, heading)),
-  };
-}
 
 type Metrics = {
   envSteps?: number;
@@ -76,12 +40,77 @@ type Metrics = {
   fps?: number | null;
 };
 
+const BUDGETS: Record<Profile, { label: string; blurb: string }> = {
+  demo: { label: "Demo", blurb: "4,096 steps on 2 envs. Falls back to the scripted policy if RL extras are missing." },
+  short: { label: "Short", blurb: "16,384-step RecurrentPPO smoke test on 4 envs." },
+  easy: { label: "Easy", blurb: "Autodetects this machine and uses the season's easy run config." },
+  preset: { label: "Preset", blurb: "Uses the step budget and env count from the selected training preset." },
+};
+
+function fmt(n: unknown, digits = 2) {
+  return typeof n === "number" && Number.isFinite(n) ? n.toFixed(digits).replace(/\.?0+$/, "") : "—";
+}
+
+function fmtSteps(n: unknown) {
+  if (typeof n !== "number") return "—";
+  if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`;
+  return String(n);
+}
+
+function PresetSelect({ id, label, value, onChange, options }: { id: string; label: string; value: string; onChange: (v: string) => void; options: PresetMeta[] }) {
+  return (
+    <Field id={id} label={label}>
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((p) => (
+          <option key={p.id} value={p.id}>
+            {robotPresetLabel(p)}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+
+const ROBOT_IDS = ["red_0", "red_1", "blue_0", "blue_1"] as const;
+
+function defaultRobotSetup(id: (typeof ROBOT_IDS)[number]): MatchRobotSetup {
+  return {
+    id,
+    enabled: id === "red_0",
+    dynamic: id === "red_0",
+    startSlotId: id,
+    offset: { x: 0, y: 0, headingDeg: 0 },
+  };
+}
+
+function legalOffsetBounds(slot: StartSlot | undefined) {
+  const legal = slot?.legalRegion;
+  if (!legal) return { x: 0, y: 0 };
+  if (legal.kind === "aabb") return { x: (legal.width || 0) / 2, y: (legal.depth || 0) / 2 };
+  if (legal.kind === "circle") {
+    const radius = legal.radius || 0;
+    return { x: radius, y: radius };
+  }
+  return { x: 0, y: 0 };
+}
+
+function clampStartOffset(slot: StartSlot | undefined, offset: MatchRobotSetup["offset"]): MatchRobotSetup["offset"] {
+  const bounds = legalOffsetBounds(slot);
+  const heading = Number.isFinite(offset.headingDeg) ? offset.headingDeg : 0;
+  return {
+    x: Math.max(-bounds.x, Math.min(bounds.x, Number.isFinite(offset.x) ? offset.x : 0)),
+    y: Math.max(-bounds.y, Math.min(bounds.y, Number.isFinite(offset.y) ? offset.y : 0)),
+    headingDeg: Math.max(-180, Math.min(180, heading)),
+  };
+}
+
 export function TrainPage() {
   const { runId } = useParams();
   const navigate = useNavigate();
-  const [runs, setRuns] = useState<RunRow[]>([]);
+  const [runs, setRuns] = useState<RunRow[] | null>(null);
   const [current, setCurrent] = useState<RunRow | null>(null);
-  const [log, setLog] = useState("Idle.");
+  const [log, setLog] = useState("");
   const [fields, setFields] = useState<PresetMeta[]>([]);
   const [robots, setRobots] = useState<PresetMeta[]>([]);
   const [scoring, setScoring] = useState<PresetMeta[]>([]);
@@ -90,19 +119,17 @@ export function TrainPage() {
   const [robotId, setRobotId] = useState("mecanum_biobuzz_4cap");
   const [scoringId, setScoringId] = useState("biobuzz_2026_scoring_v1");
   const [trainingId, setTrainingId] = useState("biobuzz_auto_lightweight");
-  const [defaultSeason, setDefaultSeason] = useState("");
   const [profile, setProfile] = useState<Profile>("demo");
   const [customStarts, setCustomStarts] = useState(false);
   const [startSlots, setStartSlots] = useState<StartSlot[]>([]);
-  const [robotSetup, setRobotSetup] = useState<MatchRobotSetup[]>(
-    ROBOT_IDS.map(defaultRobotSetup),
-  );
+  const [robotSetup, setRobotSetup] = useState<MatchRobotSetup[]>(ROBOT_IDS.map(defaultRobotSetup));
   const [compute, setCompute] = useState<ComputeInfo | null>(null);
   const [trueSeries, setTrueSeries] = useState<number[]>([]);
   const [evalSeries, setEvalSeries] = useState<number[]>([]);
   const [shapeSeries, setShapeSeries] = useState<number[]>([]);
   const [rollout, setRollout] = useState<Frame[]>([]);
   const [rolloutI, setRolloutI] = useState(0);
+  const [starting, setStarting] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const watchingRef = useRef<string | null>(null);
   const replayLoadedRef = useRef<string | null>(null);
@@ -125,33 +152,28 @@ export function TrainPage() {
         if (d.robotId) setRobotId(d.robotId);
         if (d.scoringId) setScoringId(d.scoringId);
         if (d.trainingId) setTrainingId(d.trainingId);
-        if (d.season) setDefaultSeason(d.season);
       })
       .catch(() => undefined);
-    refreshList();
+    refreshList()
+      .then((list) => {
+        if (!runId && list[0]) openRun(list[0].id);
+      })
+      .catch(() => setRuns([]));
+    // Initial load only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    getJson<FieldSetupPreset>(`/presets/field/${fieldId}`)
-      .then((field) => {
-        const slots = field.startSlots || [];
-        setStartSlots(slots);
-        setRobotSetup((current) =>
-          current.map((robot) => {
-            const startSlotId = slots.some((slot) => slot.id === robot.startSlotId)
-              ? robot.startSlotId
-              : slots.find((slot) => slot.alliance === robot.id.split("_")[0])?.id || robot.id;
-            const slot = slots.find((row) => row.id === startSlotId);
-            return { ...robot, startSlotId, offset: clampStartOffset(slot, robot.offset) };
-          }),
-        );
-      })
-      .catch(() => setStartSlots([]));
-  }, [fieldId]);
+    if (runId) openRun(runId);
+    // Only react to URL changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId]);
 
   useEffect(() => {
-    if (runId) openRun(runId);
-  }, [runId]);
+    getJson<{ startSlots?: StartSlot[] }>(`/presets/field/${fieldId}`)
+      .then((field) => setStartSlots(field.startSlots || []))
+      .catch(() => setStartSlots([]));
+  }, [fieldId]);
 
   useEffect(() => {
     const id = window.setInterval(async () => {
@@ -159,7 +181,7 @@ export function TrainPage() {
       if (!current) return;
       const row = list.find((r) => r.id === current.id) || (await getJson<RunRow>(`/runs/${current.id}`));
       if (row) {
-        setCurrent((prev) => mergeRun(row, prev));
+        setCurrent(row);
         const m = row.metrics as Metrics;
         pushSeries(m);
         if (m.replayId && replayLoadedRef.current !== m.replayId) {
@@ -172,6 +194,8 @@ export function TrainPage() {
       }
     }, 2000);
     return () => window.clearInterval(id);
+    // Poll loop is keyed to the selected run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id]);
 
   useEffect(() => {
@@ -192,23 +216,6 @@ export function TrainPage() {
     }
   }
 
-  function mergeRun(row: RunRow, live: RunRow | null): RunRow {
-    if (!live || live.id !== row.id) return row;
-    const liveSteps = Number((live.metrics as Metrics)?.envSteps || 0);
-    const rowSteps = Number((row.metrics as Metrics)?.envSteps || 0);
-    if (liveSteps <= rowSteps) return row;
-    return { ...row, metrics: { ...(row.metrics || {}), ...(live.metrics || {}) } };
-  }
-
-  function applyMetrics(id: string, payload: Metrics) {
-    pushSeries(payload);
-    setCurrent((prev) => {
-      if (prev && prev.id !== id) return prev;
-      const base = prev ?? { id, state: "running", metrics: {}, config: {} };
-      return { ...base, id, metrics: { ...(base.metrics || {}), ...payload } };
-    });
-  }
-
   function openRun(id: string) {
     if (watchingRef.current === id && wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) {
       return;
@@ -219,12 +226,14 @@ export function TrainPage() {
     setEvalSeries([]);
     setShapeSeries([]);
     setRollout([]);
+    setLog("");
     navigate(`/train/${id}`, { replace: true });
     getJson<RunRow>(`/runs/${id}`).then((row) => {
-      setCurrent((prev) => mergeRun(row, prev && prev.id === id ? prev : null));
+      setCurrent(row);
       const m = row.metrics as Metrics;
       pushSeries(m);
       if (m.replayId) {
+        replayLoadedRef.current = m.replayId;
         loadReplayFrames(m.replayId).then((frames) => {
           setRollout(frames.filter((_, idx) => idx % 5 === 0));
           setRolloutI(0);
@@ -239,15 +248,11 @@ export function TrainPage() {
       try {
         const msg = JSON.parse(ev.data);
         if (msg.type === "metrics" && msg.payload) {
-          applyMetrics(id, msg.payload as Metrics);
+          pushSeries(msg.payload as Metrics);
+          setCurrent((prev) => (prev && prev.id === id ? { ...prev, metrics: { ...(prev.metrics || {}), ...msg.payload } } : prev));
         }
         if (msg.type === "status" && msg.payload) {
-          setCurrent((prev) => {
-            if (prev && prev.id !== id) return prev;
-            const base = prev ?? { id, state: "running", metrics: {}, config: {} };
-            return { ...base, id, state: msg.payload.state || base.state };
-          });
-          if (msg.payload.state) setLog(`Run ${id} · ${msg.payload.state}`);
+          setCurrent((prev) => (prev && prev.id === id ? { ...prev, state: msg.payload.state || prev.state } : prev));
         }
         if (msg.type === "log" && msg.payload?.message) setLog(String(msg.payload.message));
         if (msg.type === "rollout" && msg.payload?.frames) {
@@ -273,14 +278,9 @@ export function TrainPage() {
     };
   }, []);
 
-  async function applyDefaults(body: Partial<DefaultsBundle>) {
-    const d = await putJson<DefaultsBundle>("/defaults", body);
-    if (d.fieldId) setFieldId(d.fieldId);
-    if (d.robotId) setRobotId(d.robotId);
-    if (d.scoringId) setScoringId(d.scoringId);
-    if (d.trainingId) setTrainingId(d.trainingId);
-    setDefaultSeason(d.season || "");
-    setLog(`Default bundle is ${d.season || d.fieldId} (${d.fieldId}).`);
+  async function saveDefaults() {
+    const d = await putJson<DefaultsBundle>("/defaults", { trainingId, fieldId, robotId, scoringId });
+    notify(`Saved defaults (${d.season || d.fieldId}). CLI jobs and builders now start from this selection.`);
   }
 
   function familyTrainingId(id: string, suffix: "lightweight" | "workstation" | "cloud" | "easy") {
@@ -296,345 +296,326 @@ export function TrainPage() {
     }
   }
 
-  function updateRobotSetup(id: string, update: Partial<MatchRobotSetup>) {
-    setRobotSetup((current) =>
-      current.map((robot) => {
-        if (robot.id !== id) return robot;
-        const next = { ...robot, ...update };
-        const slot = startSlots.find((row) => row.id === next.startSlotId);
-        return { ...next, offset: clampStartOffset(slot, next.offset) };
-      }),
-    );
-  }
-
-  function updateRobotOffset(
-    id: string,
-    key: keyof MatchRobotSetup["offset"],
-    value: number,
-  ) {
-    setRobotSetup((current) =>
-      current.map((robot) => {
-        if (robot.id !== id) return robot;
-        const slot = startSlots.find((row) => row.id === robot.startSlotId);
-        return {
-          ...robot,
-          offset: clampStartOffset(slot, {
-            ...robot.offset,
-            [key]: Number.isFinite(value) ? value : 0,
+  async function start() {
+    setStarting(true);
+    try {
+      const body: Record<string, unknown> = {
+        demo: profile === "demo",
+        easy: profile === "easy",
+        presets: { fieldId, robotId, scoringId, trainingId: profile === "easy" ? familyTrainingId(trainingId, "easy") : trainingId },
+      };
+      if (customStarts) {
+        body.matchSetup = {
+          robots: robotSetup.map((robot) => {
+            const slot = startSlots.find((row) => row.id === robot.startSlotId);
+            return { ...robot, offset: clampStartOffset(slot, robot.offset) };
           }),
         };
-      }),
-    );
-  }
-
-  async function start() {
-    setLog("Queueing training…");
-    const body: Record<string, unknown> = {
-      demo: profile === "demo",
-      easy: profile === "easy",
-      presets: { fieldId, robotId, scoringId, trainingId: profile === "easy" ? familyTrainingId(trainingId, "easy") : trainingId },
-    };
-    if (customStarts) {
-      body.matchSetup = {
-        robots: robotSetup.map((robot) => {
-          const slot = startSlots.find((row) => row.id === robot.startSlotId);
-          return { ...robot, offset: clampStartOffset(slot, robot.offset) };
-        }),
-      };
+      }
+      if (profile === "demo") {
+        body.nEnvs = 2;
+        body.budget = { totalEnvSteps: 4096 };
+      } else if (profile === "short") {
+        body.nEnvs = 4;
+        body.budget = { totalEnvSteps: 16384 };
+      } else if (profile === "easy") {
+        body.computeProfile = "auto";
+      }
+      const res = await postJson<{ runId: string }>("/runs", body);
+      await refreshList();
+      openRun(res.runId);
+      notify(`Run ${res.runId} queued.`);
+    } finally {
+      setStarting(false);
     }
-    if (profile === "demo") {
-      body.nEnvs = 2;
-      body.budget = { totalEnvSteps: 4096 };
-    } else if (profile === "short") {
-      body.nEnvs = 4;
-      body.budget = { totalEnvSteps: 16384 };
-    } else if (profile === "easy") {
-      body.computeProfile = "auto";
-    }
-    const res = await postJson<{ runId: string }>("/runs", body);
-    openRun(res.runId);
-    setLog(`Run ${res.runId} started. Leaderboard uses true score, not shaping.`);
   }
 
   async function cancel() {
     if (!current) return;
-    setLog(`Cancel requested for ${current.id}.`);
     await postJson(`/runs/${current.id}/cancel`, {});
+    notify(`Cancel requested for ${current.id}.`, "info");
   }
 
   const metrics = (current?.metrics || {}) as Metrics;
   const liveFrame = rollout[rolloutI] || null;
-  const fieldOptions = useMemo(() => fields, [fields]);
   const busy = current?.state === "running" || current?.state === "queued";
   const progress = typeof metrics.progressFrac === "number" ? Math.max(0, Math.min(1, metrics.progressFrac)) : 0;
+  const presets = (current?.config?.presets || {}) as Partial<DefaultsBundle>;
 
-  function fmt(n: unknown) {
-    return typeof n === "number" ? n.toFixed(3).replace(/\.?0+$/, "") : "—";
-  }
-
-  function pillClass(state: string) {
-    if (state === "succeeded") return "pill ok";
-    if (state === "failed" || state === "cancelled") return "pill bad";
-    if (state === "running" || state === "queued") return "pill warn";
-    return "pill";
-  }
+  const easyBlurb = compute
+    ? `Detected ${compute.profile}: ${compute.hardware.cpuCount} cores${compute.hardware.ramGb != null ? `, ${compute.hardware.ramGb.toFixed(0)} GB RAM` : ""}${compute.hardware.cuda ? ", CUDA" : ""}. Runs ${compute.nEnvs} envs with the season's easy config.`
+    : BUDGETS.easy.blurb;
 
   return (
-    <div className="page">
-      <div className="scene">
-        <div className="scene-label">{current ? `Rollout — ${current.id}` : "Rollout"}</div>
-        {liveFrame ? (
-          <FieldScene frame={liveFrame} showFov={false} />
-        ) : (
-          <div className="empty-scene note">No rollout frames yet.</div>
-        )}
-      </div>
-      <aside className="side">
-        <div className="page-head">
-          <h2>Training dashboard</h2>
-          <p className="note">True score is the leaderboard. Shaping is never ranked. RecurrentPPO keeps Dict observations and an LSTM.</p>
-        </div>
-        <div className="card">
-          <h3>True score (leaderboard)</h3>
-          <Sparkline values={trueSeries} label="True score mean over time" color={theme.gold} />
-          <div className="stat">episode mean {fmt(metrics.trueScoreMean)}</div>
-        </div>
-        <div className="card">
-          <h3>Held-out eval true score</h3>
-          <Sparkline values={evalSeries} label="Eval true score mean over time" color={theme.goldLight} />
-          <div className="stat">eval mean {fmt(metrics.evalTrueScoreMean)}</div>
-        </div>
-        <div className="card">
-          <h3>Shaping (not leaderboard)</h3>
-          <Sparkline values={shapeSeries} label="Shaping mean over time" color={theme.goldBright} />
-          <div className="stat">mean {fmt(metrics.shapingMean)}</div>
-        </div>
-        {current && (
-          <div className="banner">
-            <span className={pillClass(current.state)}>{current.state}</span> {current.id} · algo{" "}
-            {String(metrics.algo || "—")} · {metrics.nEnvs ?? "—"} envs · steps {metrics.envSteps ?? 0}
-            {metrics.replayId ? (
-              <>
-                {" "}
-                · <Link to={`/replay/${metrics.replayId}`}>open replay</Link>
-                {" · "}
-                <Link to="/compare">compare</Link>
-              </>
-            ) : null}
-            <div className="meter" aria-hidden="true">
-              <span style={{ width: `${progress * 100}%` }} />
-            </div>
-            <div className="stat" style={{ marginBottom: 0 }}>
-              stage {metrics.curriculumStage ?? "—"}
-              {metrics.curriculumUnlock?.length ? ` · ${metrics.curriculumUnlock.join(", ")}` : ""}
-              {" · "}entropy {fmt(metrics.entropy)} · KL {fmt(metrics.approxKl)}
-              {metrics.fps != null ? ` · ${fmt(metrics.fps)} fps` : ""}
-            </div>
-          </div>
-        )}
-        <div className="row">
-          <button className="primary" type="button" onClick={start} disabled={busy}>
-            Start run
-          </button>
-          <button type="button" onClick={cancel} disabled={!current || !busy}>
-            Cancel
-          </button>
-        </div>
-        <label>Budget</label>
-        <div className="seg" role="group" aria-label="Training budget">
-          <button type="button" className={profile === "demo" ? "on" : ""} onClick={() => selectBudget("demo")}>
-            Demo
-          </button>
-          <button type="button" className={profile === "short" ? "on" : ""} onClick={() => selectBudget("short")}>
-            Short
-          </button>
-          <button type="button" className={profile === "easy" ? "on" : ""} onClick={() => selectBudget("easy")}>
-            Easy
-          </button>
-          <button type="button" className={profile === "preset" ? "on" : ""} onClick={() => selectBudget("preset")}>
-            Preset
-          </button>
-        </div>
-        <p className="note">
-          {profile === "demo" &&
-            "Demo is a short local scripted fallback (4,096 steps, 2 envs) if RL extras are missing. It is not a scaled trainer."}
-          {profile === "short" && "16,384-step RecurrentPPO on 4 envs. No scripted fallback."}
-          {profile === "easy" &&
-            (compute
-              ? `Autodetect ${compute.profile} · ${compute.hardware.cpuCount} cores · ${compute.hardware.ramGb != null ? `${compute.hardware.ramGb.toFixed(0)} GB` : "RAM n/a"} · ${compute.nEnvs} envs${compute.hardware.cuda ? " · CUDA" : ""}. Uses the season easy run config. Cloud here is a hardware profile, not a Ray/RLlib cluster.`
-              : "Autodetects laptop / workstation / cloud hardware and uses that machine's easy run config. Cloud is a bigger local box, not a Ray cluster.")}
-          {profile === "preset" &&
-            "Uses the selected training preset budget and nEnvs. The cloud preset is a larger local RecurrentPPO config, not a Ray/RLlib loop."}
-        </p>
-        <details open={!current}>
-          <summary>Run configuration</summary>
-          <label htmlFor="train-field">Field preset</label>
-          <select id="train-field" value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
-            {fieldOptions.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.displayName || p.id}
-              </option>
-            ))}
-          </select>
-          <label htmlFor="train-robot">Robot preset</label>
-          <select id="train-robot" value={robotId} onChange={(e) => setRobotId(e.target.value)}>
-            {robots.map((p) => (
-              <option key={p.id} value={p.id}>
-                {robotPresetLabel(p)}
-              </option>
-            ))}
-          </select>
-          <label htmlFor="train-scoring">Scoring preset</label>
-          <select id="train-scoring" value={scoringId} onChange={(e) => setScoringId(e.target.value)}>
-            {scoring.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.displayName || p.id}
-              </option>
-            ))}
-          </select>
-          <p className="note">Default bundle{defaultSeason ? ` (${defaultSeason})` : ""} — used when a run omits preset ids.</p>
-          <label htmlFor="train-bundle">Training preset</label>
-          <select id="train-bundle" value={trainingId} onChange={(e) => setTrainingId(e.target.value)}>
-            {training.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.displayName || p.id}
-              </option>
-            ))}
-          </select>
-          <label className="row">
-            <input
-              type="checkbox"
-              checked={customStarts}
-              onChange={(event) => setCustomStarts(event.target.checked)}
-            />
-            Configure robot starts
-          </label>
-          {customStarts && (
+    <main className="page layout-train">
+      <div className="col">
+        <Panel
+          title="New training run"
+          footer={
             <>
-              <p className="note">
-                G304 starts only: own alliance half, touching the perimeter wall, not in a
-                LOADING ZONE or FLOWER. Offsets are clamped to each slot&apos;s legal region so
-                AUTO cannot begin already LEAVE- or PARK-qualified.
-              </p>
-              {robotSetup.map((robot) => {
-              const alliance = robot.id.startsWith("red") ? "red" : "blue";
-              const slot = startSlots.find((row) => row.id === robot.startSlotId);
-              const bounds = legalOffsetBounds(slot);
-              const slotTaken = robotSetup.some(
-                (other) =>
-                  other.id !== robot.id &&
-                  other.enabled &&
-                  robot.enabled &&
-                  other.startSlotId === robot.startSlotId,
-              );
-              return (
-                <div className="card" key={robot.id}>
-                  <div className="row">
-                    <strong>{robot.id}</strong>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={robot.enabled}
-                        disabled={robot.id === "red_0"}
-                        onChange={(event) =>
-                          updateRobotSetup(robot.id, { enabled: event.target.checked })
-                        }
-                      />
-                      enabled
-                    </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(robot.dynamic)}
-                        onChange={(event) =>
-                          updateRobotSetup(robot.id, { dynamic: event.target.checked })
-                        }
-                      />
-                      dynamic
-                    </label>
-                  </div>
-                  <label htmlFor={`start-slot-${robot.id}`}>Official slot</label>
-                  <select
-                    id={`start-slot-${robot.id}`}
-                    value={robot.startSlotId}
-                    onChange={(event) =>
-                      updateRobotSetup(robot.id, { startSlotId: event.target.value })
-                    }
-                  >
-                    {startSlots
-                      .filter((row) => row.alliance === alliance)
-                      .map((row) => (
-                        <option key={row.id} value={row.id}>
-                          {row.id} ({row.pose.x}, {row.pose.y}, {row.pose.headingDeg}°)
-                        </option>
-                      ))}
-                  </select>
-                  {slotTaken ? (
-                    <p className="foul-note">Two robots share this slot; they must not overlap.</p>
-                  ) : null}
-                  <div className="row">
-                    {(["x", "y", "headingDeg"] as const).map((key) => {
-                      const alongWall = key === "y";
-                      const label =
-                        key === "headingDeg"
-                          ? "heading offset"
-                          : alongWall
-                            ? "along-wall offset"
-                            : "off-wall offset";
-                      const max =
-                        key === "headingDeg" ? 180 : key === "x" ? bounds.x : bounds.y;
-                      return (
-                        <label key={key}>
-                          {label}
-                          <input
-                            type="number"
-                            step={key === "headingDeg" ? 1 : 0.05}
-                            min={-max}
-                            max={max}
-                            value={robot.offset[key]}
-                            onChange={(event) =>
-                              updateRobotOffset(robot.id, key, Number(event.target.value))
-                            }
-                          />
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <p className="note">
-                    Legal slide ±{bounds.y.toFixed(2)} in along the wall; off-wall ±{bounds.x.toFixed(3)} in.
-                  </p>
-                </div>
-              );
-              })}
-            </>
-          )}
-          <div className="row">
-            <button type="button" onClick={() => applyDefaults({ trainingId })}>
-              Set as default
-            </button>
-            <button type="button" onClick={() => applyDefaults({ fieldId, robotId, scoringId })}>
-              Use current selection
-            </button>
-          </div>
-        </details>
-        <p className="note">{log}</p>
-        <h2>Runs</h2>
-        {runs.map((r) => {
-          const m = r.metrics as Metrics;
-          return (
-            <div key={r.id} className="card run-card">
-              <button type="button" onClick={() => openRun(r.id)}>
-                {r.id}
+              <button type="button" className="btn primary" style={{ flex: 1 }} onClick={start} disabled={starting || busy}>
+                <Icon name="play" size={14} /> {starting ? "Starting…" : "Start run"}
               </button>
-              <span className={pillClass(r.state)}>{r.state}</span>
-              <span className="stat" style={{ margin: 0 }}>
-                true {fmt(m.trueScoreMean)} · eval {fmt(m.evalTrueScoreMean)} · {String(m.algo || "—")}
-              </span>
-              {m.replayId ? <Link to={`/replay/${m.replayId}`}>replay</Link> : null}
+              <button type="button" className="btn" onClick={saveDefaults} title="Use these presets by default in the CLI and builders">
+                Save as default
+              </button>
+            </>
+          }
+        >
+          <div className="stack">
+            <div className="field">
+              <span className="label">Budget</span>
+              <Segmented label="Training budget" full value={profile} onChange={selectBudget} options={(Object.keys(BUDGETS) as Profile[]).map((k) => [k, BUDGETS[k].label])} />
+              <span className="field-hint">{profile === "easy" ? easyBlurb : BUDGETS[profile].blurb}</span>
             </div>
-          );
-        })}
-      </aside>
-    </div>
+            <PresetSelect id="train-bundle" label="Training preset" value={trainingId} onChange={setTrainingId} options={training} />
+            <PresetSelect id="train-robot" label="Robot" value={robotId} onChange={setRobotId} options={robots} />
+            <PresetSelect id="train-field" label="Field" value={fieldId} onChange={setFieldId} options={fields} />
+            <PresetSelect id="train-scoring" label="Scoring" value={scoringId} onChange={setScoringId} options={scoring} />
+            <Switch checked={customStarts} onChange={setCustomStarts}>
+              Configure robot starts
+            </Switch>
+            {customStarts && (
+              <div className="stack">
+                <p className="note">
+                  G304 starts only. Offsets stay inside each slot&apos;s legal region so AUTO cannot begin already LEAVE- or PARK-qualified.
+                </p>
+                {robotSetup.map((robot) => {
+                  const alliance = robot.id.startsWith("red") ? "red" : "blue";
+                  const slot = startSlots.find((row) => row.id === robot.startSlotId);
+                  const bounds = legalOffsetBounds(slot);
+                  const slotTaken = robotSetup.some(
+                    (other) => other.id !== robot.id && other.enabled && robot.enabled && other.startSlotId === robot.startSlotId,
+                  );
+                  return (
+                    <div key={robot.id} className="stack" style={{ padding: "0.6rem 0", borderTop: "1px solid var(--line)" }}>
+                      <div className="row">
+                        <strong className="mono">{robot.id}</strong>
+                        <Switch
+                          checked={robot.enabled}
+                          disabled={robot.id === "red_0"}
+                          onChange={(enabled) =>
+                            setRobotSetup((rows) => rows.map((row) => (row.id === robot.id ? { ...row, enabled } : row)))
+                          }
+                        >
+                          On field
+                        </Switch>
+                        <Switch
+                          checked={Boolean(robot.dynamic)}
+                          onChange={(dynamic) =>
+                            setRobotSetup((rows) => rows.map((row) => (row.id === robot.id ? { ...row, dynamic } : row)))
+                          }
+                        >
+                          Dynamic
+                        </Switch>
+                      </div>
+                      <Field id={`start-slot-${robot.id}`} label="Official slot">
+                        <select
+                          id={`start-slot-${robot.id}`}
+                          value={robot.startSlotId}
+                          onChange={(e) =>
+                            setRobotSetup((rows) =>
+                              rows.map((row) => (row.id === robot.id ? { ...row, startSlotId: e.target.value } : row)),
+                            )
+                          }
+                        >
+                          {startSlots
+                            .filter((row) => row.alliance === alliance)
+                            .map((row) => (
+                              <option key={row.id} value={row.id}>
+                                {row.id}
+                              </option>
+                            ))}
+                        </select>
+                      </Field>
+                      {slotTaken && <p className="note">Two robots share this slot; they must not overlap.</p>}
+                      <div className="fields two">
+                        <NumberField
+                          id={`${robot.id}-x`}
+                          label="Off-wall"
+                          unit="in"
+                          value={robot.offset.x}
+                          onChange={(n) =>
+                            setRobotSetup((rows) =>
+                              rows.map((row) =>
+                                row.id === robot.id
+                                  ? { ...row, offset: clampStartOffset(slot, { ...row.offset, x: n }) }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                        <NumberField
+                          id={`${robot.id}-y`}
+                          label="Along-wall"
+                          unit="in"
+                          value={robot.offset.y}
+                          onChange={(n) =>
+                            setRobotSetup((rows) =>
+                              rows.map((row) =>
+                                row.id === robot.id
+                                  ? { ...row, offset: clampStartOffset(slot, { ...row.offset, y: n }) }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                      <span className="field-hint">
+                        Max offset {bounds.x.toFixed(1)} × {bounds.y.toFixed(1)} in
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {busy && <p className="note">The selected run is still in progress. Wait for it to finish or cancel it first.</p>}
+          </div>
+        </Panel>
+
+        <Panel className="grow" title="Runs" sub={runs ? String(runs.length) : undefined} bodyClass="panel-body flush scroll">
+          {runs && runs.length === 0 && <Empty title="No runs yet">Start a Demo run to check your setup.</Empty>}
+          <ul className="list">
+            {(runs || []).map((r) => {
+              const m = r.metrics as Metrics;
+              return (
+                <li key={r.id}>
+                  <button type="button" className={`list-item ${current?.id === r.id ? "on" : ""}`} onClick={() => openRun(r.id)}>
+                    <span className="grow">
+                      <span className="title mono">{r.id}</span>
+                      <span className="meta" style={{ display: "block" }}>
+                        {String(m.algo || "—")} · {fmtSteps(m.envSteps)} steps
+                      </span>
+                    </span>
+                    <span className="end">
+                      <span className={statePill(r.state)}>{r.state}</span>
+                      <span className="meta num" style={{ display: "block", marginTop: 2 }}>
+                        score {fmt(m.trueScoreMean)}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+      </div>
+
+      {!current ? (
+        <Panel className="grow">
+          <Empty title="No run selected">Configure a run on the left and press Start, or pick a past run.</Empty>
+        </Panel>
+      ) : (
+        <div className="train-main">
+          <section className="panel">
+            <header className="panel-head">
+              <h2 className="mono">{current.id}</h2>
+              <span className={statePill(current.state)}>{current.state}</span>
+              <span className="sub">
+                {String(metrics.algo || "—")}
+                {presets.robotId ? ` · ${presets.robotId}` : ""}
+                {presets.trainingId ? ` · ${presets.trainingId}` : ""}
+              </span>
+              <span className="spacer" />
+              {metrics.replayId && (
+                <Link className="btn sm" to={`/replay/${metrics.replayId}`}>
+                  Open replay
+                </Link>
+              )}
+              <Link className="btn sm" to="/compare">
+                <Icon name="chart" size={14} /> Evaluate
+              </Link>
+              {busy && (
+                <button type="button" className="btn sm danger" onClick={cancel}>
+                  <Icon name="stop" size={12} /> Cancel
+                </button>
+              )}
+            </header>
+            <div style={{ padding: "0.7rem 1rem 0", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <div className="progress" style={{ flex: 1 }} aria-label="Progress">
+                <span style={{ width: `${progress * 100}%` }} />
+              </div>
+              <span className="num muted" style={{ fontSize: 12 }}>
+                {(progress * 100).toFixed(0)}%
+              </span>
+            </div>
+            {log && (
+              <p className="note mono" style={{ padding: "0.35rem 1rem 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {log}
+              </p>
+            )}
+            <div className="stats" style={{ marginTop: "0.4rem", borderTop: "1px solid var(--line)" }}>
+              <div className="stat">
+                <span className="label">True score</span>
+                <span className="value">{fmt(metrics.trueScoreMean)}</span>
+                <span className="hint">episode mean · ranked</span>
+              </div>
+              <div className="stat">
+                <span className="label">Held-out eval</span>
+                <span className="value">{fmt(metrics.evalTrueScoreMean)}</span>
+                <span className="hint">true score on unseen seeds</span>
+              </div>
+              <div className="stat">
+                <span className="label">Env steps</span>
+                <span className="value">{fmtSteps(metrics.envSteps)}</span>
+                <span className="hint">{metrics.nEnvs ?? "—"} envs{metrics.fps != null ? ` · ${fmt(metrics.fps, 0)} fps` : ""}</span>
+              </div>
+              <div className="stat">
+                <span className="label">Curriculum</span>
+                <span className="value">{metrics.curriculumStage ?? "—"}</span>
+                <span className="hint" title={metrics.curriculumUnlock?.join(", ")}>
+                  {metrics.curriculumUnlock?.length ? metrics.curriculumUnlock.join(", ") : "stage"}
+                </span>
+              </div>
+              <div className="stat">
+                <span className="label">Entropy / KL</span>
+                <span className="value sm">
+                  {fmt(metrics.entropy)} / {fmt(metrics.approxKl, 4)}
+                </span>
+                <span className="hint">policy health</span>
+              </div>
+            </div>
+          </section>
+
+          <div className="train-split">
+            <Panel title="Rollout" sub="latest policy episode, looping" bodyClass="viewport" className="grow">
+              {liveFrame ? (
+                <FieldScene frame={liveFrame} showFov={false} />
+              ) : (
+                <Empty dark title="No rollout yet">
+                  Frames appear once the run records an episode.
+                </Empty>
+              )}
+            </Panel>
+            <Panel title="Learning curves" bodyClass="panel-body scroll" className="grow">
+              <div className="chart-block">
+                <div className="chart-head">
+                  <span className="label">True score</span>
+                  <span className="num">{fmt(metrics.trueScoreMean)}</span>
+                </div>
+                <Sparkline values={trueSeries} label="True score mean over time" color={theme.brand} />
+              </div>
+              <div className="chart-block">
+                <div className="chart-head">
+                  <span className="label">Held-out eval</span>
+                  <span className="num">{fmt(metrics.evalTrueScoreMean)}</span>
+                </div>
+                <Sparkline values={evalSeries} label="Eval true score mean over time" color={theme.goldDark} />
+              </div>
+              <div className="chart-block">
+                <div className="chart-head">
+                  <span className="label">Shaping reward</span>
+                  <span className="num">{fmt(metrics.shapingMean)}</span>
+                </div>
+                <Sparkline values={shapeSeries} label="Shaping mean over time" color={theme.muted} />
+                <p className="note" style={{ marginTop: "0.35rem" }}>
+                  Training signal only. Never used for ranking.
+                </p>
+              </div>
+            </Panel>
+          </div>
+        </div>
+      )}
+    </main>
   );
 }

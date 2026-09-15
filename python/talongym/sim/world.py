@@ -18,9 +18,12 @@ from talongym.rules.engine import MECHANISM_VERBS, RuleContext, RuleEngine, Tick
 from talongym.sim.geometry import (
     AABB,
     deg_to_rad,
+    detour_waypoints,
+    path_length,
     point_in_shape,
     point_in_volume,
     polygons_overlap,
+    push_out_of_boxes,
     rad_to_deg,
     shape_from_element,
     wrap_angle,
@@ -30,6 +33,8 @@ from talongym.sim.physics import Body, WorldStep, default_backend, perimeter_wal
 
 # A launched piece that has not scored this long after leaving the launcher counts as a miss.
 LAUNCH_SCORE_WINDOW_S = 2.0
+# FTC perimeter panels' inner face sits this far inside fieldSizeIn; spawns stay clear of it.
+PERIMETER_FACE_INSET_IN = 1.4
 # Waypoint-follower routes keep the chassis this far beyond its half-width from obstacles: a square
 # chassis' corners reach 0.41 x half-width further while it rotates (3.7 in for 18 in).
 FOLLOWER_CLEARANCE_IN = 3.0
@@ -163,6 +168,7 @@ class World:
         self.field_mechanisms = {key: 0.0 for key in self.field_mechanism_tip_angles}
         if getattr(self.backend, "name", "") == "mujoco_field":
             self.obstacles = []
+        self._refresh_nav_obstacles()
         mech = self.robot.get("mechanisms") or {}
         self.capacity = int(mech.get("capacity", 3))
         self.intake_time = float(mech.get("intakeCycleTimeS", 0.4))
@@ -243,6 +249,28 @@ class World:
             str(row.get("id")) for row in mechs if isinstance(row, dict) and row.get("id")
         ]
 
+
+    def _refresh_nav_obstacles(self) -> None:
+        """Drive-planning boxes from fixtures a chassis actually hits, not elevated staged AABBs."""
+        chassis_top = 2.0 * self.robot_hz + 0.2
+        boxes: list[AABB] = []
+        for el in self.elements:
+            tags = el.get("tags") or []
+            if "perimeter" in tags or "launch_spot" in tags:
+                continue
+            if not el.get("isCollider"):
+                continue
+            sh = self.element_shapes.get(el["id"])
+            if not isinstance(sh, AABB) or sh.hx >= 70 or sh.hy >= 70:
+                continue
+            pose = el.get("pose") or {}
+            z = float(pose.get("z") or 6.0)
+            height = float((el.get("shape") or {}).get("height") or 12.0)
+            if z - height / 2.0 >= chassis_top:
+                continue
+            boxes.append(sh)
+        self.nav_obstacles = boxes
+
     def needs_mesh(self) -> bool:
         caps = self.field.get("requiredCapabilities") or []
         return "mesh_field_collision" in caps or bool(self.field.get("collisionAsset"))
@@ -295,6 +323,7 @@ class World:
             CAD_MJCF_MARKER,
             CAD_MJCF_VERSION,
             FieldMjcf,
+            apply_flower_cup_proxies,
             build_field_mjcf,
             load_field_manifest,
             piece_slot_plan,
@@ -313,7 +342,7 @@ class World:
                 and not self.robot.get("rigidParts")
             ):
                 doc = load_field_manifest(self.field, require=True)
-                xml = committed.read_text(encoding="utf-8")
+                xml = apply_flower_cup_proxies(committed.read_text(encoding="utf-8"), self.field)
                 if CAD_MJCF_MARKER not in xml[:1600]:
                     raise CadImportError(
                         f"collisionAsset {committed} is not CAD-assembled; rebuild with write_collision_mjcf"
@@ -367,11 +396,12 @@ class World:
                     f"collisionAsset {committed} is not CAD-assembled; rebuild with write_collision_mjcf"
                 )
         xml_path = None
+        xml = apply_flower_cup_proxies(built.xml, self.field)
         if mesh is not None:
             dest = mesh.parent / "mjcf_robots.xml"
-            dest.write_text(built.xml, encoding="utf-8")
+            dest.write_text(xml, encoding="utf-8")
             xml_path = dest
-        return built.xml, xml_path, built
+        return xml, xml_path, built
 
     def _domain_randomization(self) -> dict[str, Any]:
         return ((self.bundle.training or {}).get("domainRandomization") or {})
@@ -380,7 +410,7 @@ class World:
         """Return (xy inches, heading radians) Gaussian sigmas from the training preset."""
         dr = self._domain_randomization()
         if kind == "field_piece":
-            xy = float(dr.get("pieceSpawnJitterIn", 0.0))
+            xy = float(dr.get("pieceSpawnJitterIn", dr.get("poseJitterIn", 0.0)))
             heading = math.radians(float(dr.get("pieceHeadingJitterDeg", 0.0)))
         else:
             # Field-build tolerance moves CAD, not the robot off the wall (G304.C / LEAVE).
@@ -447,20 +477,63 @@ class World:
             else:
                 rad = max(float(sh.get("width") or 3.0), float(sh.get("depth") or 3.0)) / 2.0
             color = (spec.get("attributes") or {}).get("color")
-            xy_sigma, _ = self.spawn_jitter_sigma("field_piece")
-            for pose in spawn.get("poses") or []:
-                jx = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 else 0.0
-                jy = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 else 0.0
+            spawn_id = str(spawn.get("id") or "")
+            flower_stack = spawn_id.startswith("flower_") or "flower" in spawn_id
+            preload_robot = spawn.get("heldByRobotId")
+            in_fixture = bool(spawn.get("containedByMechanismId") or spawn.get("initialVolumeId"))
+            loose = not flower_stack and not preload_robot and not in_fixture
+            xy_sigma, _ = self.spawn_jitter_sigma("field_piece") if loose else (0.0, 0.0)
+            flower_el = None
+            if flower_stack:
+                flower_el = next(
+                    (
+                        el
+                        for el in self.elements
+                        if el.get("id") and spawn_id.startswith(str(el["id"]))
+                    ),
+                    None,
+                )
+            poses = list(spawn.get("poses") or [])
+            half_w = float(self.field["fieldSizeIn"]["width"]) / 2.0 - PERIMETER_FACE_INSET_IN
+            half_d = float(self.field["fieldSizeIn"]["depth"]) / 2.0 - PERIMETER_FACE_INSET_IN
+            jx = jy = 0.0
+            if loose and poses and xy_sigma > 0:
+                xs = [float(pose["x"]) for pose in poses]
+                ys = [float(pose["y"]) for pose in poses]
+                jx = float(
+                    np.clip(
+                        self.rng.normal(0, xy_sigma),
+                        -(half_w - rad) - min(xs),
+                        (half_w - rad) - max(xs),
+                    )
+                )
+                jy = float(
+                    np.clip(
+                        self.rng.normal(0, xy_sigma),
+                        -(half_d - rad) - min(ys),
+                        (half_d - rad) - max(ys),
+                    )
+                )
+            for pose in poses:
                 name = f"p{pid}"
                 pid += 1
                 heading0 = deg_to_rad(float(pose.get("headingDeg") or 0.0))
                 qw, qx, qy, qz = ftc_yaw_to_mj_quat(heading0)
                 spawn_z = float(pose.get("z") or (rad + self.floor_y))
+                px = float(pose["x"]) + jx
+                py = float(pose["y"]) + jy
+                if flower_el is not None:
+                    fpose = flower_el.get("pose") or {}
+                    fx, fy = float(fpose.get("x") or px), float(fpose.get("y") or py)
+                    # Keep the stack at the cup center (already inset from the rim).
+                    px, py = fx, fy
+                px = float(np.clip(px, -(half_w - rad), half_w - rad))
+                py = float(np.clip(py, -(half_d - rad), half_d - rad))
                 piece = Piece(
                     id=name,
                     type_id=ptype,
-                    x=float(pose["x"]) + jx,
-                    y=float(pose["y"]) + jy,
+                    x=px,
+                    y=py,
                     radius=rad,
                     attrs={
                         "color": color,
@@ -917,18 +990,34 @@ class World:
         if not rs.body.dynamic:
             rs.body.vx = rs.body.vy = rs.body.omega = 0.0
             return
-        tx, ty, th = float(target[0]), float(target[1]), float(target[2])
-        ex, ey = tx - rs.body.x, ty - rs.body.y
+        th = float(target[2])
+        reach = max(self.robot_hx, self.robot_hy)
+        lim_x = float(self.field["fieldSizeIn"]["width"]) / 2.0 - PERIMETER_FACE_INSET_IN - reach
+        lim_y = float(self.field["fieldSizeIn"]["depth"]) / 2.0 - PERIMETER_FACE_INSET_IN - reach
+        clearance = reach + FOLLOWER_CLEARANCE_IN
+        obstacles = self.nav_obstacles + [
+            AABB(other.body.x, other.body.y, reach, reach)
+            for oid, other in self.robots.items()
+            if oid != rs.body.id
+        ]
+        tx, ty = push_out_of_boxes(float(target[0]), float(target[1]), obstacles, clearance)
+        tx = float(np.clip(tx, -lim_x, lim_x))
+        ty = float(np.clip(ty, -lim_y, lim_y))
+        route = detour_waypoints(rs.body.x, rs.body.y, tx, ty, obstacles, clearance)
+        wx, wy = route[0]
+        ex, ey = wx - rs.body.x, wy - rs.body.y
         dist = math.hypot(ex, ey)
         effort = float(rs.drive_effort_scale)
         speed = self.max_vel * float(self.motor_strength) * effort * float(np.clip(speed_frac, 0.2, 1.0))
+        speed = min(speed, math.sqrt(2.0 * self.max_accel * path_length(rs.body.x, rs.body.y, route)))
         if dist > 1e-3:
             des_vx = speed * ex / dist
             des_vy = speed * ey / dist
         else:
             des_vx = des_vy = 0.0
         heading_err = wrap_angle(th - rs.body.heading)
-        des_w = float(np.clip(2.5 * heading_err, -self.max_ang_vel, self.max_ang_vel))
+        w_cap = min(self.max_ang_vel, math.sqrt(2.0 * self.max_ang_accel * abs(heading_err)))
+        des_w = float(np.clip(2.5 * heading_err, -w_cap, w_cap))
         dvx = float(np.clip(des_vx - rs.body.vx, -self.max_accel * effort * dt, self.max_accel * effort * dt))
         dvy = float(np.clip(des_vy - rs.body.vy, -self.max_accel * effort * dt, self.max_accel * effort * dt))
         dw = float(np.clip(des_w - rs.body.omega, -self.max_ang_accel * effort * dt, self.max_ang_accel * effort * dt))

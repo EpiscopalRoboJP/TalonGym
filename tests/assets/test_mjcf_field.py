@@ -94,6 +94,9 @@ def test_cad_mjcf_uses_meshes_not_aabb_hive():
     assert 'joint name="field_mech_red_hive"' in xml
     assert 'joint name="field_mech_blue_hive"' in xml
     assert xml.count('name="perimeter_glass_') == 4
+    assert xml.count("_cup_floor") == 4
+    assert "flower_1_cup_floor" in xml
+    assert "flower_1_cup_y+_sill" in xml  # interior-facing intake doorway
     assert 'size="9.000 7.000 9.000"' in xml
     assert built.stats["fieldMechanismTargets"]["red_hive"] == pytest.approx(1.0472, abs=0.001)
     pollen_mass = next(p for p in field["gamePieces"] if p["typeId"] == "pollen")["massKg"]

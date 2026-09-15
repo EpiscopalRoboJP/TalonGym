@@ -531,6 +531,91 @@ def _mechanism_cell_proxy_geoms(field: dict[str, Any], alliance: str) -> list[st
     return geoms
 
 
+def _flower_cup_proxy_geoms(field: dict[str, Any]) -> list[str]:
+    """Open-top FLOWER cups: floor + three walls + an intake doorway with a retaining sill."""
+    spec = next((row for row in field.get("gamePieces") or [] if row.get("typeId") == "pollen"), {})
+    radius = float((spec.get("shape") or {}).get("radius") or 1.4)
+    inner_half = 2.45
+    wall_t = 0.25
+    gap_half = radius + 0.15
+    sill_h = max(2.2, radius + 0.8)
+    geoms: list[str] = []
+    common = 'class="field" type="box" density="0" contype="4" conaffinity="10"'
+    for el in field.get("elements") or []:
+        if el.get("type") != "flower" and "flower" not in (el.get("tags") or []):
+            continue
+        fid = str(el.get("id") or "flower")
+        pose = el.get("pose") or {}
+        fx, fy = float(pose.get("x") or 0.0), float(pose.get("y") or 0.0)
+        spawn = next(
+            (row for row in field.get("spawns") or [] if str(row.get("id") or "").startswith(fid)),
+            {},
+        )
+        zs = [float(row.get("z") or 0.0) for row in spawn.get("poses") or []]
+        floor_z = (min(zs) - radius) if zs else 0.0
+        top_z = (max(zs) + radius) if zs else 10.0
+        wall_h = max(8.0, top_z - floor_z + 0.5)
+        cx, _cy, cz = _yup(fx, fy, 0.0)
+        floor_y = floor_z
+        wall_y = floor_y + wall_h / 2.0
+        geoms.append(
+            f'    <geom name="{fid}_cup_floor" {common} size="{_size(inner_half + wall_t, 0.25, inner_half + wall_t)}" pos="{cx:.3f} {floor_y - 0.25:.3f} {cz:.3f}"/>'
+        )
+        omit = "x-" if abs(fx) >= abs(fy) and fx > 0 else "x+" if abs(fx) >= abs(fy) else "y-" if fy > 0 else "y+"
+        walls = {
+            "x-": (cx - inner_half - wall_t / 2, cz, wall_t / 2, inner_half + wall_t, True),
+            "x+": (cx + inner_half + wall_t / 2, cz, wall_t / 2, inner_half + wall_t, True),
+            "y-": (cx, cz + inner_half + wall_t / 2, inner_half + wall_t, wall_t / 2, False),
+            "y+": (cx, cz - inner_half - wall_t / 2, inner_half + wall_t, wall_t / 2, False),
+        }
+        for key, (wx, wz, hx, hz, along_x) in walls.items():
+            if key != omit:
+                geoms.append(
+                    f'    <geom name="{fid}_cup_{key}" {common} size="{_size(hx, wall_h / 2, hz)}" pos="{wx:.3f} {wall_y:.3f} {wz:.3f}"/>'
+                )
+                continue
+            long_half = hx if not along_x else hz
+            pillar_span = max(0.2, long_half - gap_half)
+            pillar_half = pillar_span / 2.0
+            offset = gap_half + pillar_half
+            sill_y = floor_y + sill_h / 2.0
+            if along_x:
+                geoms.append(
+                    f'    <geom name="{fid}_cup_{key}_a" {common} size="{_size(hx, wall_h / 2, pillar_half)}" pos="{wx:.3f} {wall_y:.3f} {wz - offset:.3f}"/>'
+                )
+                geoms.append(
+                    f'    <geom name="{fid}_cup_{key}_b" {common} size="{_size(hx, wall_h / 2, pillar_half)}" pos="{wx:.3f} {wall_y:.3f} {wz + offset:.3f}"/>'
+                )
+                geoms.append(
+                    f'    <geom name="{fid}_cup_{key}_sill" {common} size="{_size(hx, sill_h / 2, gap_half)}" pos="{wx:.3f} {sill_y:.3f} {wz:.3f}"/>'
+                )
+            else:
+                geoms.append(
+                    f'    <geom name="{fid}_cup_{key}_a" {common} size="{_size(pillar_half, wall_h / 2, hz)}" pos="{wx - offset:.3f} {wall_y:.3f} {wz:.3f}"/>'
+                )
+                geoms.append(
+                    f'    <geom name="{fid}_cup_{key}_b" {common} size="{_size(pillar_half, wall_h / 2, hz)}" pos="{wx + offset:.3f} {wall_y:.3f} {wz:.3f}"/>'
+                )
+                geoms.append(
+                    f'    <geom name="{fid}_cup_{key}_sill" {common} size="{_size(gap_half, sill_h / 2, hz)}" pos="{wx:.3f} {sill_y:.3f} {wz:.3f}"/>'
+                )
+    return geoms
+
+
+def apply_flower_cup_proxies(xml: str, field: dict[str, Any]) -> str:
+    """Insert cup proxies into assembled MJCF if a rebuild has not already added them."""
+    if "_cup_floor" in xml:
+        return xml
+    geoms = _flower_cup_proxy_geoms(field)
+    if not geoms:
+        return xml
+    block = "\n".join(geoms)
+    marker = "</worldbody>"
+    if marker not in xml:
+        return xml
+    return xml.replace(marker, f"{block}\n  {marker}", 1)
+
+
 def _robot_bodies(
     n_robots: int,
     robot_hx: float,
@@ -851,6 +936,7 @@ def _build_cad_mjcf(
         )
     geoms.extend(perimeter_geoms)
     geoms.extend(_trigger_geoms(field))
+    geoms.extend(_flower_cup_proxy_geoms(field))
     mechanism_ids: list[str] = []
     mechanism_bodies: list[str] = []
     for mechanism in field_block.get("mechanisms") or []:
