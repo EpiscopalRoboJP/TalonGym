@@ -20,12 +20,12 @@ Printed fields:
 
 32 trials is a sanity check. A label-eligible report is n = 500 (preset default). Cap in the Lab API is 500.
 
-## Lab Compare
+## Lab Evaluate
 
-Open `/compare` ([LAB.md](LAB.md)).
+Open **Evaluate** (`/compare`) ([LAB.md](LAB.md)).
 
-1. **Run 24-trial evaluation (scripted)** — stores a row; UI keeps it unlabeled (`n<500`).
-2. Pick a finished training run and **Optional checkpoint eval** — loads that run’s checkpoint artifact and the run’s field/robot/scoring ids.
+1. Choose **Trials** (24, 100, or 500), then **Evaluate** under *Scripted baseline* — stores a row; rows under 500 trials stay unlabeled.
+2. Under *Trained checkpoint*, pick a finished training run and **Evaluate** — loads that run’s checkpoint artifact and the run’s field/robot/scoring ids.
 3. Read mean, CI whiskers, p10, collision time, restricted-entry rate.
 4. Export Road Runner from the eval’s best-scoring replay, then paste into an AUTO OpMode (Control Hub runs it; this is the only field path).
 

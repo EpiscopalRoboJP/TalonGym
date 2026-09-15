@@ -13,6 +13,19 @@ function emitError(code: string, message: string) {
   window.dispatchEvent(new CustomEvent("talongym-error", { detail: { code, message } }));
 }
 
+export type ToastKind = "success" | "error" | "info";
+
+export function notify(message: string, kind: ToastKind = "success", title?: string) {
+  window.dispatchEvent(new CustomEvent("talongym-toast", { detail: { kind, message, title } }));
+}
+
+export function statePill(state: string) {
+  if (state === "succeeded") return "pill state ok";
+  if (state === "failed" || state === "cancelled") return "pill state bad";
+  if (state === "running" || state === "queued" || state === "cancelling") return "pill state warn live";
+  return "pill state";
+}
+
 async function readError(res: Response, path: string): Promise<ApiError> {
   try {
     const body = await res.json();
@@ -196,6 +209,7 @@ export type FrameCollision = {
 
 export type Frame = {
   t: number;
+  phase?: string;
   trueScore: number;
   robots: {
     id: string;

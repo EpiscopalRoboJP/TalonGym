@@ -20,7 +20,7 @@ Every CLI command, including calibrate and distill: [CLI.md](CLI.md).
 | [INSTALL.md](INSTALL.md) | Set up Python, RL extras, the web UI, and storage |
 | [TRAINING.md](TRAINING.md) | Train a policy (CLI + Lab budgets, checkpoints, curriculum) |
 | [CLI.md](CLI.md) | Look up a command and its flags |
-| [LAB.md](LAB.md) | Use Replay, Train, Field, Robot, and Compare in the browser |
+| [LAB.md](LAB.md) | Use Train, Evaluate, Replay, Robot, and Field in the browser |
 | [PRESETS.md](PRESETS.md) | Switch seasons, lint JSON, and keep nouns in data |
 | [EVALUATION.md](EVALUATION.md) | Run the statistical harness and read the leaderboard |
 | [EXPORT.md](EXPORT.md) | Export Road Runner Java to paste into an AUTO OpMode; distill ONNX (demo); fit a robot overlay |

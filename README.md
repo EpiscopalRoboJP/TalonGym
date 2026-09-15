@@ -82,7 +82,7 @@ How-to index: **[docs/README.md](docs/README.md)**.
 | [docs/INSTALL.md](docs/INSTALL.md) | Python extras, Lab build, SQLite / Postgres |
 | [docs/TRAINING.md](docs/TRAINING.md) | RecurrentPPO from CLI and `/train` |
 | [docs/CLI.md](docs/CLI.md) | Every `python -m talongym` command |
-| [docs/LAB.md](docs/LAB.md) | Replay, Train, Field, Robot, Compare |
+| [docs/LAB.md](docs/LAB.md) | Train, Evaluate, Replay, Robot, Field |
 | [docs/PRESETS.md](docs/PRESETS.md) | Season bundles, lint, training JSON |
 | [docs/EVALUATION.md](docs/EVALUATION.md) | Held-out trials, CIs, “best” rules |
 | [docs/EXPORT.md](docs/EXPORT.md) | Road Runner, distill ONNX, log calibration |

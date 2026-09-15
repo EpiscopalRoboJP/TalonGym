@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FieldScene, type SceneView } from "../scene/FieldScene";
-import { KeyValues } from "../KeyValues";
-import { getJson, loadReplayFrames, postJson, postText, type Frame, type FrameExplain } from "../api";
+import { getJson, loadReplayFrames, notify, postJson, type Frame, type FrameExplain } from "../api";
+import { Empty, Icon, Panel, RoadRunnerDialog, Segmented, Switch } from "../ui";
 
-type ReplayMeta = { id: string; trueScore?: number; source?: string };
-type Tab = "score" | "field" | "export";
+type ReplayMeta = { id: string; trueScore?: number; source?: string; runId?: string; algo?: string };
 type Marker = { i: number; kind: "foul" | "contact" };
+
+const SOURCE_LABEL: Record<string, string> = { demo: "Scripted demo", train: "Training run", eval: "Evaluation" };
 
 function signedPoints(n: number) {
   if (n > 0) return `+${n}`;
-  if (n < 0) return `\u2212${Math.abs(n)}`;
+  if (n < 0) return `−${Math.abs(n)}`;
   return "0";
 }
 
@@ -26,51 +27,75 @@ function frameHasContact(frame: Frame | null | undefined) {
   return Boolean(frame?.collision?.wall || frame?.collision?.robot);
 }
 
-function contactLabel(frame: Frame | null | undefined) {
+function contactParts(frame: Frame | null | undefined) {
   const parts: string[] = [];
   if (frame?.collision?.wall) parts.push("wall");
   if (frame?.collision?.robot) parts.push("robot");
   if (frame?.collision?.piece) parts.push("piece");
-  return parts.length ? `contact: ${parts.join(" · ")}` : "";
+  return parts;
 }
 
 export function ReplayPage() {
   const { replayId } = useParams();
   const navigate = useNavigate();
-  const [ids, setIds] = useState<ReplayMeta[]>([]);
+  const [ids, setIds] = useState<ReplayMeta[] | null>(null);
   const [active, setActive] = useState(replayId || "");
   const [frames, setFrames] = useState<Frame[]>([]);
+  const [loading, setLoading] = useState(false);
   const [i, setI] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [showFov, setShowFov] = useState(true);
   const [view, setView] = useState<SceneView>("threeQuarter");
-  const [java, setJava] = useState("");
-  const [tab, setTab] = useState<Tab>("score");
+  const [exportId, setExportId] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
 
   useEffect(() => {
     if (replayId && replayId !== active) setActive(replayId);
+    // Only react to URL changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [replayId]);
 
   useEffect(() => {
-    getJson<ReplayMeta[]>("/replays").then((list) => {
-      setIds(list);
-      if (!active && list[0]) selectReplay(list[0].id);
-    });
+    getJson<ReplayMeta[]>("/replays")
+      .then((list) => {
+        setIds(list);
+        if (!active && list[0]) selectReplay(list[0].id);
+      })
+      .catch(() => setIds([]));
+    // Initial load only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!active) return;
-    loadReplayFrames(active).then((f) => {
-      setFrames(f);
-      setI(0);
-    });
+    let cancelled = false;
+    setLoading(true);
+    setPlaying(false);
+    loadReplayFrames(active)
+      .then((f) => {
+        if (cancelled) return;
+        setFrames(f);
+        setI(0);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [active]);
 
   useEffect(() => {
     if (!playing || frames.length === 0) return;
     const id = window.setInterval(() => {
-      setI((n) => (n + 1) % frames.length);
+      setI((n) => {
+        if (n + 1 >= frames.length) {
+          setPlaying(false);
+          return n;
+        }
+        return n + 1;
+      });
     }, 40 / speed);
     return () => window.clearInterval(id);
   }, [playing, frames, speed]);
@@ -79,9 +104,11 @@ export function ReplayPage() {
     const onKey = (ev: KeyboardEvent) => {
       const tag = (ev.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (tag === "BUTTON" && (ev.key === " " || ev.key === "Enter")) return;
+      if (document.querySelector("dialog[open]")) return;
       if (ev.key === " " || ev.code === "Space") {
         ev.preventDefault();
-        setPlaying((p) => !p);
+        togglePlay();
       } else if (ev.key === "ArrowRight") {
         ev.preventDefault();
         setPlaying(false);
@@ -102,7 +129,9 @@ export function ReplayPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [frames.length]);
+    // togglePlay only reads frames/i, both covered.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frames.length, i]);
 
   const frame = frames[i] || null;
   const duration = frames.length ? frames[frames.length - 1].t : 0;
@@ -126,180 +155,212 @@ export function ReplayPage() {
     });
     return out;
   }, [frames]);
-  const firstFoul = useMemo(
-    () => frames.find((f) => frameHasFoulStep(f) || (f.penalties || []).length > 0),
-    [frames],
-  );
   const penalties = frame?.penalties || [];
   const scoreExplains = (frame?.explains || []).filter((e) => e.points >= 0);
-  const foulNow = frameHasFoulStep(frame);
-  const foulT = foulNow ? frame?.t : firstFoul?.t;
-  const foulBanner = foulNow || penalties.length > 0 ? `FOUL at t=${(foulT ?? 0).toFixed(2)}` : null;
+  const foulNow = frameHasFoulStep(frame) || (frame?.robots || []).some((r) => r.dynamic && r.enteredRestricted);
+  const contact = contactParts(frame);
+  const robot = frame?.robots.find((r) => r.dynamic) || frame?.robots[0];
+  const meta = ids?.find((r) => r.id === active);
 
   function selectReplay(id: string) {
     setActive(id);
-    setJava("");
     navigate(`/replay/${id}`, { replace: true });
   }
 
-  async function demo() {
-    const res = await postJson<{ replayId: string }>("/replays/demo", {});
-    const list = await getJson<ReplayMeta[]>("/replays");
-    setIds(list);
-    selectReplay(res.replayId);
+  function togglePlay() {
+    if (!frames.length) return;
+    if (!playing && i >= frames.length - 1) setI(0);
+    setPlaying((p) => !p);
   }
 
-  async function exportRr() {
-    if (!active) return;
-    const text = await postText(`/replays/${active}/export/roadrunner`, { dialect: "rr1_actions" });
-    setJava(text);
+  async function recordDemo() {
+    setRecording(true);
+    try {
+      const res = await postJson<{ replayId: string }>("/replays/demo", {});
+      const list = await getJson<ReplayMeta[]>("/replays");
+      setIds(list);
+      selectReplay(res.replayId);
+      notify("Recorded a new scripted AUTO replay.");
+    } finally {
+      setRecording(false);
+    }
   }
 
   return (
-    <div className="page">
-      <div className="scene">
-        <FieldScene frame={frame} showFov={showFov} path={path} view={view} />
-        {foulBanner && <div className="scene-banner">{foulBanner}</div>}
-        <div className="dock">
-          <div className="dock-row">
-            <button type="button" onClick={() => setPlaying((p) => !p)} aria-pressed={playing}>
-              {playing ? "Pause" : "Play"}
+    <main className="page layout-replay">
+      <Panel
+        className="grow"
+        bodyClass="viewport"
+        title={meta ? SOURCE_LABEL[meta.source || ""] || "Replay" : "Replay"}
+        sub={active ? <span className="mono">{active}</span> : undefined}
+        actions={
+          <>
+            <Segmented
+              label="Camera"
+              value={view}
+              onChange={setView}
+              options={[
+                ["threeQuarter", "Perspective"],
+                ["top", "Top"],
+              ]}
+            />
+            <Switch checked={showFov} onChange={setShowFov}>
+              Camera FOV
+            </Switch>
+            <button type="button" className="btn sm" disabled={!active} onClick={() => setExportId(active)}>
+              <Icon name="code" size={14} /> Export
             </button>
-            <span className="dock-time">
-              t={frame?.t.toFixed(2) ?? "0.00"} / {duration.toFixed(2)}s
+          </>
+        }
+        footer={
+          <div className="transport" style={{ border: 0, padding: 0, width: "100%" }}>
+            <button
+              type="button"
+              className="btn primary icon"
+              onClick={togglePlay}
+              disabled={!frames.length}
+              aria-label={playing ? "Pause" : "Play"}
+              title="Space"
+            >
+              <Icon name={playing ? "pause" : "play"} />
+            </button>
+            <span className="time">
+              <b>{(frame?.t ?? 0).toFixed(2)}</b> / {duration.toFixed(2)} s
             </span>
-            <div className="seg" role="group" aria-label="Playback speed">
-              {[0.25, 1, 2].map((s) => (
-                <button key={s} type="button" className={speed === s ? "on" : ""} onClick={() => setSpeed(s)}>
-                  {s}×
-                </button>
-              ))}
+            <div className="scrub">
+              {markers.length > 0 && (
+                <div className="scrub-marks" aria-hidden="true">
+                  {markers.map((m) => (
+                    <i key={`${m.kind}-${m.i}`} className={m.kind} style={{ left: `${frames.length > 1 ? (m.i / (frames.length - 1)) * 100 : 0}%` }} />
+                  ))}
+                </div>
+              )}
+              <input
+                type="range"
+                aria-label="Timeline"
+                min={0}
+                max={Math.max(0, frames.length - 1)}
+                value={i}
+                disabled={!frames.length}
+                onChange={(e) => {
+                  setPlaying(false);
+                  setI(Number(e.target.value));
+                }}
+              />
             </div>
-            <div className="seg" role="group" aria-label="Camera view">
-              <button type="button" className={view === "threeQuarter" ? "on" : ""} onClick={() => setView("threeQuarter")}>
-                3/4
-              </button>
-              <button type="button" className={view === "top" ? "on" : ""} onClick={() => setView("top")}>
-                top
-              </button>
-            </div>
-            <label className="check" style={{ margin: 0 }}>
-              <input type="checkbox" checked={showFov} onChange={(e) => setShowFov(e.target.checked)} /> FOV
-            </label>
-          </div>
-          <div className="scrub-wrap">
-            {markers.length > 0 && (
-              <div className="scrub-marks" aria-hidden="true">
-                {markers.map((m) => (
-                  <i
-                    key={`${m.kind}-${m.i}`}
-                    className={m.kind}
-                    style={{ left: `${frames.length > 1 ? (m.i / (frames.length - 1)) * 100 : 0}%` }}
-                  />
-                ))}
-              </div>
-            )}
-            <input
-              id="replay-scrub"
-              className="scrub"
-              type="range"
-              aria-label="Scrub"
-              min={0}
-              max={Math.max(0, frames.length - 1)}
-              value={i}
-              onChange={(e) => setI(Number(e.target.value))}
+            <Segmented
+              label="Playback speed"
+              value={speed}
+              onChange={setSpeed}
+              options={[
+                [0.25, "¼×"],
+                [0.5, "½×"],
+                [1, "1×"],
+                [2, "2×"],
+              ]}
             />
           </div>
-        </div>
-      </div>
-      <aside className="side">
-        <div className="page-head">
-          <h2>Replay</h2>
-          <p className="note">Visualizer only. Space play/pause · arrows step · Home/End jump.</p>
-        </div>
-        <label htmlFor="replay-select">Replay</label>
-        <select id="replay-select" value={active} onChange={(e) => selectReplay(e.target.value)}>
-          {ids.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.id} · {r.source || "run"} · {r.trueScore ?? "?"}
-            </option>
-          ))}
-        </select>
-        <div className="row">
-          <button type="button" onClick={demo}>
-            Record scripted AUTO
-          </button>
-        </div>
-        <div className="seg" role="tablist" aria-label="Inspector">
-          {(
-            [
-              ["score", "Score"],
-              ["field", "Field state"],
-              ["export", "Export"],
-            ] as [Tab, string][]
-          ).map(([id, label]) => (
-            <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {tab === "score" && (
-          <div className="card">
-            <h3>Score</h3>
-            <div className="stat">
-              true score <b>{frame?.trueScore ?? 0}</b>
+        }
+      >
+        {frame ? (
+          <>
+            <FieldScene frame={frame} showFov={showFov} path={path} view={view} />
+            <div className="viewport-badges">
+              {frame.phase && <span className="viewport-badge">{frame.phase}</span>}
+              {foulNow && <span className="viewport-badge bad">Foul</span>}
+              {contact.length > 0 && !foulNow && <span className="viewport-badge warn">Contact · {contact.join(", ")}</span>}
             </div>
-            {penalties.length > 0 && (
-              <>
-                <p className="stat">Penalties</p>
-                <ul className="list">
-                  {penalties.map((e, n) => (
-                    <li key={`p-${e.id}-${n}`} className="foul">
-                      {signedPoints(e.points)} {e.explain}
-                    </li>
-                  ))}
-                </ul>
-              </>
+            <span className="viewport-hint">Drag to orbit · scroll to zoom · Space play · ←/→ step</span>
+          </>
+        ) : (
+          <Empty dark title={loading ? "Loading replay…" : "No replay selected"}>
+            {!loading && <span>Record a scripted demo or train a policy to create one.</span>}
+          </Empty>
+        )}
+      </Panel>
+
+      <div className="col">
+        <Panel className="fixed" title="Score" sub={frame ? `at ${frame.t.toFixed(2)} s` : undefined}>
+          <div className="score-big">
+            <span className="value">{frame?.trueScore ?? 0}</span>
+            <span className="label">points (net of fouls)</span>
+          </div>
+          <div className="flags">
+            {penalties.length > 0 && <span className="pill bad">{penalties.length} foul{penalties.length === 1 ? "" : "s"}</span>}
+            {contact.length > 0 && <span className="pill warn">Contact: {contact.join(", ")}</span>}
+            {robot && <span className="pill">Holding {robot.held.length}</span>}
+            {robot && (
+              <span className="pill mono" style={{ textTransform: "none" }}>
+                x {Math.round(robot.x) || 0} · y {Math.round(robot.y) || 0} · {Math.round(robot.headingDeg) || 0}°
+              </span>
             )}
-            {frameHasContact(frame) && <p className="stat foul-note">{contactLabel(frame)}</p>}
-            <ul className="list">
+          </div>
+          {(penalties.length > 0 || scoreExplains.length > 0) && (
+            <ul className="events" style={{ marginTop: "0.8rem" }}>
+              {penalties.map((e, n) => (
+                <li key={`p-${e.id}-${n}`} className="foul">
+                  <span className="pts">{signedPoints(e.points)}</span>
+                  <span>{e.explain}</span>
+                </li>
+              ))}
               {scoreExplains.map((e, n) => (
                 <li key={`s-${e.id}-${n}`}>
-                  {signedPoints(e.points)} {e.explain}
+                  <span className="pts">{signedPoints(e.points)}</span>
+                  <span>{e.explain}</span>
                 </li>
               ))}
             </ul>
-          </div>
-        )}
-        {tab === "field" && (
-          <div className="card">
-            <h3>Field state</h3>
-            <div className="stat">Ramp queue: {(frame?.queues && Object.values(frame.queues)[0]?.join(" ")) || "empty"}</div>
-            <p className="stat">Gate</p>
-            <KeyValues data={frame?.gate as Record<string, unknown>} />
-            <p className="stat">Privileged match vars (inspection-only)</p>
-            <KeyValues data={frame?.matchVarsPrivileged} />
-            <p className="stat">Observed match vars</p>
-            <KeyValues data={frame?.observedMatchVars as Record<string, unknown>} />
-          </div>
-        )}
-        {tab === "export" && (
-          <div className="card">
-            <h3>Export</h3>
-            <div className="row">
-              <button type="button" onClick={exportRr}>
-                Road Runner 1.0
-              </button>
+          )}
+          {markers.length > 0 && (
+            <div className="legend" style={{ marginTop: "0.8rem" }}>
+              <span>
+                <i style={{ background: "var(--bad)" }} /> Foul on timeline
+              </span>
+              <span>
+                <i style={{ background: "#d49a00" }} /> Contact on timeline
+              </span>
             </div>
-            {java && (
-              <pre className="note mono rr-export" tabIndex={0}>
-                {java}
-              </pre>
-            )}
-            {path.length > 0 && <p className="note">{path.length} planned-path samples (decimated poses).</p>}
-          </div>
-        )}
-      </aside>
-    </div>
+          )}
+        </Panel>
+
+        <Panel
+          className="grow"
+          title="Replays"
+          sub={ids ? `${ids.length}` : undefined}
+          bodyClass="panel-body flush scroll"
+          actions={
+            <button type="button" className="btn sm" onClick={recordDemo} disabled={recording}>
+              <Icon name="record" size={12} /> {recording ? "Recording…" : "Record demo"}
+            </button>
+          }
+        >
+          {ids && ids.length === 0 && <Empty title="No replays yet">Training runs and evaluations save their best episode here.</Empty>}
+          <ul className="list">
+            {(ids || []).map((r) => (
+              <li key={r.id}>
+                <button type="button" className={`list-item ${r.id === active ? "on" : ""}`} onClick={() => selectReplay(r.id)}>
+                  <span className="grow">
+                    <span className="title">{SOURCE_LABEL[r.source || ""] || r.source || "Replay"}</span>
+                    <span className="meta mono" style={{ display: "block" }}>
+                      {r.id}
+                      {r.algo ? ` · ${r.algo}` : ""}
+                    </span>
+                  </span>
+                  <span className="end">
+                    <span className="num" style={{ fontWeight: 600 }}>
+                      {r.trueScore ?? "—"}
+                    </span>
+                    <span className="meta" style={{ display: "block" }}>
+                      pts
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      </div>
+      <RoadRunnerDialog replayId={exportId} onClose={() => setExportId(null)} />
+    </main>
   );
 }

@@ -1,7 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { getJson, postJson, putJson, robotPresetLabel, uploadRobotModel, deleteRobotModel, type DefaultsBundle, type IntakeSpec, type LauncherSpec, type PoseOnRobot, type PresetMeta, type VisualOffset } from "../api";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  deleteRobotModel,
+  getJson,
+  notify,
+  postJson,
+  putJson,
+  robotPresetLabel,
+  uploadRobotModel,
+  type DefaultsBundle,
+  type IntakeSpec,
+  type LauncherSpec,
+  type PoseOnRobot,
+  type PresetMeta,
+  type VisualOffset,
+} from "../api";
 import { RobotPreview } from "../scene/FieldScene";
 import { theme } from "../theme";
+import { Alert, Empty, Field, Icon, NumberField, Panel, Slider, Switch } from "../ui";
 
 type RobotDoc = {
   schemaVersion: string;
@@ -49,7 +64,12 @@ type RobotDoc = {
   [k: string]: unknown;
 };
 
-type Sel = { kind: "chassis" } | { kind: "intake"; id: string } | { kind: "launcher"; id: string };
+type Sel =
+  | { kind: "chassis" }
+  | { kind: "camera" }
+  | { kind: "model" }
+  | { kind: "intake"; id: string }
+  | { kind: "launcher"; id: string };
 
 function cam(doc: RobotDoc) {
   return doc.sensors?.find((s) => s.kind === "apriltag_camera") || doc.sensors?.[0];
@@ -68,36 +88,6 @@ function slugify(raw: string) {
     .replace(/^_+|_+$/g, "")
     .slice(0, 64);
   return s.length >= 2 ? s : `robot_${Date.now().toString(36)}`;
-}
-
-function Slider({
-  id,
-  label,
-  value,
-  min,
-  max,
-  step,
-  unit,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  unit: string;
-  onChange: (n: number) => void;
-}) {
-  return (
-    <div className="slider-row">
-      <label htmlFor={id}>{label}</label>
-      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
-      <span className="readout">
-        {Number.isInteger(step) ? value : value.toFixed(2)} {unit}
-      </span>
-    </div>
-  );
 }
 
 function intakePoly(intake: IntakeSpec) {
@@ -128,18 +118,43 @@ function aimLine(launcher: LauncherSpec) {
   return { x1: x, y1: -y, x2: x + Math.cos(a) * len, y2: -(y + Math.sin(a) * len) };
 }
 
+function Section({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="section">
+      <h3 className="section-title">
+        {title}
+        <span className="spacer" />
+        {action}
+      </h3>
+      <div className="stack">{children}</div>
+    </div>
+  );
+}
+
+function sameSel(a: Sel, b: Sel) {
+  if (a.kind !== b.kind) return false;
+  if ((a.kind === "intake" || a.kind === "launcher") && (b.kind === "intake" || b.kind === "launcher")) return a.id === b.id;
+  return true;
+}
+
 export function RobotBuilderPage() {
   const [list, setList] = useState<PresetMeta[]>([]);
   const [id, setId] = useState("mecanum_biobuzz_4cap");
-  const [doc, setDoc] = useState<RobotDoc | null>(null);
+  const [doc, setDocState] = useState<RobotDoc | null>(null);
   const [sel, setSel] = useState<Sel>({ kind: "chassis" });
-  const [msg, setMsg] = useState("");
   const [errs, setErrs] = useState<string[]>([]);
   const [saveAsId, setSaveAsId] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [lastBbox, setLastBbox] = useState<{ lengthIn: number; widthIn: number; heightIn: number } | null>(null);
   const drag = useRef<{ kind: "intake" | "launcher"; id: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function setDoc(next: RobotDoc) {
+    setDocState(next);
+    setDirty(true);
+  }
 
   useEffect(() => {
     getJson<PresetMeta[]>("/presets/robot").then(setList);
@@ -154,7 +169,8 @@ export function RobotBuilderPage() {
     if (!id) return;
     getJson<RobotDoc>(`/presets/robot/${id}`).then((d) => {
       delete (d as { _kind?: string })._kind;
-      setDoc(d);
+      setDocState(d);
+      setDirty(false);
       setErrs([]);
       setSel({ kind: "chassis" });
       setSaveAsId("");
@@ -179,8 +195,11 @@ export function RobotBuilderPage() {
 
   function svgToRobot(clientX: number, clientY: number, svg: SVGSVGElement) {
     const rect = svg.getBoundingClientRect();
-    const nx = (clientX - rect.left) / rect.width;
-    const ny = (clientY - rect.top) / rect.height;
+    const size = Math.min(rect.width, rect.height);
+    const ox = rect.left + (rect.width - size) / 2;
+    const oy = rect.top + (rect.height - size) / 2;
+    const nx = (clientX - ox) / size;
+    const ny = (clientY - oy) / size;
     return { x: nx * span * 2 - span, y: span - ny * span * 2 };
   }
 
@@ -199,37 +218,42 @@ export function RobotBuilderPage() {
     }
   }
 
+  function patchIntake(mid: string, partial: Partial<IntakeSpec>) {
+    if (!doc) return;
+    setDoc({ ...doc, intakes: intakes.map((i) => (i.id === mid ? { ...i, ...partial } : i)) });
+  }
+
+  function patchLauncher(mid: string, partial: Partial<LauncherSpec>) {
+    if (!doc) return;
+    setDoc({ ...doc, launchers: launchers.map((l) => (l.id === mid ? { ...l, ...partial } : l)) });
+  }
+
   function pickAt(clientX: number, clientY: number, svg: SVGSVGElement) {
     const { x, y } = svgToRobot(clientX, clientY, svg);
     let best: Sel = { kind: "chassis" };
     let bestD = Infinity;
     for (const intake of intakes) {
-      const px = intake.poseOnRobot?.x || 0;
-      const py = intake.poseOnRobot?.y || 0;
-      const d = Math.hypot(px - x, py - y);
+      const d = Math.hypot((intake.poseOnRobot?.x || 0) - x, (intake.poseOnRobot?.y || 0) - y);
       if (d < 6 && d < bestD) {
         bestD = d;
         best = { kind: "intake", id: intake.id };
       }
     }
     for (const launcher of launchers) {
-      const px = launcher.poseOnRobot?.x || 0;
-      const py = launcher.poseOnRobot?.y || 0;
-      const d = Math.hypot(px - x, py - y);
+      const d = Math.hypot((launcher.poseOnRobot?.x || 0) - x, (launcher.poseOnRobot?.y || 0) - y);
       if (d < 6 && d < bestD) {
         bestD = d;
         best = { kind: "launcher", id: launcher.id };
       }
     }
     setSel(best);
-    if (best.kind !== "chassis") drag.current = best;
+    if (best.kind === "intake" || best.kind === "launcher") drag.current = best;
   }
 
   async function validateAndSave(target: RobotDoc, method: "put" | "post") {
     const res = await postJson<{ ok: boolean; errors: string[] }>("/presets/validate", { kind: "robot", document: target });
     if (!res.ok) {
       setErrs(res.errors || ["Invalid robot preset."]);
-      setMsg("");
       return false;
     }
     if (method === "post") await postJson("/presets/robot", target);
@@ -239,14 +263,16 @@ export function RobotBuilderPage() {
 
   async function save() {
     if (!doc) return;
+    setSaving(true);
     try {
-      const ok = await validateAndSave(doc, "put");
-      if (!ok) return;
-      setMsg("Saved robot preset via API.");
+      if (!(await validateAndSave(doc, "put"))) return;
       setErrs([]);
+      setDirty(false);
+      notify(`Saved robot preset ${doc.id}.`);
     } catch (e) {
-      setMsg("");
       setErrs([e instanceof Error ? e.message : String(e)]);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -254,17 +280,17 @@ export function RobotBuilderPage() {
     if (!doc) return;
     const nid = slugify(saveAsId || `${doc.id}_copy`);
     const next = { ...doc, id: nid, displayName: saveAsId ? doc.displayName : `${doc.displayName} copy` };
+    setSaving(true);
     try {
-      const ok = await validateAndSave(next, "post");
-      if (!ok) return;
-      setMsg(`Created ${nid} via API.`);
+      if (!(await validateAndSave(next, "post"))) return;
       setErrs([]);
-      const rows = await getJson<PresetMeta[]>("/presets/robot");
-      setList(rows);
+      notify(`Created robot preset ${nid}.`);
+      setList(await getJson<PresetMeta[]>("/presets/robot"));
       setId(nid);
     } catch (e) {
-      setMsg("");
       setErrs([e instanceof Error ? e.message : String(e)]);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -304,20 +330,14 @@ export function RobotBuilderPage() {
 
   function removeSelected() {
     if (!doc) return;
-    if (sel.kind === "intake") {
-      setDoc({ ...doc, intakes: intakes.filter((i) => i.id !== sel.id) });
-      setSel({ kind: "chassis" });
-    }
-    if (sel.kind === "launcher") {
-      setDoc({ ...doc, launchers: launchers.filter((l) => l.id !== sel.id) });
-      setSel({ kind: "chassis" });
-    }
+    if (sel.kind === "intake") setDoc({ ...doc, intakes: intakes.filter((i) => i.id !== sel.id) });
+    if (sel.kind === "launcher") setDoc({ ...doc, launchers: launchers.filter((l) => l.id !== sel.id) });
+    setSel({ kind: "chassis" });
   }
 
   async function onUploadModel(file: File | undefined) {
     if (!doc || !file) return;
     setUploading(true);
-    setMsg("Converting CAD…");
     try {
       const imported = await uploadRobotModel(doc.id, file);
       const offset = doc.visualOffset || {};
@@ -326,13 +346,14 @@ export function RobotBuilderPage() {
         ...doc,
         visualAsset: imported.visualAsset,
         collisionAsset: imported.collisionAsset,
-        visualOffset: { x: offset.x || 0, y: offset.y || 0, z: offset.z || 0, yawDeg: offset.yawDeg || 0, scale: offset.scale || 1 },
+        visualOffset: { x: offset.x || 0, y: offset.y || 0, z: offset.z || 0, yawDeg: offset.yawDeg || 0 },
         chassis: { ...doc.chassis, footprint: imported.footprint },
       });
-      setMsg(`Imported ${file.name} (${imported.unitsGuess}, ${imported.bbox.lengthIn.toFixed(1)}×${imported.bbox.widthIn.toFixed(1)}×${imported.bbox.heightIn.toFixed(1)} in). Fit chassis if you want the box to match.`);
+      notify(
+        `Imported ${file.name} (${imported.unitsGuess}, ${imported.bbox.lengthIn.toFixed(1)} × ${imported.bbox.widthIn.toFixed(1)} × ${imported.bbox.heightIn.toFixed(1)} in). Save to keep it.`,
+      );
       setErrs([]);
     } catch (e) {
-      setMsg("");
       setErrs([e instanceof Error ? e.message : String(e)]);
     } finally {
       setUploading(false);
@@ -352,26 +373,24 @@ export function RobotBuilderPage() {
           heightIn: Math.round(lastBbox.heightIn * 100) / 100,
         },
       });
-      setMsg("Chassis length/width/height set from the model bounds.");
+      notify("Chassis size set from the model bounds.", "info");
       return;
     }
     if (!doc.chassis.footprint?.length) {
-      setErrs(["Upload a model first, then fit chassis to its bounds."]);
+      setErrs(["Upload a model first, then fit the chassis to its bounds."]);
       return;
     }
     const xs = doc.chassis.footprint.map((p) => p.x);
     const ys = doc.chassis.footprint.map((p) => p.y);
-    const lengthIn = Math.max(...xs) - Math.min(...xs);
-    const widthIn = Math.max(...ys) - Math.min(...ys);
     setDoc({
       ...doc,
       chassis: {
         ...doc.chassis,
-        lengthIn: Math.round(lengthIn * 100) / 100,
-        widthIn: Math.round(widthIn * 100) / 100,
+        lengthIn: Math.round((Math.max(...xs) - Math.min(...xs)) * 100) / 100,
+        widthIn: Math.round((Math.max(...ys) - Math.min(...ys)) * 100) / 100,
       },
     });
-    setMsg("Chassis length/width set from the model footprint.");
+    notify("Chassis length and width set from the model footprint.", "info");
   }
 
   async function clearModel() {
@@ -387,7 +406,7 @@ export function RobotBuilderPage() {
     if (chassis.collisionShape === "mesh") chassis.collisionShape = "aabb";
     setDoc({ ...rest, chassis });
     setLastBbox(null);
-    setMsg("Cleared custom 3D model.");
+    notify("Removed the custom 3D model. Save to keep this change.", "info");
   }
 
   function patchOffset(partial: VisualOffset) {
@@ -395,8 +414,17 @@ export function RobotBuilderPage() {
     setDoc({ ...doc, visualOffset: { ...(doc.visualOffset || {}), ...partial } });
   }
 
-  if (!doc) return <div className="page single">Loading…</div>;
+  if (!doc) {
+    return (
+      <main className="page">
+        <Panel>
+          <Empty title="Loading robot…" />
+        </Panel>
+      </main>
+    );
+  }
   const camera = cam(doc);
+  const hasModel = typeof doc.visualAsset === "string" && Boolean(doc.visualAsset);
 
   function setCamera(partial: { fovDeg?: number; rangeIn?: number }) {
     if (!doc) return;
@@ -406,591 +434,339 @@ export function RobotBuilderPage() {
     });
   }
 
+  const components: { sel: Sel; label: string; meta: string; color: string }[] = [
+    { sel: { kind: "chassis" }, label: "Chassis & drivetrain", meta: `${length} × ${width} in · ${doc.drivetrain.type}`, color: theme.chassis },
+    ...intakes.map((i) => ({ sel: { kind: "intake", id: i.id } as Sel, label: i.id, meta: `Intake · ${i.widthIn ?? 12} in wide`, color: theme.intake })),
+    ...launchers.map((l) => ({ sel: { kind: "launcher", id: l.id } as Sel, label: l.id, meta: `Launcher · ${l.aimMode === "turret" ? "turret" : "fixed"}`, color: theme.gold })),
+    { sel: { kind: "camera" }, label: "Camera", meta: `${camera?.fovDeg ?? 70}° FOV · ${camera?.rangeIn ?? 96} in`, color: "#7aa6d8" },
+    { sel: { kind: "model" }, label: "3D model", meta: hasModel ? String(doc.visualAsset).split("/").pop() || "Loaded" : "None · using chassis box", color: "#9a9092" },
+  ];
+
+  const inspectorTitle =
+    sel.kind === "chassis" ? "Chassis & drivetrain" : sel.kind === "camera" ? "Camera" : sel.kind === "model" ? "3D model" : sel.id;
+
   return (
-    <div className="page single">
-      <div>
-        <div className="page-head">
-          <h2>Robot design</h2>
-          <p className="note">
-            Robot frame, inches: origin at chassis center, +x forward, +y left. Place intakes and launchers on the grid.
-            Saves go through the API, not browser storage.
-          </p>
-        </div>
-        <label htmlFor="robot-preset">Robot preset</label>
-        <select id="robot-preset" value={id} onChange={(e) => setId(e.target.value)} style={{ maxWidth: 420 }}>
+    <main className="page layout-builder">
+      <div className="toolbar">
+        <h1>Robot</h1>
+        <select aria-label="Robot preset" value={id} onChange={(e) => setId(e.target.value)}>
           {list.map((p) => (
             <option key={p.id} value={p.id}>
               {robotPresetLabel(p)}
             </option>
           ))}
         </select>
-        <div className="form-grid" style={{ marginTop: "0.6rem" }}>
-          <label htmlFor="display-name">Display name</label>
-          <input id="display-name" value={doc.displayName} onChange={(e) => setDoc({ ...doc, displayName: e.target.value })} />
+        <span className="spacer" />
+        {dirty && <span className="pill">Unsaved changes</span>}
+        <div className="row" style={{ flexWrap: "nowrap" }}>
+          <input aria-label="New preset id" placeholder="new_preset_id" value={saveAsId} onChange={(e) => setSaveAsId(e.target.value)} style={{ width: 180, minWidth: 0 }} />
+          <button type="button" className="btn" onClick={saveAs} disabled={saving} title="Create a copy so shipped presets stay intact">
+            Save as new
+          </button>
         </div>
+        <button type="button" className="btn primary" onClick={save} disabled={saving}>
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
 
-        <div className="robot-work">
-          <div>
-            <svg
-              className="field-grid"
-              viewBox={`${-span} ${-span} ${span * 2} ${span * 2}`}
-              role="img"
-              aria-label="Robot inch grid, +x forward"
-              onPointerDown={(e) => pickAt(e.clientX, e.clientY, e.currentTarget)}
-              onPointerMove={(e) => {
-                if (!drag.current || e.buttons === 0) return;
-                const p = svgToRobot(e.clientX, e.clientY, e.currentTarget);
-                patchPose(drag.current.kind, drag.current.id, { x: Math.round(p.x * 2) / 2, y: Math.round(p.y * 2) / 2 });
-              }}
-              onPointerUp={() => {
-                drag.current = null;
-              }}
-              onPointerLeave={() => {
-                drag.current = null;
-              }}
-            >
-              <rect x={-span} y={-span} width={span * 2} height={span * 2} fill={theme.scene} />
-              {ticks.map((v) => (
-                <g key={v}>
-                  <line x1={v} y1={-span} x2={v} y2={span} stroke={theme.grid} strokeWidth="0.35" />
-                  <line x1={-span} y1={v} x2={span} y2={v} stroke={theme.grid} strokeWidth="0.35" />
-                </g>
-              ))}
-              <rect
-                x={-length / 2}
-                y={-width / 2}
-                width={length}
-                height={width}
-                fill={theme.chassis}
-                fillOpacity={0.85}
-                stroke={sel.kind === "chassis" ? theme.cream : theme.muted}
-                strokeWidth={sel.kind === "chassis" ? 0.7 : 0.35}
-              />
-              <polygon points={`${length / 2 - 1.5},0 ${length / 2},${-2} ${length / 2},${2}`} fill={theme.maroonDark} />
-              {intakes.map((intake) => (
+      <div className="builder-robot">
+        <Panel
+          className="grow"
+          title="Top view"
+          sub="inches · +x forward, +y left"
+          bodyClass="map-wrap"
+          actions={
+            <>
+              <button type="button" className="btn sm" onClick={addIntake}>
+                <Icon name="plus" size={14} /> Intake
+              </button>
+              <button type="button" className="btn sm" onClick={addLauncher}>
+                <Icon name="plus" size={14} /> Launcher
+              </button>
+            </>
+          }
+          footer={
+            <div className="legend">
+              <span>
+                <i style={{ background: theme.chassis }} /> Chassis
+              </span>
+              <span>
+                <i style={{ background: theme.intake }} /> Intake
+              </span>
+              <span>
+                <i style={{ background: theme.gold }} /> Launcher & aim
+              </span>
+              <span className="muted">Drag a mechanism to move it</span>
+            </div>
+          }
+        >
+          <svg
+            className="map"
+            viewBox={`${-span} ${-span} ${span * 2} ${span * 2}`}
+            role="img"
+            aria-label="Robot top view, +x forward"
+            onPointerDown={(e) => {
+              pickAt(e.clientX, e.clientY, e.currentTarget);
+              if (drag.current) e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              if (!drag.current || e.buttons === 0) return;
+              const p = svgToRobot(e.clientX, e.clientY, e.currentTarget);
+              patchPose(drag.current.kind, drag.current.id, { x: Math.round(p.x * 2) / 2, y: Math.round(p.y * 2) / 2 });
+            }}
+            onPointerUp={() => {
+              drag.current = null;
+            }}
+            onPointerCancel={() => {
+              drag.current = null;
+            }}
+          >
+            {ticks.map((v) => (
+              <g key={v}>
+                <line x1={v} y1={-span} x2={v} y2={span} stroke={theme.grid} strokeWidth={v === 0 ? 0.3 : 0.15} />
+                <line x1={-span} y1={v} x2={span} y2={v} stroke={theme.grid} strokeWidth={v === 0 ? 0.3 : 0.15} />
+              </g>
+            ))}
+            <rect
+              x={-length / 2}
+              y={-width / 2}
+              width={length}
+              height={width}
+              rx={0.8}
+              fill={theme.chassis}
+              fillOpacity={0.9}
+              stroke={sel.kind === "chassis" ? theme.selected : "rgba(0,0,0,0.4)"}
+              strokeWidth={sel.kind === "chassis" ? 0.6 : 0.25}
+            />
+            <polygon points={`${length / 2 - 2.5},-2 ${length / 2 - 0.6},0 ${length / 2 - 2.5},2`} fill={theme.maroonDark} />
+            {intakes.map((intake) => {
+              const on = sel.kind === "intake" && sel.id === intake.id;
+              return (
                 <polygon
                   key={intake.id}
                   points={intakePoly(intake)}
                   fill={theme.intake}
-                  fillOpacity={sel.kind === "intake" && sel.id === intake.id ? 0.85 : 0.45}
-                  stroke={sel.kind === "intake" && sel.id === intake.id ? theme.cream : theme.intake}
-                  strokeWidth={0.45}
+                  fillOpacity={on ? 0.9 : 0.55}
+                  stroke={on ? theme.selected : theme.intake}
+                  strokeWidth={on ? 0.5 : 0.3}
+                  style={{ cursor: "grab" }}
                 />
+              );
+            })}
+            {launchers.map((launcher) => {
+              const pose = launcher.poseOnRobot || {};
+              const line = aimLine(launcher);
+              const on = sel.kind === "launcher" && sel.id === launcher.id;
+              return (
+                <g key={launcher.id} style={{ cursor: "grab" }}>
+                  <line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={theme.goldBright} strokeWidth={0.45} strokeDasharray="1 0.6" />
+                  <circle cx={pose.x || 0} cy={-(pose.y || 0)} r={1.5} fill={theme.gold} stroke={on ? theme.selected : "rgba(0,0,0,0.4)"} strokeWidth={on ? 0.5 : 0.2} />
+                </g>
+              );
+            })}
+            <text x={span - 1} y={span - 1.2} fill={theme.mapLabel} fontSize="1.3" textAnchor="end" fontFamily="IBM Plex Mono, monospace">
+              6 in grid
+            </text>
+          </svg>
+        </Panel>
+
+        <Panel className="grow" title="3D preview" sub="drag to orbit" bodyClass="viewport">
+          <RobotPreview
+            design={{
+              chassis: doc.chassis,
+              intakes,
+              launchers,
+              visualAsset: hasModel ? (doc.visualAsset as string) : null,
+              visualOffset: doc.visualOffset,
+              collisionShape: doc.chassis.collisionShape,
+            }}
+            showHull={doc.chassis.collisionShape === "mesh"}
+          />
+        </Panel>
+
+        <div className="col">
+          <Panel className="fixed" title="Components" bodyClass="panel-body flush">
+            <ul className="list">
+              {components.map((c) => (
+                <li key={`${c.sel.kind}-${c.label}`}>
+                  <button type="button" className={`list-item ${sameSel(sel, c.sel) ? "on" : ""}`} onClick={() => setSel(c.sel)} style={{ padding: "0.45rem 1rem" }}>
+                    <span className="dot" style={{ background: c.color }} />
+                    <span className="grow">
+                      <span className="title" style={{ display: "block" }}>
+                        {c.label}
+                      </span>
+                      <span className="meta" style={{ display: "block" }}>
+                        {c.meta}
+                      </span>
+                    </span>
+                  </button>
+                </li>
               ))}
-              {launchers.map((launcher) => {
-                const pose = launcher.poseOnRobot || {};
-                const line = aimLine(launcher);
-                const on = sel.kind === "launcher" && sel.id === launcher.id;
-                return (
-                  <g key={launcher.id}>
-                    <line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={theme.goldBright} strokeWidth={0.5} />
-                    <circle cx={pose.x || 0} cy={-(pose.y || 0)} r={1.4} fill={theme.gold} stroke={on ? theme.cream : "transparent"} strokeWidth={0.4} />
-                  </g>
-                );
-              })}
-              <line x1={0} y1={0} x2={6} y2={0} stroke={theme.gold} strokeWidth={0.35} />
-              <text x={span - 8} y={span - 2} fill={theme.muted} fontSize="2.2">
-                +x fwd
-              </text>
-            </svg>
-            <div className="legend">
-              <span>
-                <i style={{ background: theme.chassis }} /> chassis
-              </span>
-              <span>
-                <i style={{ background: theme.intake }} /> intake
-              </span>
-              <span>
-                <i style={{ background: theme.gold }} /> launcher
-              </span>
-            </div>
-            <div className="robot-preview" aria-label="Robot 3D preview">
-              <RobotPreview
-                design={{
-                  chassis: doc.chassis,
-                  intakes,
-                  launchers,
-                  visualAsset: typeof doc.visualAsset === "string" ? doc.visualAsset : null,
-                  visualOffset: doc.visualOffset,
-                  collisionShape: doc.chassis.collisionShape,
-                }}
-                showHull={doc.chassis.collisionShape === "mesh"}
-              />
-            </div>
-          </div>
+            </ul>
+          </Panel>
 
-          <div>
-            <div className="row">
-              <button type="button" onClick={addIntake}>
-                Add intake
-              </button>
-              <button type="button" onClick={addLauncher}>
-                Add launcher
-              </button>
-              {(sel.kind === "intake" || sel.kind === "launcher") && (
-                <button type="button" onClick={removeSelected}>
-                  Remove selected
+          <Panel
+            className="grow"
+            title={inspectorTitle}
+            bodyClass="panel-body scroll"
+            actions={
+              (sel.kind === "intake" || sel.kind === "launcher") && (
+                <button type="button" className="btn sm danger" onClick={removeSelected}>
+                  <Icon name="trash" size={14} /> Remove
                 </button>
-              )}
-            </div>
-
-            <div className="card">
-              <h3>Drivetrain</h3>
-              <div className="form-grid">
-                <label htmlFor="dt">Type</label>
-                <select
-                  id="dt"
-                  value={doc.drivetrain.type}
-                  onChange={(e) => setDoc({ ...doc, drivetrain: { ...doc.drivetrain, type: e.target.value } })}
-                >
-                  <option value="mecanum">mecanum</option>
-                  <option value="tank">tank</option>
-                  <option value="swerve">swerve</option>
-                </select>
-                <label htmlFor="track">Track width (in)</label>
-                <input
-                  id="track"
-                  className="narrow"
-                  type="number"
-                  value={doc.drivetrain.trackWidthIn}
-                  onChange={(e) => setDoc({ ...doc, drivetrain: { ...doc.drivetrain, trackWidthIn: Number(e.target.value) } })}
-                />
+              )
+            }
+          >
+            {errs.length > 0 && (
+              <div style={{ marginBottom: "1rem" }}>
+                <Alert kind="bad">
+                  <b>Could not save</b>
+                  <ul>
+                    {errs.map((e) => (
+                      <li key={e}>{e}</li>
+                    ))}
+                  </ul>
+                </Alert>
               </div>
-            </div>
+            )}
 
-            <div className="card">
-              <h3>Motion limits (MeepMeep)</h3>
-              <Slider
-                id="max-vel"
-                label="Max vel"
-                value={doc.constraints.maxVelInPerS}
-                min={0}
-                max={80}
-                step={1}
-                unit="in/s"
-                onChange={(n) => setDoc({ ...doc, constraints: { ...doc.constraints, maxVelInPerS: n } })}
-              />
-              <Slider
-                id="max-acc"
-                label="Max accel"
-                value={doc.constraints.maxAccelInPerS2}
-                min={0}
-                max={80}
-                step={1}
-                unit="in/s²"
-                onChange={(n) => setDoc({ ...doc, constraints: { ...doc.constraints, maxAccelInPerS2: n } })}
-              />
-              <Slider
-                id="max-ang"
-                label="Max ang vel"
-                value={doc.constraints.maxAngVelDegPerS}
-                min={0}
-                max={360}
-                step={1}
-                unit="deg/s"
-                onChange={(n) => setDoc({ ...doc, constraints: { ...doc.constraints, maxAngVelDegPerS: n } })}
-              />
-            </div>
+            {sel.kind === "chassis" && (
+              <>
+                <Section title="General">
+                  <Field id="display-name" label="Display name">
+                    <input id="display-name" value={doc.displayName} onChange={(e) => setDoc({ ...doc, displayName: e.target.value })} />
+                  </Field>
+                  <div className="fields two">
+                    <NumberField id="chassis-l" label="Length" unit="in" value={doc.chassis.lengthIn} onChange={(n) => setDoc({ ...doc, chassis: { ...doc.chassis, lengthIn: n } })} />
+                    <NumberField id="chassis-w" label="Width" unit="in" value={doc.chassis.widthIn} onChange={(n) => setDoc({ ...doc, chassis: { ...doc.chassis, widthIn: n } })} />
+                    <NumberField id="chassis-h" label="Height" unit="in" value={doc.chassis.heightIn ?? 10} onChange={(n) => setDoc({ ...doc, chassis: { ...doc.chassis, heightIn: n } })} />
+                    <NumberField id="chassis-m" label="Mass" unit="kg" value={doc.chassis.massKg} onChange={(n) => setDoc({ ...doc, chassis: { ...doc.chassis, massKg: n } })} />
+                  </div>
+                  <Slider id="cap" label="Game piece capacity" value={doc.mechanisms.capacity} min={0} max={10} step={1} unit="" onChange={(n) => setDoc({ ...doc, mechanisms: { ...doc.mechanisms, capacity: n } })} />
+                </Section>
+                <Section title="Drivetrain">
+                  <div className="fields two">
+                    <Field id="dt" label="Type">
+                      <select id="dt" value={doc.drivetrain.type} onChange={(e) => setDoc({ ...doc, drivetrain: { ...doc.drivetrain, type: e.target.value } })}>
+                        <option value="mecanum">Mecanum</option>
+                        <option value="tank">Tank</option>
+                        <option value="swerve">Swerve</option>
+                      </select>
+                    </Field>
+                    <NumberField id="track" label="Track width" unit="in" value={doc.drivetrain.trackWidthIn} onChange={(n) => setDoc({ ...doc, drivetrain: { ...doc.drivetrain, trackWidthIn: n } })} />
+                  </div>
+                </Section>
+                <Section title="Motion limits">
+                  <Slider id="max-vel" label="Max velocity" value={doc.constraints.maxVelInPerS} min={0} max={80} step={1} unit="in/s" onChange={(n) => setDoc({ ...doc, constraints: { ...doc.constraints, maxVelInPerS: n } })} />
+                  <Slider id="max-acc" label="Max acceleration" value={doc.constraints.maxAccelInPerS2} min={0} max={80} step={1} unit="in/s²" onChange={(n) => setDoc({ ...doc, constraints: { ...doc.constraints, maxAccelInPerS2: n } })} />
+                  <Slider id="max-ang" label="Max angular velocity" value={doc.constraints.maxAngVelDegPerS} min={0} max={360} step={1} unit="°/s" onChange={(n) => setDoc({ ...doc, constraints: { ...doc.constraints, maxAngVelDegPerS: n } })} />
+                  <p className="note">Match these to your MeepMeep / Road Runner constraints.</p>
+                </Section>
+              </>
+            )}
 
-            <div className="card">
-              <h3>Chassis</h3>
-              <div className="form-grid">
-                <label htmlFor="chassis-l">Length (in)</label>
-                <input
-                  id="chassis-l"
-                  className="narrow"
-                  type="number"
-                  value={doc.chassis.lengthIn}
-                  onChange={(e) => setDoc({ ...doc, chassis: { ...doc.chassis, lengthIn: Number(e.target.value) } })}
-                />
-                <label htmlFor="chassis-w">Width (in)</label>
-                <input
-                  id="chassis-w"
-                  className="narrow"
-                  type="number"
-                  value={doc.chassis.widthIn}
-                  onChange={(e) => setDoc({ ...doc, chassis: { ...doc.chassis, widthIn: Number(e.target.value) } })}
-                />
-                <label htmlFor="chassis-h">Height (in)</label>
-                <input
-                  id="chassis-h"
-                  className="narrow"
-                  type="number"
-                  value={doc.chassis.heightIn ?? 10}
-                  onChange={(e) => setDoc({ ...doc, chassis: { ...doc.chassis, heightIn: Number(e.target.value) } })}
-                />
-                <label htmlFor="chassis-m">Mass (kg)</label>
-                <input
-                  id="chassis-m"
-                  className="narrow"
-                  type="number"
-                  value={doc.chassis.massKg}
-                  onChange={(e) => setDoc({ ...doc, chassis: { ...doc.chassis, massKg: Number(e.target.value) } })}
-                />
-              </div>
-              <Slider
-                id="cap"
-                label="Capacity"
-                value={doc.mechanisms.capacity}
-                min={0}
-                max={10}
-                step={1}
-                unit=""
-                onChange={(n) => setDoc({ ...doc, mechanisms: { ...doc.mechanisms, capacity: n } })}
-              />
-            </div>
+            {sel.kind === "camera" && (
+              <Section title="AprilTag camera">
+                {camera ? (
+                  <>
+                    <Slider id="fov" label="Field of view" value={camera.fovDeg ?? 70} min={30} max={120} step={1} unit="°" onChange={(n) => setCamera({ fovDeg: n })} />
+                    <Slider id="range" label="Detection range" value={camera.rangeIn ?? 96} min={12} max={200} step={1} unit="in" onChange={(n) => setCamera({ rangeIn: n })} />
+                  </>
+                ) : (
+                  <p className="note">This preset has no camera sensor.</p>
+                )}
+              </Section>
+            )}
 
-            <div className="card">
-              <h3>3D model</h3>
-              <p className="note">
-                Upload STL, OBJ, GLB, glTF, or STEP. Files convert to a light GLB for the viewer. Physics stays the chassis box unless you enable mesh collision (slower; for fidelity, not overnight PPO).
-              </p>
-              <input
-                ref={fileRef}
-                id="robot-cad"
-                type="file"
-                accept=".glb,.gltf,.stl,.obj,.step,.stp"
-                hidden
-                onChange={(e) => onUploadModel(e.target.files?.[0])}
-              />
-              <div className="row">
-                <button type="button" disabled={uploading} onClick={() => fileRef.current?.click()}>
-                  {uploading ? "Converting…" : "Upload model"}
-                </button>
-                <button type="button" disabled={!doc.visualAsset} onClick={fitChassis}>
-                  Fit chassis to model
-                </button>
-                <button type="button" disabled={!doc.visualAsset} onClick={() => void clearModel()}>
-                  Clear model
-                </button>
-              </div>
-              {typeof doc.visualAsset === "string" && doc.visualAsset && (
-                <p className="note">Loaded {doc.visualAsset}</p>
-              )}
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={doc.chassis.collisionShape === "mesh"}
-                  disabled={!doc.visualAsset}
-                  onChange={(e) =>
-                    setDoc({
-                      ...doc,
-                      chassis: { ...doc.chassis, collisionShape: e.target.checked ? "mesh" : "aabb" },
-                    })
-                  }
-                />
-                Use mesh for collision
-              </label>
-              <div className="form-grid">
-                <label htmlFor="off-x">Offset x (in)</label>
-                <input
-                  id="off-x"
-                  className="narrow"
-                  type="number"
-                  value={doc.visualOffset?.x ?? 0}
-                  onChange={(e) => patchOffset({ x: Number(e.target.value) })}
-                />
-                <label htmlFor="off-y">Offset y (in)</label>
-                <input
-                  id="off-y"
-                  className="narrow"
-                  type="number"
-                  value={doc.visualOffset?.y ?? 0}
-                  onChange={(e) => patchOffset({ y: Number(e.target.value) })}
-                />
-                <label htmlFor="off-z">Offset z (in)</label>
-                <input
-                  id="off-z"
-                  className="narrow"
-                  type="number"
-                  value={doc.visualOffset?.z ?? 0}
-                  onChange={(e) => patchOffset({ z: Number(e.target.value) })}
-                />
-                <label htmlFor="off-yaw">Yaw (deg)</label>
-                <input
-                  id="off-yaw"
-                  className="narrow"
-                  type="number"
-                  value={doc.visualOffset?.yawDeg ?? 0}
-                  onChange={(e) => patchOffset({ yawDeg: Number(e.target.value) })}
-                />
-              </div>
-              <Slider
-                id="off-scale"
-                label="Scale"
-                value={doc.visualOffset?.scale ?? 1}
-                min={0.1}
-                max={4}
-                step={0.05}
-                unit="×"
-                onChange={(n) => patchOffset({ scale: n })}
-              />
-            </div>
+            {sel.kind === "model" && (
+              <>
+                <Section title="Mesh">
+                  <p className="note">
+                    Upload STL, OBJ, GLB, glTF, or STEP. It is converted to a lightweight GLB for the viewer. Physics keeps using the chassis box unless mesh collision is on.
+                  </p>
+                  <input ref={fileRef} type="file" accept=".glb,.gltf,.stl,.obj,.step,.stp" hidden onChange={(e) => onUploadModel(e.target.files?.[0])} />
+                  <div className="row">
+                    <button type="button" className="btn" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                      <Icon name="upload" size={14} /> {uploading ? "Converting…" : hasModel ? "Replace model" : "Upload model"}
+                    </button>
+                    <button type="button" className="btn" disabled={!hasModel} onClick={fitChassis}>
+                      Fit chassis
+                    </button>
+                    <button type="button" className="btn danger" disabled={!hasModel} onClick={() => void clearModel()}>
+                      <Icon name="trash" size={14} /> Remove
+                    </button>
+                  </div>
+                  {hasModel && <p className="note mono">{doc.visualAsset}</p>}
+                  <Switch
+                    checked={doc.chassis.collisionShape === "mesh"}
+                    disabled={!hasModel}
+                    onChange={(v) => setDoc({ ...doc, chassis: { ...doc.chassis, collisionShape: v ? "mesh" : "aabb" } })}
+                  >
+                    Use mesh for collision
+                  </Switch>
+                  <p className="note">Slower. Use it for fidelity checks, not overnight training.</p>
+                </Section>
+                <Section title="Alignment">
+                  <div className="fields two">
+                    <NumberField id="off-x" label="Offset X" unit="in" value={doc.visualOffset?.x ?? 0} disabled={!hasModel} onChange={(n) => patchOffset({ x: n })} />
+                    <NumberField id="off-y" label="Offset Y" unit="in" value={doc.visualOffset?.y ?? 0} disabled={!hasModel} onChange={(n) => patchOffset({ y: n })} />
+                    <NumberField id="off-z" label="Offset Z" unit="in" value={doc.visualOffset?.z ?? 0} disabled={!hasModel} onChange={(n) => patchOffset({ z: n })} />
+                    <NumberField id="off-yaw" label="Yaw" unit="°" value={doc.visualOffset?.yawDeg ?? 0} disabled={!hasModel} onChange={(n) => patchOffset({ yawDeg: n })} />
+                  </div>
+                </Section>
+              </>
+            )}
 
             {selectedIntake && (
-              <div className="card">
-                <h3>Intake {selectedIntake.id}</h3>
-                <div className="form-grid">
-                  <label htmlFor="in-x">x (in)</label>
-                  <input
-                    id="in-x"
-                    type="number"
-                    className="narrow"
-                    value={selectedIntake.poseOnRobot?.x ?? 0}
-                    onChange={(e) => patchPose("intake", selectedIntake.id, { x: Number(e.target.value) })}
-                  />
-                  <label htmlFor="in-y">y (in)</label>
-                  <input
-                    id="in-y"
-                    type="number"
-                    className="narrow"
-                    value={selectedIntake.poseOnRobot?.y ?? 0}
-                    onChange={(e) => patchPose("intake", selectedIntake.id, { y: Number(e.target.value) })}
-                  />
-                  <label htmlFor="in-h">heading (deg)</label>
-                  <input
-                    id="in-h"
-                    type="number"
-                    className="narrow"
-                    value={selectedIntake.poseOnRobot?.headingDeg ?? 0}
-                    onChange={(e) => patchPose("intake", selectedIntake.id, { headingDeg: Number(e.target.value) })}
-                  />
-                </div>
-                <Slider
-                  id="in-w"
-                  label="Width"
-                  value={selectedIntake.widthIn ?? 12}
-                  min={2}
-                  max={18}
-                  step={0.5}
-                  unit="in"
-                  onChange={(n) =>
-                    setDoc({ ...doc, intakes: intakes.map((i) => (i.id === selectedIntake.id ? { ...i, widthIn: n } : i)) })
-                  }
-                />
-                <Slider
-                  id="in-r"
-                  label="Reach"
-                  value={selectedIntake.reachIn ?? 5}
-                  min={1}
-                  max={12}
-                  step={0.5}
-                  unit="in"
-                  onChange={(n) =>
-                    setDoc({ ...doc, intakes: intakes.map((i) => (i.id === selectedIntake.id ? { ...i, reachIn: n } : i)) })
-                  }
-                />
-                <Slider
-                  id="in-c"
-                  label="Cycle"
-                  value={selectedIntake.cycleTimeS ?? 0.4}
-                  min={0.05}
-                  max={3}
-                  step={0.05}
-                  unit="s"
-                  onChange={(n) =>
-                    setDoc({ ...doc, intakes: intakes.map((i) => (i.id === selectedIntake.id ? { ...i, cycleTimeS: n } : i)) })
-                  }
-                />
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={selectedIntake.canRunWhileMoving ?? true}
-                    onChange={(e) =>
-                      setDoc({
-                        ...doc,
-                        intakes: intakes.map((i) => (i.id === selectedIntake.id ? { ...i, canRunWhileMoving: e.target.checked } : i)),
-                      })
-                    }
-                  />
-                  Can run while moving
-                </label>
-              </div>
+              <>
+                <Section title="Placement">
+                  <div className="fields three">
+                    <NumberField id="in-x" label="X" unit="in" value={selectedIntake.poseOnRobot?.x ?? 0} onChange={(n) => patchPose("intake", selectedIntake.id, { x: n })} />
+                    <NumberField id="in-y" label="Y" unit="in" value={selectedIntake.poseOnRobot?.y ?? 0} onChange={(n) => patchPose("intake", selectedIntake.id, { y: n })} />
+                    <NumberField id="in-h" label="Heading" unit="°" value={selectedIntake.poseOnRobot?.headingDeg ?? 0} onChange={(n) => patchPose("intake", selectedIntake.id, { headingDeg: n })} />
+                  </div>
+                </Section>
+                <Section title="Mouth">
+                  <Slider id="in-w" label="Width" value={selectedIntake.widthIn ?? 12} min={2} max={18} step={0.5} unit="in" onChange={(n) => patchIntake(selectedIntake.id, { widthIn: n })} />
+                  <Slider id="in-r" label="Reach" value={selectedIntake.reachIn ?? 5} min={1} max={12} step={0.5} unit="in" onChange={(n) => patchIntake(selectedIntake.id, { reachIn: n })} />
+                  <Slider id="in-c" label="Cycle time" value={selectedIntake.cycleTimeS ?? 0.4} min={0.05} max={3} step={0.05} unit="s" onChange={(n) => patchIntake(selectedIntake.id, { cycleTimeS: n })} />
+                  <Switch checked={selectedIntake.canRunWhileMoving ?? true} onChange={(v) => patchIntake(selectedIntake.id, { canRunWhileMoving: v })}>
+                    Can run while driving
+                  </Switch>
+                </Section>
+              </>
             )}
 
             {selectedLauncher && (
-              <div className="card">
-                <h3>Launcher {selectedLauncher.id}</h3>
-                <div className="form-grid">
-                  <label htmlFor="ln-mode">Aim mode</label>
-                  <select
-                    id="ln-mode"
-                    value={selectedLauncher.aimMode || "chassis_fixed"}
-                    onChange={(e) =>
-                      setDoc({
-                        ...doc,
-                        launchers: launchers.map((l) =>
-                          l.id === selectedLauncher.id ? { ...l, aimMode: e.target.value as LauncherSpec["aimMode"] } : l,
-                        ),
-                      })
-                    }
-                  >
-                    <option value="chassis_fixed">chassis_fixed</option>
-                    <option value="turret">turret</option>
-                  </select>
-                  <label htmlFor="ln-x">x (in)</label>
-                  <input
-                    id="ln-x"
-                    type="number"
-                    className="narrow"
-                    value={selectedLauncher.poseOnRobot?.x ?? 0}
-                    onChange={(e) => patchPose("launcher", selectedLauncher.id, { x: Number(e.target.value) })}
-                  />
-                  <label htmlFor="ln-y">y (in)</label>
-                  <input
-                    id="ln-y"
-                    type="number"
-                    className="narrow"
-                    value={selectedLauncher.poseOnRobot?.y ?? 0}
-                    onChange={(e) => patchPose("launcher", selectedLauncher.id, { y: Number(e.target.value) })}
-                  />
-                  <label htmlFor="ln-z">z (in)</label>
-                  <input
-                    id="ln-z"
-                    type="number"
-                    className="narrow"
-                    value={selectedLauncher.poseOnRobot?.z ?? 12}
-                    onChange={(e) => patchPose("launcher", selectedLauncher.id, { z: Number(e.target.value) })}
-                  />
-                </div>
-                <Slider
-                  id="ln-yaw"
-                  label="Yaw"
-                  value={selectedLauncher.poseOnRobot?.headingDeg ?? 0}
-                  min={-180}
-                  max={180}
-                  step={1}
-                  unit="deg"
-                  onChange={(n) => patchPose("launcher", selectedLauncher.id, { headingDeg: n })}
-                />
-                <Slider
-                  id="ln-pitch"
-                  label="Pitch"
-                  value={selectedLauncher.poseOnRobot?.pitchDeg ?? 0}
-                  min={0}
-                  max={85}
-                  step={1}
-                  unit="deg"
-                  onChange={(n) => patchPose("launcher", selectedLauncher.id, { pitchDeg: n })}
-                />
-                <Slider
-                  id="ln-spd"
-                  label="Muzzle"
-                  value={selectedLauncher.muzzleSpeedInPerS ?? 200}
-                  min={40}
-                  max={400}
-                  step={5}
-                  unit="in/s"
-                  onChange={(n) =>
-                    setDoc({
-                      ...doc,
-                      launchers: launchers.map((l) => (l.id === selectedLauncher.id ? { ...l, muzzleSpeedInPerS: n } : l)),
-                    })
-                  }
-                />
-                <Slider
-                  id="ln-spin"
-                  label="Spin-up"
-                  value={selectedLauncher.spinupTimeS ?? 0}
-                  min={0}
-                  max={2}
-                  step={0.05}
-                  unit="s"
-                  onChange={(n) =>
-                    setDoc({
-                      ...doc,
-                      launchers: launchers.map((l) => (l.id === selectedLauncher.id ? { ...l, spinupTimeS: n } : l)),
-                    })
-                  }
-                />
-                <Slider
-                  id="ln-cyc"
-                  label="Cycle"
-                  value={selectedLauncher.cycleTimeS ?? 0.6}
-                  min={0.05}
-                  max={3}
-                  step={0.05}
-                  unit="s"
-                  onChange={(n) =>
-                    setDoc({
-                      ...doc,
-                      launchers: launchers.map((l) => (l.id === selectedLauncher.id ? { ...l, cycleTimeS: n } : l)),
-                    })
-                  }
-                />
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={selectedLauncher.canLaunchWhileMoving ?? true}
-                    onChange={(e) =>
-                      setDoc({
-                        ...doc,
-                        launchers: launchers.map((l) =>
-                          l.id === selectedLauncher.id ? { ...l, canLaunchWhileMoving: e.target.checked } : l,
-                        ),
-                      })
-                    }
-                  />
-                  Can launch while moving
-                </label>
-              </div>
+              <>
+                <Section title="Placement">
+                  <div className="fields three">
+                    <NumberField id="ln-x" label="X" unit="in" value={selectedLauncher.poseOnRobot?.x ?? 0} onChange={(n) => patchPose("launcher", selectedLauncher.id, { x: n })} />
+                    <NumberField id="ln-y" label="Y" unit="in" value={selectedLauncher.poseOnRobot?.y ?? 0} onChange={(n) => patchPose("launcher", selectedLauncher.id, { y: n })} />
+                    <NumberField id="ln-z" label="Z" unit="in" value={selectedLauncher.poseOnRobot?.z ?? 12} onChange={(n) => patchPose("launcher", selectedLauncher.id, { z: n })} />
+                  </div>
+                  <Field id="ln-mode" label="Aim mode">
+                    <select id="ln-mode" value={selectedLauncher.aimMode || "chassis_fixed"} onChange={(e) => patchLauncher(selectedLauncher.id, { aimMode: e.target.value as LauncherSpec["aimMode"] })}>
+                      <option value="chassis_fixed">Fixed to chassis</option>
+                      <option value="turret">Turret</option>
+                    </select>
+                  </Field>
+                </Section>
+                <Section title="Shot">
+                  <Slider id="ln-yaw" label="Yaw" value={selectedLauncher.poseOnRobot?.headingDeg ?? 0} min={-180} max={180} step={1} unit="°" onChange={(n) => patchPose("launcher", selectedLauncher.id, { headingDeg: n })} />
+                  <Slider id="ln-pitch" label="Hood pitch" value={selectedLauncher.poseOnRobot?.pitchDeg ?? 0} min={0} max={85} step={1} unit="°" onChange={(n) => patchPose("launcher", selectedLauncher.id, { pitchDeg: n })} />
+                  <Slider id="ln-spd" label="Muzzle speed" value={selectedLauncher.muzzleSpeedInPerS ?? 200} min={40} max={400} step={5} unit="in/s" onChange={(n) => patchLauncher(selectedLauncher.id, { muzzleSpeedInPerS: n })} />
+                  <Slider id="ln-spin" label="Spin-up time" value={selectedLauncher.spinupTimeS ?? 0} min={0} max={2} step={0.05} unit="s" onChange={(n) => patchLauncher(selectedLauncher.id, { spinupTimeS: n })} />
+                  <Slider id="ln-cyc" label="Cycle time" value={selectedLauncher.cycleTimeS ?? 0.6} min={0.05} max={3} step={0.05} unit="s" onChange={(n) => patchLauncher(selectedLauncher.id, { cycleTimeS: n })} />
+                  <Switch checked={selectedLauncher.canLaunchWhileMoving ?? true} onChange={(v) => patchLauncher(selectedLauncher.id, { canLaunchWhileMoving: v })}>
+                    Can launch while driving
+                  </Switch>
+                </Section>
+              </>
             )}
-
-            <div className="card">
-              <h3>Camera</h3>
-              <Slider
-                id="fov"
-                label="FOV"
-                value={camera?.fovDeg ?? 70}
-                min={30}
-                max={120}
-                step={1}
-                unit="deg"
-                onChange={(n) => setCamera({ fovDeg: n })}
-              />
-              <Slider
-                id="range"
-                label="Range"
-                value={camera?.rangeIn ?? 96}
-                min={12}
-                max={200}
-                step={1}
-                unit="in"
-                onChange={(n) => setCamera({ rangeIn: n })}
-              />
-            </div>
-          </div>
+          </Panel>
         </div>
-
-        <div className="card">
-          <h3>Save</h3>
-          <div className="row">
-            <button className="primary" type="button" onClick={save}>
-              Save robot preset
-            </button>
-          </div>
-          <label htmlFor="save-as">Save as new id</label>
-          <div className="row">
-            <input
-              id="save-as"
-              placeholder="team_hood_v1"
-              value={saveAsId}
-              onChange={(e) => setSaveAsId(e.target.value)}
-              style={{ maxWidth: 280 }}
-            />
-            <button type="button" onClick={saveAs}>
-              Save as new
-            </button>
-          </div>
-          <p className="note">Use Save as so shipped presets stay intact. Ids are lowercase with underscores.</p>
-        </div>
-        {errs.map((e) => (
-          <div key={e} className="banner">
-            {e}
-          </div>
-        ))}
-        <p className="note">{msg}</p>
       </div>
-    </div>
+    </main>
   );
 }

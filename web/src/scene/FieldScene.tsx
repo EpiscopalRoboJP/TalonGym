@@ -55,8 +55,8 @@ function overlayColor(el: El) {
   const tags = el.tags || [];
   if (tags.some((t) => t.includes("restricted"))) return theme.restricted;
   if (el.type === "tape" || tags.some((t) => t.includes("launch"))) return theme.gold;
-  if (tags.some((t) => t.includes("start"))) return el.alliance === "blue" ? theme.allianceBlue : theme.maroon;
-  return el.alliance === "blue" ? theme.allianceBlue : theme.maroon;
+  if (tags.some((t) => t.includes("start"))) return el.alliance === "blue" ? theme.allianceBlue : theme.allianceRed;
+  return el.alliance === "blue" ? theme.allianceBlue : theme.allianceRed;
 }
 
 function overlayKey(el: El) {
@@ -304,7 +304,7 @@ export function RobotActor({
 export function RobotPreview({ design, showFov = false, showHull = false }: { design: RobotDesign; showFov?: boolean; showHull?: boolean }) {
   const span = Math.max(design.chassis?.lengthIn || 18, design.chassis?.widthIn || 18, 24);
   return (
-    <Canvas camera={{ position: [span * 0.9, span * 1.1, span * 0.9], fov: 40 }} style={{ width: "100%", height: "100%" }}>
+    <Canvas camera={{ position: [span * 2.1, span * 1.8, span * 2.1], fov: 40 }} style={{ width: "100%", height: "100%" }}>
       <color attach="background" args={[theme.scene]} />
       <ambientLight intensity={0.7} />
       <directionalLight position={[40, 80, 30]} intensity={1} />
@@ -367,7 +367,7 @@ function FieldMeshes({
         ).map(([x, y, bw, bd], i) => (
           <mesh key={`wall-${i}`} position={[x, 6, -y]}>
             <boxGeometry args={[bw, 12, bd]} />
-            <meshStandardMaterial color={theme.muted} />
+            <meshStandardMaterial color={theme.mapLabel} />
           </mesh>
         ))}
       {elements.map((el, idx) => {
@@ -403,7 +403,7 @@ function FieldMeshes({
             ? theme.allianceBlueBright
             : el.isOccluder
               ? theme.occluder
-              : theme.maroon;
+              : theme.allianceRed;
         return (
           <mesh key={`${el.id}-${idx}`} position={[inch(pose.x), h / 2, inch(-pose.y)]}>
             <boxGeometry args={[width, h, depth]} />

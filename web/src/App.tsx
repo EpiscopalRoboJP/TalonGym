@@ -1,16 +1,27 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getJson, type Health } from "./api";
 import { ToastHost } from "./ToastHost";
+import { BrandMark } from "./ui";
 import { ReplayPage } from "./routes/Replay";
 import { TrainPage } from "./routes/Train";
 import { FieldBuilderPage } from "./routes/FieldBuilder";
 import { RobotBuilderPage } from "./routes/RobotBuilder";
 import { ComparePage } from "./routes/Compare";
 
+const NAV_MAIN: [string, string][] = [
+  ["/train", "Train"],
+  ["/compare", "Evaluate"],
+  ["/replay", "Replay"],
+];
+const NAV_BUILD: [string, string][] = [
+  ["/build/robot", "Robot"],
+  ["/build/field", "Field"],
+];
+
 export function App() {
-  const [health, setHealth] = useState("checking…");
-  const [ok, setOk] = useState(false);
+  const [health, setHealth] = useState<Health | null>(null);
+  const [state, setState] = useState<"checking" | "ok" | "down">("checking");
 
   useEffect(() => {
     let cancelled = false;
@@ -18,13 +29,11 @@ export function App() {
       try {
         const h = await getJson<Health>("/health");
         if (cancelled) return;
-        setOk(Boolean(h.ok));
-        const profile = h.computeProfile ? ` · ${h.computeProfile}` : "";
-        setHealth(`${h.engine}${h.db ? " · " + h.db : ""}${profile} · ok`);
+        setHealth(h);
+        setState(h.ok ? "ok" : "down");
       } catch {
         if (cancelled) return;
-        setOk(false);
-        setHealth("API offline");
+        setState("down");
       }
     }
     ping();
@@ -35,40 +44,49 @@ export function App() {
     };
   }, []);
 
+  const detail = health ? [health.computeProfile, health.engine, health.db, health.version && `v${health.version}`].filter(Boolean).join(" · ") : "";
+  const link = ({ isActive }: { isActive: boolean }) => (isActive ? "active" : "");
+
   return (
     <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          TALON<span>GYM</span>
-        </div>
-        <nav aria-label="Lab">
-          <NavLink to="/replay" className={({ isActive }) => (isActive ? "active" : "")}>
-            Replay
-          </NavLink>
-          <NavLink to="/train" className={({ isActive }) => (isActive ? "active" : "")}>
-            Train
-          </NavLink>
-          <NavLink to="/build/field" className={({ isActive }) => (isActive ? "active" : "")}>
-            Field
-          </NavLink>
-          <NavLink to="/build/robot" className={({ isActive }) => (isActive ? "active" : "")}>
-            Robot
-          </NavLink>
-          <NavLink to="/compare" className={({ isActive }) => (isActive ? "active" : "")}>
-            Compare
-          </NavLink>
+      <header className="header">
+        <NavLink to="/train" className="brand" aria-label="TalonGym Lab home">
+          <span className="brand-mark">
+            <BrandMark />
+          </span>
+          <span className="brand-name">
+            <b>TALONGYM</b>
+            <small>Autonomous Lab</small>
+          </span>
+        </NavLink>
+        <nav className="nav" aria-label="Lab">
+          {NAV_MAIN.map(([to, label]) => (
+            <NavLink key={to} to={to} className={link}>
+              {label}
+            </NavLink>
+          ))}
+          <span className="nav-sep" aria-hidden="true" />
+          {NAV_BUILD.map(([to, label]) => (
+            <NavLink key={to} to={to} className={link}>
+              {label}
+            </NavLink>
+          ))}
         </nav>
-        <div className={`health ${ok ? "ok" : ""}`}>{health}</div>
+        <div className={`status ${state === "checking" ? "" : state}`} title={detail || undefined}>
+          <i aria-hidden="true" />
+          <span>{state === "checking" ? "Connecting…" : state === "ok" ? "API connected" : "API offline"}</span>
+          {state === "ok" && health?.computeProfile && <span className="status-detail">· {health.computeProfile}</span>}
+        </div>
       </header>
       <ToastHost />
       <Routes>
-        <Route path="/" element={<ReplayPage />} />
-        <Route path="/replay" element={<ReplayPage />} />
+        <Route path="/" element={<Navigate to="/train" replace />} />
         <Route path="/replay/:replayId?" element={<ReplayPage />} />
         <Route path="/train/:runId?" element={<TrainPage />} />
         <Route path="/build/field" element={<FieldBuilderPage />} />
         <Route path="/build/robot" element={<RobotBuilderPage />} />
         <Route path="/compare" element={<ComparePage />} />
+        <Route path="*" element={<Navigate to="/train" replace />} />
       </Routes>
     </div>
   );

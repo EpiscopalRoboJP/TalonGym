@@ -23,8 +23,8 @@ Waypoints are taken from the first robot pose each frame and **decimated** (~8 i
 
 ## Road Runner from the Lab
 
-- Replay → **Export** → **Road Runner 1.0**
-- Compare → per evaluation **Road Runner 1.0** (uses that eval’s best replay)
+- Replay → **Export** (dialog with Copy)
+- Evaluate → the code button on a leaderboard row (uses that eval’s best replay)
 
 Both call `POST /api/v1/replays/{id}/export/roadrunner`. Training jobs also store a `roadrunner` artifact on the run.
 

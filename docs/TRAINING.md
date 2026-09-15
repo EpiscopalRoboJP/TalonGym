@@ -97,7 +97,7 @@ Runs persist in SQLite. Open a past run from the list to reconnect the WebSocket
 | `var/ckpts/<runId>/latest.zip` | Lab/API run latest |
 | `var/ckpts/<runId>/best.zip` | Lab/API run best |
 
-`train_ppo(..., resume=True)` reloads `latest.zip` in that `save_dir`. The Lab start button does not pass `resume`; POST `/api/v1/runs` with `"resume": true` continues a matching save dir. Evaluate a zip from Compare (**Optional checkpoint eval**) or `POST /evaluations` with `"policy": "checkpoint"` and `runId`.
+`train_ppo(..., resume=True)` reloads `latest.zip` in that `save_dir`. The Lab start button does not pass `resume`; POST `/api/v1/runs` with `"resume": true` continues a matching save dir. Evaluate a zip from the Lab **Evaluate** page (*Trained checkpoint*) or `POST /evaluations` with `"policy": "checkpoint"` and `runId`.
 
 ## What “best” means during training
 
