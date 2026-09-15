@@ -48,6 +48,7 @@
         "entCoef": { "type": "number", "default": 0.01 },
         "lstmHiddenSize": { "type": "integer", "default": 256 },
         "bcWarmupSteps": { "type": "integer", "minimum": 0, "default": 0 },
+        "anchorTolerance": { "type": "number", "minimum": 0, "default": 3, "description": "Roll back to the best checkpoint (and halve the learning rate) when held-out eval under final-stage rules falls this many objective points below it; 0 disables." },
         "groupSize": { "type": "integer", "minimum": 2, "default": 4, "description": "GRPO rollouts per seed." }
       }
     },

@@ -20,13 +20,11 @@ export function Sparkline({
   const padY = 10;
   const nums = values.filter((v) => Number.isFinite(v));
   if (nums.length < 1) {
+    // HTML rather than SVG so the text never scales with the panel's aspect ratio.
     return (
-      <svg className="chart" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label={label}>
-        <rect x="0.5" y="0.5" width={w - 1} height={h - 1} rx="6" fill="none" stroke={theme.line} strokeDasharray="4 4" />
-        <text x={w / 2} y={h / 2 + 4} fill={theme.muted} fontSize="12" textAnchor="middle">
-          No samples yet
-        </text>
-      </svg>
+      <div className="chart chart-empty" role="img" aria-label={label}>
+        No samples yet
+      </div>
     );
   }
   const series = nums.length === 1 ? [nums[0], nums[0]] : nums;

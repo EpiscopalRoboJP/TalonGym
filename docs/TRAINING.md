@@ -57,11 +57,12 @@ python -m talongym train --steps 8192
 The loop:
 
 1. Builds `FTCAutoEnv` with Dict observations and `AsymmetricLstmPolicy` (actor drops `_privileged`).
-2. Optional BC warmup (`algorithm.bcWarmupSteps`) from the scripted AUTO.
+2. Optional BC warmup (`algorithm.bcWarmupSteps`, rounded up to whole episodes) from the scripted AUTO: clones the actor through its LSTM on whole episodes, fits the critic to the same episodes' returns, and sets a small exploration std. Without the critic fit, PPO's first advantages are noise and a few thousand steps undo the clone. The warmup teaches the script's decisions, not its timeline: every demonstration after the first runs at its own pace, pauses a random time before starting, and adds noise to the executed targets, while labels stay the script's decision for the state reached. With identical demonstrations the clone keys "launch" off elapsed time instead of being at the launch spot, and PPO then slides the launch earlier until every shot misses. Takes one to two minutes on CPU.
 3. Wraps with `EncoderOnlyObsAssertWrapper` so privileged motif/match vars cannot leak into the actor.
 4. Applies curriculum unlocks on each reset (`scripted_launch` / `ballistic_launch` / `full_noise`).
-5. Saves `var/ckpts/latest.zip` every chunk and `var/ckpts/best.zip` when the held-out **objective** improves.
-6. Prints `true=` (episode true-score mean) and `eval=` (held-out true-score mean). Use `eval`, not shaping.
+5. Saves `var/ckpts/latest.zip` every chunk and `var/ckpts/best.zip` when the held-out **objective** improves. In-loop eval always uses the curriculum's final-stage rules (ballistic launch, full noise), so "best" means best under the rules the finished policy faces. After a BC warmup the clone is evaluated and saved as the first `best.zip`.
+6. Keeps the policy anchored to *outcomes*, not to the script's actions. The clone is only a starting point: nothing pulls later updates back toward the scripted poses, so PPO is free to find a different launch spot, route, or timing. `algorithm.anchorTolerance` (default 3 objective points) guards the scoring behavior instead: when held-out eval on the fixed seed set falls that far below `best.zip`, training rolls back to it and halves the learning rate. `best.zip` only moves on a strict improvement. The dashboard reports `anchorRollbacks` and the current `learningRate`; set the tolerance to 0 to disable rollbacks.
+7. Prints `true=` (episode true-score mean) and `eval=` (held-out true-score mean). Use `eval`, not shaping.
 
 A short run is a smoke test. Lightweight presets declare `budget.totalEnvSteps` of 5e6 and a 4-hour wall-clock cap; pass a larger `--steps` for an overnight CLI job.
 
@@ -117,15 +118,16 @@ Unlocks come from the training preset, not engine code. BIOBUZZ lightweight:
 
 ```json
 "curriculum": [
-  { "untilFrac": 0.25, "unlock": ["scripted_launch"] },
   { "untilFrac": 0.7, "unlock": ["ballistic_launch"] },
   { "untilFrac": 1.0, "unlock": ["ballistic_launch", "full_noise"] }
 ]
 ```
 
+The `bc_then_ppo` presets train under real launch physics from the start. A `scripted_launch` stage scores a launch from anywhere, so PPO learns to fire off the launch spot and those shots miss once `ballistic_launch` arrives; keep it only for runs that learn from scratch without a clone.
+
 | Unlock | Effect |
 |--------|--------|
-| `scripted_launch` | Teleport / auto-aim into the CELL (early BC) |
+| `scripted_launch` | Teleport / auto-aim into the CELL (from-scratch runs only; see above) |
 | `ballistic_launch` | 3D muzzle velocity vs the mesh field |
 | `full_noise` | Full domain randomization scales |
 | `scripted_teammate` / `scripted_opponent` | Override teammate/opponent policy for that stage |
@@ -134,11 +136,11 @@ BIOBUZZ AUTO has no motif. `motif_known_at_t0` remains a generic unlock for a fu
 
 ## Action tier
 
-Shipped presets use `high_level_waypoint`: target pose (inches / rad), speed fraction, discrete mechanism. That maps onto Road Runner export — the only field path (paste into an AUTO OpMode; Control Hub runs it). `low_level_velocity` exists on the env (`vx, vy, ω`) for transfer work; do not use it if you need a pasteable AUTO.
+Shipped presets use `high_level_waypoint`: target pose (inches / rad), speed fraction, discrete mechanism. The follower plans a route to the target around field colliders and the other robots (3 in clearance past the chassis half-width), moves targets the chassis cannot occupy to the nearest pose it can, and brakes to stop on them. Road Runner export — the only field path (paste into an AUTO OpMode; Control Hub runs it) — follows the driven path, so it includes those detours. `low_level_velocity` exists on the env (`vx, vy, ω`) for transfer work; do not use it if you need a pasteable AUTO.
 
 ## Scripted baseline
 
-[`python/talongym/training/policies.py`](../python/talongym/training/policies.py) is LEAVE + intake + one score, per season slug. Use it to confirm the env scores, not as “the auto.” Compare trained checkpoints against it on [EVALUATION.md](EVALUATION.md).
+[`python/talongym/training/policies.py`](../python/talongym/training/policies.py) is the BIOBUZZ AUTO baseline for the default 18 in mecanum: launch the 4 preloads from the alliance launch spot (HIVE TIP, 20), then PARK in the LOADING ZONE clear of the wall (PARK 5 + LEAVE 3), leaving for the park once the remaining time only just covers the drive. It commands only those destinations and lets the follower route around the HIVE frames and robots. Each start slot has its own launch and park pose, so a scripted pair does not collide. It scores 28 on every seed in both teleport and ballistic launch modes. It does not chase loose POLLEN, which scores nothing in AUTO unless it completes a second tip. Poses are hardcoded for this field and robot; re-check them after changing either. It is the BC teacher for `bc_then_ppo` and the bar on [EVALUATION.md](EVALUATION.md).
 
 ## Optional RLlib
 

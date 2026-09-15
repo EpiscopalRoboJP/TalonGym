@@ -19,6 +19,9 @@ except ImportError:  # pragma: no cover
     RecurrentMultiInputActorCriticPolicy = object  # type: ignore
 
 
+OBS_SCALE_CAP = 100.0
+
+
 def _sorted_keys(observation_space: spaces.Dict, include_privileged: bool) -> list[str]:
     keys = sorted(observation_space.spaces.keys())
     if include_privileged:
@@ -31,8 +34,14 @@ class SplitDictExtractor(BaseFeaturesExtractor):
         super().__init__(observation_space, features_dim)
         self._keys = _sorted_keys(observation_space, include_privileged)
         n = 0
+        # Raw inputs span inches (up to +/-200) and 0/1 flags; unscaled, they saturate the LSTM
+        # and the actor ignores its observations. Divide each key by its bound, capped at OBS_SCALE_CAP.
+        self._scales: dict[str, float] = {}
         for key in self._keys:
-            n += int(np.prod(cast(tuple[int, ...], observation_space.spaces[key].shape)))
+            box = cast(spaces.Box, observation_space.spaces[key])
+            n += int(np.prod(cast(tuple[int, ...], box.shape)))
+            bound = float(np.max(np.abs(np.concatenate([np.ravel(box.low), np.ravel(box.high)]))))
+            self._scales[key] = min(max(bound, 1.0), OBS_SCALE_CAP) if np.isfinite(bound) else OBS_SCALE_CAP
         self.linear = nn.Sequential(nn.Linear(max(1, n), features_dim), nn.ReLU())
 
     def forward(self, observations: dict[str, torch.Tensor]) -> torch.Tensor:
@@ -40,7 +49,7 @@ class SplitDictExtractor(BaseFeaturesExtractor):
         for key in self._keys:
             if key not in observations:
                 continue
-            parts.append(observations[key].flatten(start_dim=1))
+            parts.append(observations[key].flatten(start_dim=1) / self._scales[key])
         if not parts:
             batch = next(iter(observations.values())).shape[0]
             x = torch.zeros(batch, 1, device=next(iter(observations.values())).device)

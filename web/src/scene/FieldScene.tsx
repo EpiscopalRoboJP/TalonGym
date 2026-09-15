@@ -377,6 +377,8 @@ function FieldMeshes({
         const pose = el.pose || { x: 0, y: 0 };
         const sh = el.shape || { kind: "aabb" };
         if (el.type === "wall") return null;
+        // Launch spots are sim targets for policies, not field markings.
+        if ((el.tags || []).includes("launch_spot")) return null;
         if (hideSchematicSolid(el, cadReady)) return null;
         if (isFlatOverlay(el)) {
           const restricted = (el.tags || []).some((t) => t.includes("restricted"));

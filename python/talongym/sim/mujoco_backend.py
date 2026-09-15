@@ -272,20 +272,20 @@ class MujocoFieldBackend:
             self._data.qpos[adr : adr + 3] = [mx, my, mz]
             self._data.qvel[vel : vel + 3] = [body.vx, body.vz, -body.vy]
 
-    def _contact_flags(self, robot_ids: set[str], piece_ids: set[str]) -> ContactSet:
+    def _contact_flags(self, robot_ids: set[str], dynamic_ids: set[str]) -> ContactSet:
+        """Flag contacts that involve a driven robot; a parked robot resting on a wall is not a hit."""
         flags = ContactSet()
         ncon = int(self._data.ncon)
         for i in range(ncon):
             c = self._data.contact[i]
-            n1 = self._geom_name(int(c.geom1))
-            n2 = self._geom_name(int(c.geom2))
-            names = {n1, n2}
-            hits_robot = any(n.startswith(rid) for rid in robot_ids for n in names)
+            names = (self._geom_name(int(c.geom1)), self._geom_name(int(c.geom2)))
+            robots = {rid for rid in robot_ids for n in names if n.startswith(f"{rid}_")}
+            hits_robot = bool(robots)
             hits_piece = any(n.startswith("piece_") for n in names)
             hits_wall = any(n.startswith("wall_") or "frame" in n for n in names)
-            if hits_robot and hits_wall:
+            if hits_wall and robots & dynamic_ids:
                 flags.wall = True
-            if hits_robot and any(other != rid and n.startswith(other) for rid in robot_ids for other in robot_ids for n in names):
+            if len(robots) == 2 and robots & dynamic_ids:
                 flags.robot = True
             if hits_piece and hits_wall:
                 flags.piece = True
@@ -330,11 +330,11 @@ class MujocoFieldBackend:
             self._read_robot(body)
         for piece in state.pieces:
             self._read_piece(piece)
-        flags = self._contact_flags({b.id for b in state.robots}, live_piece_ids)
+        flags = self._contact_flags({b.id for b in state.robots}, {b.id for b in state.robots if b.dynamic})
         # Keep chassis inside the perimeter even if a mesh gap exists.
         for body in state.robots:
             w, _r = _resolve_chassis(body, state.walls, state.robots, self.hw, self.hd)
-            flags.wall = flags.wall or w
+            flags.wall = flags.wall or (w and body.dynamic)
         return flags
 
     def contacts(self, index: int = 0) -> ContactSet:

@@ -259,9 +259,10 @@ class RewardBreakdown:
 
 Default shaping (coefficients in the training config, not the scoring preset):
 
-- +progress toward nearest useful piece / score volume (potential difference).
+- +progress along the AUTO plan (potential difference): while loaded, the drive to the alliance `launch_spot` plus the drive from there to the park zone; once empty, the drive to the park zone. Routes go around colliders. The two distances match at the launch spot, so launching there is neither rewarded nor charged. Fields without a launch spot or park zone fall back to the goal and the nearest reachable piece.
 - −0.01 per second (time cost).
 - −0.5 on wall contact impulse above threshold; −2.0 on robot-robot contact.
+- −2.0 per launch that has scored nothing within 2 s (`LAUNCH_SCORE_WINDOW_S`). Without it PPO reinforces firing a little earlier, which scores near the launch spot, while misses farther out only cost a delayed lost threshold.
 - 0 motif bonus in shaping (avoid leaking). Pattern points arrive only via the rule DAG at `phaseEnd`.
 
 ### `reset` / `step` semantics

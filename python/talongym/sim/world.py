@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from talongym.assets.mjcf_field import collider_height
 from talongym.presets.loader import LoadedPresets
 from talongym.robot.drivetrain import clip_twist
 from talongym.robot.mechanisms import chassis_moving, launcher_aim, muzzle_velocity, piece_in_intake, pose_world
@@ -15,9 +16,12 @@ from talongym.rules.engine import MECHANISM_VERBS, RuleContext, RuleEngine, Tick
 from talongym.sim.geometry import (
     AABB,
     deg_to_rad,
+    detour_waypoints,
+    path_length,
     point_in_shape,
     point_in_volume,
     polygons_overlap,
+    push_out_of_boxes,
     rad_to_deg,
     shape_from_element,
     wrap_angle,
@@ -52,6 +56,13 @@ class Piece:
 
 # A spawn this far above resting height is sitting in a fixture, not on the tiles.
 STAGED_Z_TOL_IN = 0.25
+# FTC perimeter panels' inner face sits this far inside fieldSizeIn; spawns stay clear of it.
+PERIMETER_FACE_INSET_IN = 1.4
+# A launched piece that has not scored this long after leaving the launcher counts as a miss.
+LAUNCH_SCORE_WINDOW_S = 2.0
+# Waypoint-follower routes keep the chassis this far beyond its half-width from obstacles: a square
+# chassis' corners reach 0.41 x half-width further while it rotates (3.7 in for 18 in).
+FOLLOWER_CLEARANCE_IN = 3.0
 
 
 @dataclass
@@ -91,7 +102,7 @@ class World:
             for el in self.elements
             if el.get("isTrigger")
         }
-        self.obstacles: list[AABB] = []
+        collider_els: list[tuple[dict[str, Any], AABB]] = []
         for el in self.elements:
             if not el.get("isCollider"):
                 continue
@@ -99,7 +110,8 @@ class World:
                 continue
             sh = self.element_shapes.get(el["id"])
             if isinstance(sh, AABB) and sh.hx < 70 and sh.hy < 70:
-                self.obstacles.append(sh)
+                collider_els.append((el, sh))
+        self.obstacles: list[AABB] = [sh for _el, sh in collider_els]
         self.occluders: list[AABB] = []
         for el in self.elements:
             if el.get("isOccluder"):
@@ -131,8 +143,17 @@ class World:
                 self._robot_kind = "aabb"
             self.robot_hz = float(chassis.get("heightIn") or 10) / 2.0
         self.backend = self._make_backend(fw / 2.0, fd / 2.0)
+        # Footprints a chassis cannot drive through, for route planning and reward shaping.
+        self.nav_obstacles: list[AABB] = list(self.obstacles)
         if getattr(self.backend, "name", "") == "mujoco_field":
             self.obstacles = []
+            # MJCF chassis boxes ride 0.2 in above the floor; raised fixtures clear of that are driven under.
+            chassis_top = 2.0 * self.robot_hz + 0.2
+            self.nav_obstacles = [
+                sh
+                for el, sh in collider_els
+                if float((el.get("pose") or {}).get("z") or 6) - collider_height(el) / 2.0 < chassis_top
+            ]
         mech = self.robot.get("mechanisms") or {}
         self.capacity = int(mech.get("capacity", 3))
         self.intake_time = float(mech.get("intakeCycleTimeS", 0.4))
@@ -182,6 +203,8 @@ class World:
         self.wall_hit = False
         self.robot_hit = False
         self.piece_hit = False
+        # Per robot, launches judged as misses during the last step().
+        self.missed_launches: dict[str, int] = {}
         self.vision_hits: list[dict[str, Any]] = []
         self.last_events: list[TickEvent] = []
         self.pending_piece_ops: list[tuple[str, str | None, str | None]] = []
@@ -287,8 +310,21 @@ class World:
         self.match_vars = match_vals
         self.accumulators.update(acc_seed)
         self.observed_vars = {k: None for k in self.match_vars}
+        self.robots = {}
+        self._spawn_robots(static_teammate=static_teammate, opponent_mode=opponent_mode, live_teammate=live_teammate)
+        self._spawn_pieces()
+        self.prev_occupancy = self._occupancy()
+        self.vision_hits = []
+        self.pending_piece_ops = []
+        self.backend.reset_batch(1)
+        self._sense()
+
+    def _spawn_pieces(self) -> None:
         self.pieces = {}
         pid = 0
+        half_w = float(self.field["fieldSizeIn"]["width"]) / 2.0 - PERIMETER_FACE_INSET_IN
+        half_d = float(self.field["fieldSizeIn"]["depth"]) / 2.0 - PERIMETER_FACE_INSET_IN
+        xy_sigma, _ = self.spawn_jitter_sigma()
         for spawn in self.field.get("spawns") or []:
             ptype = spawn["pieceTypeId"]
             spec = self.piece_types[ptype]
@@ -298,34 +334,48 @@ class World:
             else:
                 rad = max(float(sh.get("width") or 3.0), float(sh.get("depth") or 3.0)) / 2.0
             color = (spec.get("attributes") or {}).get("color")
-            xy_sigma, _ = self.spawn_jitter_sigma()
-            for pose in spawn.get("poses") or []:
-                z = float(pose.get("z") or rad)
-                staged = z > rad + STAGED_Z_TOL_IN or self._inside_fixture(float(pose["x"]), float(pose["y"]))
-                jx = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 and not staged else 0.0
-                jy = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 and not staged else 0.0
+            # Preloads start inside the robot the spawn id names; without that robot they are not on the field.
+            holder = None
+            if spawn.get("preloadEligible"):
+                holder = next((rs for rid, rs in self.robots.items() if str(spawn["id"]).startswith(f"{rid}_")), None)
+                if holder is None:
+                    continue
+            poses = list(spawn.get("poses") or [])
+            staged_flags = [
+                float(pose.get("z") or rad) > rad + STAGED_Z_TOL_IN or self._inside_fixture(float(pose["x"]), float(pose["y"]))
+                for pose in poses
+            ]
+            # One offset per spawn group keeps rows from jittering into each other,
+            # bounded so no piece starts through the perimeter.
+            loose = [pose for pose, staged in zip(poses, staged_flags, strict=True) if not staged]
+            jx = jy = 0.0
+            if holder is None and loose and xy_sigma > 0:
+                xs = [float(pose["x"]) for pose in loose]
+                ys = [float(pose["y"]) for pose in loose]
+                jx = float(np.clip(self.rng.normal(0, xy_sigma), -(half_w - rad) - min(xs), (half_w - rad) - max(xs)))
+                jy = float(np.clip(self.rng.normal(0, xy_sigma), -(half_d - rad) - min(ys), (half_d - rad) - max(ys)))
+            for pose, staged in zip(poses, staged_flags, strict=True):
+                if holder is not None and len(holder.held) >= self.capacity:
+                    break
                 name = f"p{pid}"
                 pid += 1
                 piece = Piece(
                     id=name,
                     type_id=ptype,
-                    x=float(pose["x"]) + jx,
-                    y=float(pose["y"]) + jy,
+                    x=float(pose["x"]) + (0.0 if staged else jx),
+                    y=float(pose["y"]) + (0.0 if staged else jy),
                     radius=rad,
                     attrs={"color": color, "passed_goal_top": False, "passed_archway": False},
                     restitution=float(spec.get("restitution") or 0.3),
                     mass=float(spec.get("massKg") or 0.1),
-                    z=z,
-                    staged=staged,
+                    z=float(pose.get("z") or rad),
+                    staged=staged and holder is None,
                 )
+                if holder is not None:
+                    piece.held_by = holder.body.id
+                    piece.x, piece.y, piece.z = holder.body.x, holder.body.y, holder.body.z
+                    holder.held.append(name)
                 self.pieces[name] = piece
-        self.robots = {}
-        self._spawn_robots(static_teammate=static_teammate, opponent_mode=opponent_mode, live_teammate=live_teammate)
-        self.prev_occupancy = self._occupancy()
-        self.vision_hits = []
-        self.pending_piece_ops = []
-        self.backend.reset_batch(1)
-        self._sense()
 
     def _inside_fixture(self, x: float, y: float) -> bool:
         for el in self.elements:
@@ -373,12 +423,17 @@ class World:
         jx = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 else 0.0
         jy = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 else 0.0
         jh = float(self.rng.normal(0, heading_sigma)) if heading_sigma > 0 else 0.0
+        heading = wrap_angle(deg_to_rad(float(pose["headingDeg"])) + jh)
+        # Start slots sit against the perimeter; jitter must not push the (rotated) chassis through it.
+        c, s = abs(math.cos(heading)), abs(math.sin(heading))
+        lim_x = float(self.field["fieldSizeIn"]["width"]) / 2.0 - PERIMETER_FACE_INSET_IN - (self.robot_hx * c + self.robot_hy * s)
+        lim_y = float(self.field["fieldSizeIn"]["depth"]) / 2.0 - PERIMETER_FACE_INSET_IN - (self.robot_hx * s + self.robot_hy * c)
         return RobotState(
             body=Body(
                 rid,
-                float(pose["x"]) + jx,
-                float(pose["y"]) + jy,
-                wrap_angle(deg_to_rad(float(pose["headingDeg"])) + jh),
+                float(np.clip(float(pose["x"]) + jx, -lim_x, lim_x)),
+                float(np.clip(float(pose["y"]) + jy, -lim_y, lim_y)),
+                heading,
                 hx=self.robot_hx,
                 hy=self.robot_hy,
                 z=self.robot_hz,
@@ -460,17 +515,38 @@ class World:
         if not rs.body.dynamic:
             rs.body.vx = rs.body.vy = rs.body.omega = 0.0
             return
-        tx, ty, th = float(target[0]), float(target[1]), float(target[2])
-        ex, ey = tx - rs.body.x, ty - rs.body.y
+        th = float(target[2])
+        # Targets are chassis-center poses: keep them where a square chassis still fits inside the perimeter.
+        reach = max(self.robot_hx, self.robot_hy)
+        lim_x = float(self.field["fieldSizeIn"]["width"]) / 2.0 - PERIMETER_FACE_INSET_IN - reach
+        lim_y = float(self.field["fieldSizeIn"]["depth"]) / 2.0 - PERIMETER_FACE_INSET_IN - reach
+        clearance = reach + FOLLOWER_CLEARANCE_IN
+        # Field fixtures first, then the other robots where they stand now.
+        obstacles = self.nav_obstacles + [
+            AABB(other.body.x, other.body.y, reach, reach) for rid, other in self.robots.items() if rid != rs.body.id
+        ]
+        # A target the chassis cannot occupy (inside an obstacle's clearance) becomes the nearest pose it can,
+        # so the robot stops beside the fixture or robot instead of pushing into it.
+        tx, ty = push_out_of_boxes(float(target[0]), float(target[1]), obstacles, clearance)
+        tx = float(np.clip(tx, -lim_x, lim_x))
+        ty = float(np.clip(ty, -lim_y, lim_y))
+        # Drive around obstacles like a path planner would, rather than grinding along one that sits
+        # between the chassis and its target. Exports follow the driven path, so they detour too.
+        route = detour_waypoints(rs.body.x, rs.body.y, tx, ty, obstacles, clearance)
+        wx, wy = route[0]
+        ex, ey = wx - rs.body.x, wy - rs.body.y
         dist = math.hypot(ex, ey)
         speed = self.max_vel * float(self.motor_strength) * float(np.clip(speed_frac, 0.2, 1.0))
+        # Brake against the whole route so the chassis stops on the target instead of oscillating through it.
+        speed = min(speed, math.sqrt(2.0 * self.max_accel * path_length(rs.body.x, rs.body.y, route)))
         if dist > 1e-3:
             des_vx = speed * ex / dist
             des_vy = speed * ey / dist
         else:
             des_vx = des_vy = 0.0
         heading_err = wrap_angle(th - rs.body.heading)
-        des_w = float(np.clip(2.5 * heading_err, -self.max_ang_vel, self.max_ang_vel))
+        w_cap = min(self.max_ang_vel, math.sqrt(2.0 * self.max_ang_accel * abs(heading_err)))
+        des_w = float(np.clip(2.5 * heading_err, -w_cap, w_cap))
         dvx = float(np.clip(des_vx - rs.body.vx, -self.max_accel * dt, self.max_accel * dt))
         dvy = float(np.clip(des_vy - rs.body.vy, -self.max_accel * dt, self.max_accel * dt))
         dw = float(np.clip(des_w - rs.body.omega, -self.max_ang_accel * dt, self.max_ang_accel * dt))
@@ -549,6 +625,7 @@ class World:
                 if rs.intake_timer >= cycle:
                     if p.staged:
                         self._release_staged(p)
+                    p.attrs.pop("launched_at", None)
                     p.held_by = rs.body.id
                     p.vx = p.vy = 0.0
                     p.x, p.y = rs.body.x, rs.body.y
@@ -583,6 +660,8 @@ class World:
                 p.vz = 0.0
                 p.attrs["passed_goal_top"] = False
                 p.attrs["passed_archway"] = False
+                p.attrs["launched_at"] = self.time_s
+                p.attrs["launched_by"] = rs.body.id
                 waypoints: list[tuple[str, float, float]] = []
                 for tag in ("open_top", "archway", "square"):
                     el = next(
@@ -900,6 +979,7 @@ class World:
         self.wall_hit = False
         self.robot_hit = False
         self.piece_hit = False
+        self.missed_launches = {}
         for _ in range(self.substeps):
             for rid, rs in self.robots.items():
                 act = actions.get(rid) or {"target_pose": [rs.body.x, rs.body.y, rs.body.heading], "speed_frac": 0.2, "mechanism": 0}
@@ -975,7 +1055,22 @@ class World:
         delta = self._run_rules(events)
         occ = self.prev_occupancy
         self._update_contacts_and_restricted(0.0, occ)
+        self._judge_launches()
         return {"true_score_delta": delta, "verb": verb}
+
+    def _judge_launches(self) -> None:
+        """Count launches that scored nothing within LAUNCH_SCORE_WINDOW_S, once each, per launching robot."""
+        for p in self.pieces.values():
+            launched_at = p.attrs.get("launched_at")
+            if launched_at is None:
+                continue
+            if p.scored or p.held_by:
+                p.attrs.pop("launched_at", None)
+                continue
+            if self.time_s - float(launched_at) >= LAUNCH_SCORE_WINDOW_S:
+                rid = str(p.attrs.get("launched_by"))
+                self.missed_launches[rid] = self.missed_launches.get(rid, 0) + 1
+                p.attrs.pop("launched_at", None)
 
     def snapshot(self) -> dict[str, Any]:
         rs = self.actor()

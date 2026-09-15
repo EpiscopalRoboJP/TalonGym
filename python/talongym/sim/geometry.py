@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import heapq
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -239,3 +240,110 @@ def ray_hits_aabb(ox: float, oy: float, dx: float, dy: float, box: AABB, max_t: 
         return False
     t = tmin if tmin >= 0 else tmax
     return 0.0 <= t <= max_t
+
+
+def segment_crosses_aabb(ax: float, ay: float, bx: float, by: float, box: AABB, eps: float = 1e-6) -> bool:
+    """True when segment a-b passes through the box interior; grazing an edge or corner does not count."""
+    dx, dy = bx - ax, by - ay
+    t0, t1 = 0.0, 1.0
+    for p, q in (
+        (-dx, ax - (box.minx + eps)),
+        (dx, (box.maxx - eps) - ax),
+        (-dy, ay - (box.miny + eps)),
+        (dy, (box.maxy - eps) - ay),
+    ):
+        if abs(p) < 1e-12:
+            if q < 0:
+                return False
+            continue
+        t = q / p
+        if p < 0:
+            t0 = max(t0, t)
+        else:
+            t1 = min(t1, t)
+        if t0 > t1:
+            return False
+    return True
+
+
+def _strictly_inside(box: AABB, x: float, y: float, eps: float = 1e-6) -> bool:
+    return box.minx + eps < x < box.maxx - eps and box.miny + eps < y < box.maxy - eps
+
+
+def detour_waypoints(ax: float, ay: float, bx: float, by: float, boxes: Sequence[AABB], inflate: float) -> list[Point]:
+    """Shortest route from a to b around every box grown by ``inflate``; ends with b.
+
+    A* over a visibility graph of the grown boxes' corners, so overlapping boxes close the gap
+    between them. A box holding the start or the goal is ignored on the leg leaving or entering
+    it (the chassis is already there or must go there). With no route, heads straight for b.
+    """
+    goal = (bx, by)
+    grown = [AABB(b.cx, b.cy, b.hx + inflate, b.hy + inflate) for b in boxes]
+    start_in = {i for i, g in enumerate(grown) if _strictly_inside(g, ax, ay)}
+    goal_in = {i for i, g in enumerate(grown) if _strictly_inside(g, bx, by)}
+
+    def blocked(p: Point, q: Point, skip: set[int]) -> bool:
+        return any(i not in skip and segment_crosses_aabb(p[0], p[1], q[0], q[1], g) for i, g in enumerate(grown))
+
+    if not blocked((ax, ay), goal, start_in | goal_in):
+        return [goal]
+    nodes: list[Point] = [(ax, ay), goal]
+    for i, g in enumerate(grown):
+        for c in aabb_polygon(g):
+            if not any(j != i and _strictly_inside(h, *c) for j, h in enumerate(grown)):
+                nodes.append(c)
+    best = {0: 0.0}
+    prev: dict[int, int] = {}
+    done: set[int] = set()
+    heap = [(math.hypot(bx - ax, by - ay), 0.0, 0)]
+    while heap:
+        _, cost, u = heapq.heappop(heap)
+        if u in done:
+            continue
+        done.add(u)
+        if u == 1:
+            break
+        for v in range(1, len(nodes)):
+            if v in done:
+                continue
+            step = math.hypot(nodes[v][0] - nodes[u][0], nodes[v][1] - nodes[u][1])
+            if cost + step >= best.get(v, math.inf):
+                continue
+            skip = (start_in if u == 0 else set()) | (goal_in if v == 1 else set())
+            if blocked(nodes[u], nodes[v], skip):
+                continue
+            best[v] = cost + step
+            prev[v] = u
+            heapq.heappush(heap, (best[v] + math.hypot(bx - nodes[v][0], by - nodes[v][1]), best[v], v))
+    if 1 not in prev:
+        return [goal]
+    route: list[Point] = []
+    v = 1
+    while v != 0:
+        route.append(nodes[v])
+        v = prev[v]
+    return route[::-1]
+
+
+def path_length(ax: float, ay: float, waypoints: Sequence[Point]) -> float:
+    total = 0.0
+    for wx, wy in waypoints:
+        total += math.hypot(wx - ax, wy - ay)
+        ax, ay = wx, wy
+    return total
+
+
+def push_out_of_boxes(x: float, y: float, boxes: Sequence[AABB], inflate: float) -> Point:
+    """Move (x, y) to the nearest point outside every box grown by ``inflate`` (checked in order)."""
+    for box in boxes:
+        grown = AABB(box.cx, box.cy, box.hx + inflate, box.hy + inflate)
+        if not (grown.minx < x < grown.maxx and grown.miny < y < grown.maxy):
+            continue
+        exits = [
+            (x - grown.minx, grown.minx, y),
+            (grown.maxx - x, grown.maxx, y),
+            (y - grown.miny, x, grown.miny),
+            (grown.maxy - y, x, grown.maxy),
+        ]
+        _, x, y = min(exits)
+    return x, y

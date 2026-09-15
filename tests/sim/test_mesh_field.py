@@ -127,3 +127,41 @@ def test_cad_staged_pieces_hold_until_intaken_and_stack_drops():
     snap = world.snapshot()
     pollen = next(p for p in snap["pieces"] if p["id"] == stack[1].id)
     assert pollen["staged"] is True and pollen["radius"] == pytest.approx(1.4)
+
+
+def _place(world, rid, x, y, heading=0.0):
+    rs = world.robots[rid]
+    rs.body.x, rs.body.y, rs.body.heading = x, y, heading
+    if hasattr(world.backend, "_robot_placed"):
+        world.backend._robot_placed.discard(rid)
+
+
+@pytest.mark.skipif(not available(), reason="mujoco extra not installed")
+def test_follower_routes_around_hive_frame_without_contact():
+    bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
+    world = World(bundle, seed=0)
+    world.reset(seed=0, static_teammate=False)
+    _place(world, "red_0", -50.0, 0.0)
+    hits = 0
+    for _ in range(200):
+        # Straight at the HIVE: hive_frame_west sits between the robot and this target.
+        world.step(np.array([-12.0, 0.0, 0.0]), 1.0, 0)
+        hits += world.wall_hit
+    body = world.actor().body
+    assert hits == 0
+    assert body.x > -15.0 and abs(body.y) < 3.0
+
+
+@pytest.mark.skipif(not available(), reason="mujoco extra not installed")
+def test_follower_does_not_drive_into_parked_teammate():
+    bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
+    world = World(bundle, seed=0)
+    world.reset(seed=0, static_teammate=True)
+    mate = world.robots["red_1"].body
+    _place(world, "red_0", mate.x + 4.0, mate.y - 30.0, 1.57)
+    robot_hits = 0
+    for _ in range(200):
+        world.step(np.array([mate.x + 4.0, mate.y + 30.0, 1.57]), 1.0, 0)
+        robot_hits += world.robot_hit
+    assert robot_hits == 0
+    assert world.actor().body.y > mate.y + 20.0

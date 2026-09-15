@@ -366,6 +366,10 @@ dialog.modal .panel-body { overflow: auto; }
 
 /* Charts */
 .chart { display: block; width: 100%; height: 110px; }
+.chart-empty {
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+  border: 1px dashed var(--line); border-radius: var(--radius-sm); color: var(--muted); font-size: 12px;
+}
 .chart-block + .chart-block { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .chart-head { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.35rem; }
 .chart-head .label { flex: 1; }

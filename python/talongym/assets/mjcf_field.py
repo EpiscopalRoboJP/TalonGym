@@ -17,6 +17,14 @@ def _size(hx: float, hy: float, hz: float) -> str:
     return f"{hx:.4f} {hy:.4f} {hz:.4f}"
 
 
+def collider_height(el: dict[str, Any]) -> float:
+    """Vertical extent of an element's MJCF box, centered on pose.z."""
+    tags = set(el.get("tags") or [])
+    is_cell = "cell" in tags or el.get("type") in {"goal", "cell"}
+    is_frame = "frame" in tags or el.get("type") == "hive_frame"
+    return float((el.get("shape") or {}).get("height") or (14 if is_cell else 24 if is_frame else 10))
+
+
 def build_mjcf(
     field: dict[str, Any],
     *,
@@ -51,8 +59,7 @@ def build_mjcf(
         d = float(shape.get("depth") or 8)
         z = float(pose.get("z") or 6)
         is_cell = "cell" in tags or el.get("type") in {"goal", "cell"}
-        is_frame = "frame" in tags or el.get("type") == "hive_frame"
-        height = float(shape.get("height") or (14 if is_cell else 24 if is_frame else 10))
+        height = collider_height(el)
         px, py, pz = _yup(float(pose.get("x") or 0), float(pose.get("y") or 0), z)
         eid = escape(str(el["id"]))
         if is_cell:

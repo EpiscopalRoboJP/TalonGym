@@ -41,76 +41,102 @@ def _box_action(act: dict[str, Any]) -> np.ndarray:
     return np.concatenate([pose, np.array([speed, mech], dtype=np.float32)])
 
 
-def collect_full_actions(
-    n_steps: int = 512,
+# Demonstration variety. Unperturbed script episodes all reach the launch spot at the same moment, so a
+# clone cannot tell "at the spot" from "2.5 s in" and PPO slides its fire decision earlier in time. Each
+# episode after the first gets its own pace and start pause, plus piecewise-constant noise on the executed
+# target; labels stay the script's clean decision for the state actually reached.
+DEMO_PACE_RANGE = (0.35, 1.0)
+DEMO_MAX_PAUSE_S = 3.0
+DEMO_TARGET_NOISE = (3.0, 3.0, 0.1)
+DEMO_NOISE_HOLD_S = 0.5
+
+
+def collect_episodes(
+    n_episodes: int,
     bundle: LoadedPresets | None = None,
     seed: int = 0,
-) -> tuple[list[dict[str, np.ndarray]], np.ndarray]:
-    """Clone scripted policy into (dict obs, box action) pairs for LSTM BC."""
+    gamma: float = 0.99,
+    options: dict[str, Any] | None = None,
+    perturb: bool = True,
+) -> tuple[list[dict[str, np.ndarray]], np.ndarray, np.ndarray, int]:
+    """Whole scripted AUTO episodes, concatenated episode by episode and trimmed to one common length.
+
+    Returns observations (with the critic's privileged vector), box actions labeled with the script's
+    decision, discounted training-reward returns of the executed episodes, and the per-episode length.
+    """
+    from talongym.training.privileged import PRIV_KEY, privileged_vector
+
     env = FTCAutoEnv(bundle=bundle or load_bundle(), record=False)
-    obs, info = env.reset(seed=seed)
-    xs: list[dict[str, np.ndarray]] = []
-    ys: list[np.ndarray] = []
-    term = trunc = False
-    steps = 0
-    while steps < n_steps:
-        act = scripted_auto(obs, info)
-        xs.append({k: np.asarray(v, dtype=np.float32) for k, v in obs.items()})
-        ys.append(_box_action(act))
-        obs, _, term, trunc, info = env.step(act)
-        steps += 1
-        if term or trunc:
-            obs, info = env.reset(seed=seed + steps)
-            term = trunc = False
+    rng = np.random.default_rng(seed)
+    hold_steps = max(1, round(DEMO_NOISE_HOLD_S * env.control_hz))
+    episodes: list[tuple[list[dict[str, np.ndarray]], list[np.ndarray], list[float]]] = []
+    for ep in range(max(1, n_episodes)):
+        obs, info = env.reset(seed=seed + ep, options=dict(options or {}))
+        varied = perturb and ep > 0
+        pace = float(rng.uniform(*DEMO_PACE_RANGE)) if varied else 1.0
+        pause_steps = round(float(rng.uniform(0.0, DEMO_MAX_PAUSE_S)) * env.control_hz) if varied else 0
+        noise = np.zeros(3, dtype=np.float32)
+        xs: list[dict[str, np.ndarray]] = []
+        ys: list[np.ndarray] = []
+        rewards: list[float] = []
+        term = trunc = False
+        step = 0
+        while not term and not trunc:
+            act = scripted_auto(obs, info)
+            row = {k: np.asarray(v, dtype=np.float32) for k, v in obs.items()}
+            row[PRIV_KEY] = privileged_vector(info)
+            xs.append(row)
+            ys.append(_box_action(act))
+            executed = dict(act)
+            if varied:
+                if step % hold_steps == 0:
+                    noise = (rng.normal(0.0, 1.0, 3) * np.asarray(DEMO_TARGET_NOISE)).astype(np.float32)
+                if step < pause_steps:
+                    body = env.world.actor().body
+                    executed = {"target_pose": np.array([body.x, body.y, body.heading], dtype=np.float32), "mechanism": 0}
+                else:
+                    executed["target_pose"] = np.asarray(act["target_pose"], dtype=np.float32) + noise
+                executed["speed_frac"] = np.array([pace * float(np.asarray(act["speed_frac"]).reshape(-1)[0])], dtype=np.float32)
+            obs, reward, term, trunc, info = env.step(executed)
+            rewards.append(float(reward))
+            step += 1
+        episodes.append((xs, ys, rewards))
     env.close()
-    extra = _log_snippets(n_max=max(0, n_steps // 8))
-    if extra:
-        xs.extend(extra[0])
-        ys.extend(extra[1])
-    return xs, np.stack(ys)
+    length = min(len(xs) for xs, _, _ in episodes)
+    obs_rows: list[dict[str, np.ndarray]] = []
+    acts: list[np.ndarray] = []
+    returns: list[float] = []
+    for xs, ys, rewards in episodes:
+        obs_rows.extend(xs[:length])
+        acts.extend(ys[:length])
+        ret = 0.0
+        ep_returns = []
+        for r in reversed(rewards[:length]):
+            ret = r + gamma * ret
+            ep_returns.append(ret)
+        returns.extend(reversed(ep_returns))
+    return obs_rows, np.stack(acts), np.asarray(returns, dtype=np.float32), length
 
 
-def _log_snippets(n_max: int) -> tuple[list[dict[str, np.ndarray]], list[np.ndarray]] | None:
-    """Optional RL-Co mix-in from var/calibrate_logs/*.json (not required)."""
-    if n_max <= 0:
-        return None
-    root = VAR_DIR / "calibrate_logs"
-    if not root.is_dir():
-        return None
-    xs: list[dict[str, np.ndarray]] = []
-    ys: list[np.ndarray] = []
-    for path in sorted(root.glob("*.json"))[:4]:
-        try:
-            import json
-
-            raw = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        samples = raw if isinstance(raw, list) else raw.get("samples") or []
-        for row in samples:
-            if len(ys) >= n_max:
-                break
-            pose = np.array(
-                [float(row.get("x", 0)), float(row.get("y", 0)), float(np.deg2rad(float(row.get("headingDeg", 0))))],
-                dtype=np.float32,
-            )
-            obs = {"pose_noisy": pose}
-            act = _box_action(
-                {
-                    "target_pose": pose,
-                    "speed_frac": row.get("speed_frac", 0.8),
-                    "mechanism": row.get("mechanism", 0),
-                }
-            )
-            xs.append(obs)
-            ys.append(act)
-    if not ys:
-        return None
-    return xs, ys
+# Per-dimension exploration std after cloning: target x/y (in), heading (rad), speed fraction, mechanism.
+BC_ACTION_STD = (4.0, 4.0, 0.2, 0.1, 0.3)
 
 
-def bc_warmup(model: Any, bundle: LoadedPresets | None, n_steps: int, log=lambda m: None) -> float:
-    """Supervised clone of scripted AUTO into a RecurrentPPO actor (encoder keys only)."""
+# Full-batch Adam on whole episodes; lower rates stall near the mean target for hundreds of steps.
+BC_LR = 3e-3
+BC_TARGET_LOSS = 0.0002
+
+
+def bc_warmup(model: Any, bundle: LoadedPresets | None, n_steps: int, log=lambda m: None, epochs: int = 2500) -> float:
+    """Clone scripted AUTO into a RecurrentPPO actor through its LSTM (encoder keys only), and
+    fit the critic to the same episodes' returns.
+
+    Trains on whole episodes so the LSTMs see the same continuous sequences they run on at
+    inference, and scales each action dimension to its range so inches and verbs weigh alike.
+    The critic fit matters as much as the clone: with a random value function PPO's first
+    advantages are noise, and a few thousand steps undo the clone. Returns the final
+    range-normalized actor MSE.
+    """
     if n_steps <= 0:
         return 0.0
     try:
@@ -119,48 +145,94 @@ def bc_warmup(model: Any, bundle: LoadedPresets | None, n_steps: int, log=lambda
     except ImportError as exc:
         raise RuntimeError("BC warmup needs torch + stable-baselines3") from exc
 
-    from talongym.training.privileged import PRIV_DIM, PRIV_KEY
+    policy = model.policy
+    bundle = bundle or load_bundle()
+    ep_cfg = (bundle.training or {}).get("episode") or {}
+    steps_per_episode = int(float(ep_cfg.get("durationS") or 30) * float(ep_cfg.get("controlHz") or 25))
+    n_episodes = max(1, -(-int(n_steps) // steps_per_episode))
+    from talongym.training.curriculum import ballistic_launch, full_noise
 
-    obs_list, acts = collect_full_actions(n_steps=n_steps, bundle=bundle)
+    # Clone under the first curriculum stage's rules so the critic's returns match what PPO trains on.
+    stage0 = {"ballistic_launch": ballistic_launch(bundle.training, 0.0), "full_noise": full_noise(bundle.training, 0.0)}
+    obs_list, acts, returns, length = collect_episodes(
+        n_episodes, bundle=bundle, gamma=float(getattr(model, "gamma", 0.99)), options=stage0
+    )
     space = getattr(model, "observation_space", None)
     obs_space = space if isinstance(space, spaces.Dict) else None
     keys = list(obs_space.spaces.keys()) if obs_space is not None else sorted(obs_list[0])
     batch: dict[str, np.ndarray] = {}
     n = len(obs_list)
     for key in keys:
-        if key == PRIV_KEY:
-            batch[key] = np.zeros((n, PRIV_DIM), dtype=np.float32)
-            continue
         sample = obs_list[0].get(key)
         if sample is None:
             shp: tuple[int, ...] = (obs_space.spaces[key].shape or (1,)) if obs_space is not None else (1,)
             batch[key] = np.zeros((n, *shp), dtype=np.float32)
             continue
-        batch[key] = np.stack(
-            [np.asarray(row.get(key, np.zeros_like(sample)), dtype=np.float32) for row in obs_list]
-        )
-    device = model.policy.device
+        batch[key] = np.stack([np.asarray(row.get(key, np.zeros_like(sample)), dtype=np.float32) for row in obs_list])
+    device = policy.device
     obs_t = obs_as_tensor(batch, device)
     act_t = torch.as_tensor(acts, device=device)
-    opt = torch.optim.Adam(model.policy.parameters(), lr=3e-4)
+    action_space = model.action_space
+    half_range = np.maximum((action_space.high - action_space.low) / 2.0, 1e-3).astype(np.float32)
+    scale = torch.as_tensor(half_range, device=device)
+    lstm = policy.lstm_actor
+    state_shape = (lstm.num_layers, n_episodes, lstm.hidden_size)
+    lstm_states = (torch.zeros(state_shape, device=device), torch.zeros(state_shape, device=device))
+    # Rows are grouped episode by episode, which is the (n_seq, length) layout the LSTM helper expects.
+    episode_starts = torch.zeros(n, device=device)
+    # PPO initializes the action head at gain 0.01 so a fresh policy acts near zero; cloning
+    # replaces that output anyway, and the tiny gain throttles the signal to the LSTM below it.
+    torch.nn.init.orthogonal_(policy.action_net.weight, gain=1.0)
+    torch.nn.init.zeros_(policy.action_net.bias)
+    opt = torch.optim.Adam(policy.parameters(), lr=BC_LR)
     last = 0.0
-    epochs = 8
-    pi_ext = getattr(model.policy, "pi_features_extractor", None) or getattr(model.policy, "features_extractor", None)
-    for _ in range(epochs):
-        feat = model.policy.extract_features(obs_t, pi_ext) if pi_ext is not None else model.policy.extract_features(obs_t)
-        if isinstance(feat, tuple):
-            feat = feat[0]
-        latent_pi, _latent_vf = model.policy.mlp_extractor(feat)
-        mean = model.policy.action_net(latent_pi)
-        if mean.shape != act_t.shape:
-            mean = mean.reshape(act_t.shape[0], -1)[:, : act_t.shape[1]]
-        loss = ((mean - act_t) ** 2).mean()
+    epochs_run = 0
+    for _ in range(max(1, epochs)):
+        epochs_run += 1
+        dist, _ = policy.get_distribution(obs_t, lstm_states, episode_starts)
+        mean = dist.distribution.mean.reshape(act_t.shape)
+        loss = (((mean - act_t) / scale) ** 2).mean()
         opt.zero_grad()
         loss.backward()
         opt.step()
         last = float(loss.detach().cpu())
-    log(f"BC warmup mse={last:.4f} n={n}")
+        if last < BC_TARGET_LOSS:
+            break
+    if hasattr(policy, "log_std"):
+        with torch.no_grad():
+            std = torch.as_tensor(BC_ACTION_STD[: policy.log_std.shape[0]], device=device)
+            policy.log_std.copy_(torch.log(std))
+    value_loss = _fit_critic(policy, obs_t, torch.as_tensor(returns, device=device).reshape(-1, 1), n_episodes, episode_starts)
+    log(f"BC warmup mse={last:.4f} epochs={epochs_run} episodes={n_episodes} steps={n} value_loss={value_loss:.4f}")
     return last
+
+
+CRITIC_EPOCHS = 400
+
+
+def _fit_critic(policy: Any, obs_t: Any, returns_t: Any, n_seq: int, episode_starts: Any) -> float:
+    """Regress the critic on discounted returns; returns MSE relative to the returns' variance."""
+    import torch
+
+    lstm = policy.lstm_critic
+    if lstm is None:
+        return float("nan")
+    state_shape = (lstm.num_layers, n_seq, lstm.hidden_size)
+    states = (torch.zeros(state_shape, device=returns_t.device), torch.zeros(state_shape, device=returns_t.device))
+    var = float(returns_t.var().clamp_min(1e-6))
+    critic_params = [p for name, p in policy.named_parameters() if "vf" in name or "critic" in name or "value" in name]
+    opt = torch.optim.Adam(critic_params, lr=BC_LR)
+    rel = float("nan")
+    for _ in range(CRITIC_EPOCHS):
+        values = policy.predict_values(obs_t, states, episode_starts)
+        loss = ((values.reshape(returns_t.shape) - returns_t) ** 2).mean()
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+        rel = float(loss.detach().cpu()) / var
+        if rel < 0.01:
+            break
+    return rel
 
 
 def distill_mlp(x: np.ndarray, y: np.ndarray, out_path: Path | None = None) -> Path:

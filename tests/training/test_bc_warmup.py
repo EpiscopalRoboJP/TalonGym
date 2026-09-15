@@ -5,7 +5,7 @@ import pytest
 
 from talongym.presets.loader import load_preset
 from talongym.training.curriculum import ballistic_launch, curriculum_unlocks, scripted_launch
-from talongym.training.distill import collect_full_actions
+from talongym.training.distill import collect_episodes
 
 
 def test_biobuzz_curriculum_has_launch_stages():
@@ -13,21 +13,21 @@ def test_biobuzz_curriculum_has_launch_stages():
     assert training["algorithm"]["name"] == "bc_then_ppo"
     early = curriculum_unlocks(training, 0.0)
     late = curriculum_unlocks(training, 0.99)
-    assert "scripted_launch" in early
     assert "motif_known_at_t0" not in early
-    assert scripted_launch(training, 0.0) is True
-    assert ballistic_launch(training, 0.5) is True
+    assert scripted_launch(training, 0.0) is False
+    assert ballistic_launch(training, 0.0) is True
     assert "full_noise" in late
 
 
-def test_collect_full_actions_includes_mechanism():
+def test_collect_episodes_returns_whole_aligned_episodes():
     from talongym.presets.loader import load_bundle
 
     bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
-    xs, ys = collect_full_actions(n_steps=8, bundle=bundle, seed=0)
-    assert len(xs) >= 8
-    assert ys.shape[1] == 5
-    assert np.isfinite(ys).all()
+    obs, acts, returns, length = collect_episodes(2, bundle=bundle, seed=0)
+    assert len(obs) == acts.shape[0] == returns.shape[0] == 2 * length
+    assert acts.shape[1] == 5
+    assert np.isfinite(acts).all() and np.isfinite(returns).all()
+    assert "_privileged" in obs[0]
 
 
 def test_bc_warmup_reduces_or_runs(tmp_path: Path):
@@ -50,6 +50,6 @@ def test_bc_warmup_reduces_or_runs(tmp_path: Path):
 
     venv = DummyVecEnv([make])
     model = RecurrentPPO(AsymmetricLstmPolicy, venv, verbose=0, n_steps=16, batch_size=16, n_epochs=1)
-    mse = bc_warmup(model, bundle, n_steps=32)
+    mse = bc_warmup(model, bundle, n_steps=32, epochs=5)
     venv.close()
     assert np.isfinite(mse)

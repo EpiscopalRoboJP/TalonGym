@@ -21,6 +21,7 @@
     "entCoef": 0.01,
     "lstmHiddenSize": 256,
     "bcWarmupSteps": 2048,
+    "anchorTolerance": 3,
     "groupSize": 4
   },
   "actionTier": "high_level_waypoint",
@@ -38,7 +39,6 @@
     "sensorNoiseScale": 1.0,
     "fieldBuildToleranceIn": 1.0,
     "curriculum": [
-      { "untilFrac": 0.25, "unlock": ["scripted_launch"] },
       { "untilFrac": 0.7, "unlock": ["ballistic_launch"] },
       { "untilFrac": 1.0, "unlock": ["ballistic_launch", "full_noise"] }
     ]

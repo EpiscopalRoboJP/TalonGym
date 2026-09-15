@@ -19,7 +19,7 @@
     "effectiveDate": "2026-09-12",
     "geometryProvenance": "hand_authored",
     "verifyAgainstManual": true,
-    "notes": "Flowers, GARDEN and LOADING ZONE tape, park zones, and game piece spawns are synced from official CAD positions (assets/seasons/biobuzz_2026/field_layout.json) by import-field-cad; pieces spawned inside a flower or above the tiles start staged. VERIFY: start slots were slid clear of the flower colliders, not taken from the manual. Lab backgroundAsset is tessellated from official am-5850 BIOBUZZ STEP (raw STEP stays in var/cad/, not committed). MuJoCo colliders remain schematic AABBs so robots can drive under the hive. VERIFY: hive x-offsets; tip threshold is scoring-side; AprilTag IDs 1–3, 4–6, 42–45 are inferred (manual extract only confirmed 0, 7, 38–41). POLLEN diameter 2.8 in per §9.8. Official field ~144 x 144 in inside perimeter. CAD general tolerance +/- 1 in."
+    "notes": "Flowers, GARDEN and LOADING ZONE tape, park zones, and game piece spawns are synced from official CAD positions (assets/seasons/biobuzz_2026/field_layout.json) by import-field-cad; pieces spawned inside a flower or above the tiles start staged. VERIFY: start slots were slid clear of the flower colliders and flush with the perimeter glass (CAD inner face x=+/-70.67), not taken from the manual. Launch spots are sim-tuned poses where a ballistic shot lands in the alliance up CELL clear of the hive frame; they are not field markings. Lab backgroundAsset is tessellated from official am-5850 BIOBUZZ STEP (raw STEP stays in var/cad/, not committed). MuJoCo colliders remain schematic AABBs so robots can drive under the hive. VERIFY: hive x-offsets; tip threshold is scoring-side; AprilTag IDs 1–3, 4–6, 42–45 are inferred (manual extract only confirmed 0, 7, 38–41). POLLEN diameter 2.8 in per §9.8. Official field ~144 x 144 in inside perimeter. CAD general tolerance +/- 1 in."
   },
   "coordinateSystem": {
     "convention": "ftc_official_red_wall",
@@ -245,6 +245,28 @@
       "tags": ["cell", "hive", "down_cell"]
     },
     {
+      "id": "red_launch_spot",
+      "type": "zone",
+      "alliance": "red",
+      "pose": { "x": -12, "y": -40, "headingDeg": 90 },
+      "shape": { "kind": "aabb", "width": 18, "depth": 18 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": false,
+      "tags": ["launch_spot"]
+    },
+    {
+      "id": "blue_launch_spot",
+      "type": "zone",
+      "alliance": "blue",
+      "pose": { "x": 12, "y": 40, "headingDeg": -90 },
+      "shape": { "kind": "aabb", "width": 18, "depth": 18 },
+      "isCollider": false,
+      "isOccluder": false,
+      "isTrigger": false,
+      "tags": ["launch_spot"]
+    },
+    {
       "id": "flower_1",
       "type": "flower",
       "alliance": "neutral",
@@ -464,7 +486,7 @@
       "id": "red_1",
       "alliance": "red",
       "slot": 1,
-      "pose": { "x": -63, "y": 24, "headingDeg": 0 }
+      "pose": { "x": -61.6, "y": 24, "headingDeg": 0 }
     },
     {
       "id": "blue_0",
@@ -476,7 +498,7 @@
       "id": "blue_1",
       "alliance": "blue",
       "slot": 1,
-      "pose": { "x": 63, "y": -24, "headingDeg": 180 }
+      "pose": { "x": 61.6, "y": -24, "headingDeg": 180 }
     }
   ],
   "aprilTags": [
