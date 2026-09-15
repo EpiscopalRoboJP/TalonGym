@@ -1,6 +1,6 @@
 # BIOBUZZ 2026–2027 — Competition Manual V1
 
-Game: **BIOBUZZ™ presented by RTX**, FIRST CANOPY™. Preset ids `biobuzz_2026_field_v1` / `biobuzz_2026_scoring_v1`. Provenance: Competition Manual **V1** (2026-09-12). Physical field and scoring-element geometry is generated from official STEP (`cadManifest`, `python -m talongym import-field-cad`). Scoring volumes remain explicit preset data. Runtime MuJoCo loads the CAD-assembled `field_mjcf.xml` (convex assembly parts + typed piece hulls), never `field.glb` or a single concave field mesh. Raw STEP and derived tessellation are not committed.
+Game: **BIOBUZZ™ presented by RTX**, FIRST CANOPY™. Preset ids `biobuzz_2026_field_v1` / `biobuzz_2026_scoring_v1`. Provenance: Competition Manual **V1** (2026-09-12). Physical field and scoring-element geometry is generated from official STEP (`cadManifest`, `python -m talongym import-field-cad`) and shipped under `assets/seasons/biobuzz_2026/`. Scoring volumes remain explicit preset data. Runtime MuJoCo loads the CAD-assembled `field_mjcf.xml` (convex assembly parts + typed piece hulls), never `field.glb` or a single concave field mesh. Raw STEP stays in `var/cad/` and is not committed.
 
 Official CAD registration puts the red GARDEN on the audience-side corner and
 the red LOADING ZONE on the opposite side of the red wall (blue is rotationally
@@ -18,7 +18,7 @@ symmetric). The Lab uses these CAD-registered centers for its overlays.
 
 ## Placeholders (`verifyAgainstManual: true`)
 
-- Exact FLOWER / hive x-offsets (figures/CAD STEP not committed; HubSpot hides the direct file).
+- Exact FLOWER / hive x-offsets (raw STEP is not committed; HubSpot hides the direct file).
 - HIVE TIP threshold: scoring uses `red_up_cell_load ≥ 7` (3 staged NECTAR + 4 launched). Confirm against CAD / Field Setup Guide.
 - Three alliance NECTAR are physical bodies in each initial upward CELL. Launched pieces remain physical, and the articulated HIVE collision releases them during a tip.
 - AprilTag IDs 1–3, 4–6, and 42–45 are inferred. Manual extract only confirmed 0, 7, and 38–41.

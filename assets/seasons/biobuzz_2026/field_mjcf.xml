@@ -1,0 +1,728 @@
+<mujoco model="talongym_field">
+  <!-- talongym_cad_field version=1.2.0 parts=177/715 floor_y=-0.000 -->
+  <compiler angle="radian" inertiafromgeom="true" autolimits="true" meshdir="."/>
+  <option gravity="0 -386.0886 0" timestep="0.002" integrator="implicitfast" cone="pyramidal"/>
+  <default>
+    <geom condim="3" solref="0.02 1" solimp="0.9 0.95 0.001"/>
+    <default class="field">
+      <geom group="0" contype="1" conaffinity="10" condim="3"/>
+    </default>
+    <default class="robot">
+      <geom group="1" contype="2" conaffinity="15" condim="3"/>
+    </default>
+    <default class="piece">
+      <geom group="2" contype="8" conaffinity="13" condim="3" friction="0.6 0.05 0.01"/>
+    </default>
+    <default class="trigger">
+      <geom group="3" contype="0" conaffinity="0" density="0"/>
+    </default>
+    <default class="piece_pollen">
+      <geom group="2" contype="3" conaffinity="3" condim="3" friction="0.8 0.05 0.01" solref="0.02 0.850" mass="0.05000" rgba="0.93 0.78 0.16 1"/>
+    </default>
+    <default class="piece_nectar_red">
+      <geom group="2" contype="3" conaffinity="3" condim="3" friction="0.8 0.05 0.01" solref="0.02 0.850" mass="0.08000" rgba="0.82 0.18 0.16 1"/>
+    </default>
+    <default class="piece_nectar_blue">
+      <geom group="2" contype="3" conaffinity="3" condim="3" friction="0.8 0.05 0.01" solref="0.02 0.850" mass="0.08000" rgba="0.16 0.38 0.82 1"/>
+    </default>
+  </default>
+  <asset>
+    <mesh name="cad_0000" file="collision/Corner_Hinge_Rivet_Field.stl"/>
+    <mesh name="cad_0001" file="collision/Corner_Hinge_Rivet_Field_FLAT.stl"/>
+    <mesh name="cad_0002" file="collision/Corner_Hinge_Rivet_Field_FLAT_1.stl"/>
+    <mesh name="cad_0003" file="collision/Corner_Hinge_Rivet_Field_FLAT_2.stl"/>
+    <mesh name="cad_0004" file="collision/Corner_Hinge_Rivet_Field_FLAT_3.stl"/>
+    <mesh name="cad_0005" file="collision/Corner_Hinge_Rivet_Field_FLAT_4.stl"/>
+    <mesh name="cad_0006" file="collision/Corner_Hinge_Rivet_Field_FLAT_5.stl"/>
+    <mesh name="cad_0007" file="collision/Corner_Hinge_Rivet_Field_FLAT_6.stl"/>
+    <mesh name="cad_0008" file="collision/Corner_Hinge_Rivet_Field_FLAT_7.stl"/>
+    <mesh name="cad_0009" file="collision/Corner_Hinge_Rivet_Field_1.stl"/>
+    <mesh name="cad_0010" file="collision/Corner_Hinge_Rivet_Field_2.stl"/>
+    <mesh name="cad_0011" file="collision/Corner_Hinge_Rivet_Field_3.stl"/>
+    <mesh name="cad_0012" file="collision/Corner_Hinge_Rivet_Field_4.stl"/>
+    <mesh name="cad_0013" file="collision/Corner_Hinge_Rivet_Field_5.stl"/>
+    <mesh name="cad_0014" file="collision/Corner_Hinge_Rivet_Field_6.stl"/>
+    <mesh name="cad_0015" file="collision/Corner_Hinge_Rivet_Field_7.stl"/>
+    <mesh name="cad_0028" file="collision/NewStrapClip.stl"/>
+    <mesh name="cad_0029" file="collision/NewStrapClip_1.stl"/>
+    <mesh name="cad_0030" file="collision/NewStrapClip_2.stl"/>
+    <mesh name="cad_0031" file="collision/NewStrapClip_3.stl"/>
+    <mesh name="cad_0032" file="collision/Perimeter_Mid-Section_Strap.stl"/>
+    <mesh name="cad_0033" file="collision/Perimeter_Mid-Section_Strap_1.stl"/>
+    <mesh name="cad_0034" file="collision/am-1523_10_Fender_Washer.stl"/>
+    <mesh name="cad_0035" file="collision/am-1523_10_Fender_Washer_1.stl"/>
+    <mesh name="cad_0036" file="collision/am-1523_10_Fender_Washer_10.stl"/>
+    <mesh name="cad_0037" file="collision/am-1523_10_Fender_Washer_11.stl"/>
+    <mesh name="cad_0038" file="collision/am-1523_10_Fender_Washer_12.stl"/>
+    <mesh name="cad_0039" file="collision/am-1523_10_Fender_Washer_13.stl"/>
+    <mesh name="cad_0040" file="collision/am-1523_10_Fender_Washer_14.stl"/>
+    <mesh name="cad_0041" file="collision/am-1523_10_Fender_Washer_15.stl"/>
+    <mesh name="cad_0042" file="collision/am-1523_10_Fender_Washer_16.stl"/>
+    <mesh name="cad_0043" file="collision/am-1523_10_Fender_Washer_17.stl"/>
+    <mesh name="cad_0044" file="collision/am-1523_10_Fender_Washer_18.stl"/>
+    <mesh name="cad_0045" file="collision/am-1523_10_Fender_Washer_19.stl"/>
+    <mesh name="cad_0046" file="collision/am-1523_10_Fender_Washer_2.stl"/>
+    <mesh name="cad_0047" file="collision/am-1523_10_Fender_Washer_20.stl"/>
+    <mesh name="cad_0048" file="collision/am-1523_10_Fender_Washer_21.stl"/>
+    <mesh name="cad_0049" file="collision/am-1523_10_Fender_Washer_22.stl"/>
+    <mesh name="cad_0050" file="collision/am-1523_10_Fender_Washer_23.stl"/>
+    <mesh name="cad_0051" file="collision/am-1523_10_Fender_Washer_24.stl"/>
+    <mesh name="cad_0052" file="collision/am-1523_10_Fender_Washer_25.stl"/>
+    <mesh name="cad_0053" file="collision/am-1523_10_Fender_Washer_26.stl"/>
+    <mesh name="cad_0054" file="collision/am-1523_10_Fender_Washer_27.stl"/>
+    <mesh name="cad_0055" file="collision/am-1523_10_Fender_Washer_3.stl"/>
+    <mesh name="cad_0056" file="collision/am-1523_10_Fender_Washer_4.stl"/>
+    <mesh name="cad_0057" file="collision/am-1523_10_Fender_Washer_5.stl"/>
+    <mesh name="cad_0058" file="collision/am-1523_10_Fender_Washer_6.stl"/>
+    <mesh name="cad_0059" file="collision/am-1523_10_Fender_Washer_7.stl"/>
+    <mesh name="cad_0060" file="collision/am-1523_10_Fender_Washer_8.stl"/>
+    <mesh name="cad_0061" file="collision/am-1523_10_Fender_Washer_9.stl"/>
+    <mesh name="cad_0062" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes.stl"/>
+    <mesh name="cad_0063" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_1.stl"/>
+    <mesh name="cad_0064" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_10.stl"/>
+    <mesh name="cad_0065" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_11.stl"/>
+    <mesh name="cad_0066" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_12.stl"/>
+    <mesh name="cad_0067" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_13.stl"/>
+    <mesh name="cad_0068" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_14.stl"/>
+    <mesh name="cad_0069" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_15.stl"/>
+    <mesh name="cad_0070" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_16.stl"/>
+    <mesh name="cad_0071" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_17.stl"/>
+    <mesh name="cad_0072" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_18.stl"/>
+    <mesh name="cad_0073" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_19.stl"/>
+    <mesh name="cad_0074" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_2.stl"/>
+    <mesh name="cad_0075" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_20.stl"/>
+    <mesh name="cad_0076" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_21.stl"/>
+    <mesh name="cad_0077" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_22.stl"/>
+    <mesh name="cad_0078" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_23.stl"/>
+    <mesh name="cad_0079" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_3.stl"/>
+    <mesh name="cad_0080" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_4.stl"/>
+    <mesh name="cad_0081" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_5.stl"/>
+    <mesh name="cad_0082" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_6.stl"/>
+    <mesh name="cad_0083" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_7.stl"/>
+    <mesh name="cad_0084" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_8.stl"/>
+    <mesh name="cad_0085" file="collision/am-2556a_FTC_Rail_with_Rivet_Holes_9.stl"/>
+    <mesh name="cad_0086" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link.stl"/>
+    <mesh name="cad_0087" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_1.stl"/>
+    <mesh name="cad_0088" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_10.stl"/>
+    <mesh name="cad_0089" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_11.stl"/>
+    <mesh name="cad_0090" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_12.stl"/>
+    <mesh name="cad_0091" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_13.stl"/>
+    <mesh name="cad_0092" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_14.stl"/>
+    <mesh name="cad_0093" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_15.stl"/>
+    <mesh name="cad_0094" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_2.stl"/>
+    <mesh name="cad_0095" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_3.stl"/>
+    <mesh name="cad_0096" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_4.stl"/>
+    <mesh name="cad_0097" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_5.stl"/>
+    <mesh name="cad_0098" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_6.stl"/>
+    <mesh name="cad_0099" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_7.stl"/>
+    <mesh name="cad_0100" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_8.stl"/>
+    <mesh name="cad_0101" file="collision/am-2580a_FIRST_Tech_Challenge_Panel_Link_9.stl"/>
+    <mesh name="cad_0102" file="collision/am-5857_Flower_Layer_C.stl"/>
+    <mesh name="cad_0103" file="collision/am-5857_Flower_Layer_C_1.stl"/>
+    <mesh name="cad_0104" file="collision/am-5857_Flower_Layer_C_2.stl"/>
+    <mesh name="cad_0105" file="collision/am-5857_Flower_Layer_C_3.stl"/>
+    <mesh name="cad_0106" file="collision/am-5858_Flower_Layer_B.stl"/>
+    <mesh name="cad_0107" file="collision/am-5858_Flower_Layer_B_1.stl"/>
+    <mesh name="cad_0108" file="collision/am-5858_Flower_Layer_B_2.stl"/>
+    <mesh name="cad_0109" file="collision/am-5858_Flower_Layer_B_3.stl"/>
+    <mesh name="cad_0110" file="collision/am-5859_Flower_Layer_X.stl"/>
+    <mesh name="cad_0111" file="collision/am-5859_Flower_Layer_X_1.stl"/>
+    <mesh name="cad_0112" file="collision/am-5859_Flower_Layer_X_2.stl"/>
+    <mesh name="cad_0113" file="collision/am-5859_Flower_Layer_X_3.stl"/>
+    <mesh name="cad_0114" file="collision/am-5860_Flower_Field_Bracket.stl"/>
+    <mesh name="cad_0115" file="collision/am-5860_Flower_Field_Bracket_1.stl"/>
+    <mesh name="cad_0116" file="collision/am-5860_Flower_Field_Bracket_2.stl"/>
+    <mesh name="cad_0117" file="collision/am-5860_Flower_Field_Bracket_3.stl"/>
+    <mesh name="cad_0118" file="collision/am-5862_Flower_HIPS_Pipe.stl"/>
+    <mesh name="cad_0119" file="collision/am-5862_Flower_HIPS_Pipe_1.stl"/>
+    <mesh name="cad_0120" file="collision/am-5862_Flower_HIPS_Pipe_10.stl"/>
+    <mesh name="cad_0121" file="collision/am-5862_Flower_HIPS_Pipe_11.stl"/>
+    <mesh name="cad_0122" file="collision/am-5862_Flower_HIPS_Pipe_12.stl"/>
+    <mesh name="cad_0123" file="collision/am-5862_Flower_HIPS_Pipe_13.stl"/>
+    <mesh name="cad_0124" file="collision/am-5862_Flower_HIPS_Pipe_14.stl"/>
+    <mesh name="cad_0125" file="collision/am-5862_Flower_HIPS_Pipe_15.stl"/>
+    <mesh name="cad_0126" file="collision/am-5862_Flower_HIPS_Pipe_2.stl"/>
+    <mesh name="cad_0127" file="collision/am-5862_Flower_HIPS_Pipe_3.stl"/>
+    <mesh name="cad_0128" file="collision/am-5862_Flower_HIPS_Pipe_4.stl"/>
+    <mesh name="cad_0129" file="collision/am-5862_Flower_HIPS_Pipe_5.stl"/>
+    <mesh name="cad_0130" file="collision/am-5862_Flower_HIPS_Pipe_6.stl"/>
+    <mesh name="cad_0131" file="collision/am-5862_Flower_HIPS_Pipe_7.stl"/>
+    <mesh name="cad_0132" file="collision/am-5862_Flower_HIPS_Pipe_8.stl"/>
+    <mesh name="cad_0133" file="collision/am-5862_Flower_HIPS_Pipe_9.stl"/>
+    <mesh name="cad_0134" file="collision/am-5863_Axle_Holder.stl"/>
+    <mesh name="cad_0135" file="collision/am-5863_Axle_Holder_1.stl"/>
+    <mesh name="cad_0136" file="collision/am-5864_Pivot_Damper_Holder.stl"/>
+    <mesh name="cad_0137" file="collision/am-5864_Pivot_Damper_Holder_1.stl"/>
+    <mesh name="cad_0138" file="collision/am-5864_Pivot_Damper_Holder_2.stl"/>
+    <mesh name="cad_0139" file="collision/am-5864_Pivot_Damper_Holder_3.stl"/>
+    <mesh name="cad_0140" file="collision/am-5865_Blumotion_970A_Damper.stl"/>
+    <mesh name="cad_0141" file="collision/am-5865_Blumotion_970A_Damper_1.stl"/>
+    <mesh name="cad_0142" file="collision/am-5865_Blumotion_970A_Damper_2.stl"/>
+    <mesh name="cad_0143" file="collision/am-5865_Blumotion_970A_Damper_3.stl"/>
+    <mesh name="cad_0144" file="collision/am-5873_Goal_Pivot_Bracket.stl"/>
+    <mesh name="cad_0145" file="collision/am-5873_Goal_Pivot_Bracket_1.stl"/>
+    <mesh name="cad_0146" file="collision/am-5873_Goal_Pivot_Bracket_2.stl"/>
+    <mesh name="cad_0147" file="collision/am-5873_Goal_Pivot_Bracket_3.stl"/>
+    <mesh name="cad_0148" file="collision/am-5874_A-Frame_Top_Corner.stl"/>
+    <mesh name="cad_0149" file="collision/am-5874_A-Frame_Top_Corner_1.stl"/>
+    <mesh name="cad_0150" file="collision/am-5875_A-Frame_Top_Bar.stl"/>
+    <mesh name="cad_0151" file="collision/am-5876_A-Frame_Leg.stl"/>
+    <mesh name="cad_0152" file="collision/am-5876_A-Frame_Leg_1.stl"/>
+    <mesh name="cad_0153" file="collision/am-5876_A-Frame_Leg_2.stl"/>
+    <mesh name="cad_0154" file="collision/am-5876_A-Frame_Leg_3.stl"/>
+    <mesh name="cad_0155" file="collision/am-5877_ACM_Panel.stl"/>
+    <mesh name="cad_0156" file="collision/am-5877_ACM_Panel_1.stl"/>
+    <mesh name="cad_0157" file="collision/am-5878_Sheet_Metal_Foot_Bar.stl"/>
+    <mesh name="cad_0158" file="collision/am-5878_Sheet_Metal_Foot_Bar_1.stl"/>
+    <mesh name="cad_0159" file="collision/am-5879-A_Frame_Foot_A.stl"/>
+    <mesh name="cad_0160" file="collision/am-5879-A_Frame_Foot_A_1.stl"/>
+    <mesh name="cad_0161" file="collision/am-5879-B_Frame_Foot_B.stl"/>
+    <mesh name="cad_0162" file="collision/am-5879-B_Frame_Foot_B_1.stl"/>
+    <mesh name="cad_0163" file="collision/am-5881_0.196_ID_x_0.43_OD_x_1.500_Long_Aluminum_Stepped_Spacer.stl"/>
+    <mesh name="cad_0164" file="collision/am-5881_0.196_ID_x_0.43_OD_x_1.500_Long_Aluminum_Stepped_Spacer_1.stl"/>
+    <mesh name="cad_0165" file="collision/am-5884_Flower_Backstop.stl"/>
+    <mesh name="cad_0166" file="collision/am-5884_Flower_Backstop_1.stl"/>
+    <mesh name="cad_0167" file="collision/am-5884_Flower_Backstop_2.stl"/>
+    <mesh name="cad_0168" file="collision/am-5884_Flower_Backstop_3.stl"/>
+    <mesh name="cad_0169" file="collision/am-5892_Flower_Peanut_Support.stl"/>
+    <mesh name="cad_0170" file="collision/am-5892_Flower_Peanut_Support_1.stl"/>
+    <mesh name="cad_0171" file="collision/am-5892_Flower_Peanut_Support_2.stl"/>
+    <mesh name="cad_0172" file="collision/am-5892_Flower_Peanut_Support_3.stl"/>
+    <mesh name="cad_0173" file="collision/am-5892_Flower_Peanut_Support_4.stl"/>
+    <mesh name="cad_0174" file="collision/am-5892_Flower_Peanut_Support_5.stl"/>
+    <mesh name="cad_0175" file="collision/am-5892_Flower_Peanut_Support_6.stl"/>
+    <mesh name="cad_0176" file="collision/am-5892_Flower_Peanut_Support_7.stl"/>
+    <mesh name="mechanism_red_hive_04" file="collision/am-5867_10.5in_Churro_Lite_4.stl"/>
+    <mesh name="mechanism_red_hive_05" file="collision/am-5867_10.5in_Churro_Lite_5.stl"/>
+    <mesh name="mechanism_red_hive_06" file="collision/am-5867_10.5in_Churro_Lite_6.stl"/>
+    <mesh name="mechanism_red_hive_07" file="collision/am-5867_10.5in_Churro_Lite_7.stl"/>
+    <mesh name="mechanism_red_hive_08" file="collision/am-5868_Basket_Base_Tube_2.stl"/>
+    <mesh name="mechanism_red_hive_09" file="collision/am-5868_Basket_Base_Tube_3.stl"/>
+    <mesh name="mechanism_blue_hive_04" file="collision/am-5867_10.5in_Churro_Lite.stl"/>
+    <mesh name="mechanism_blue_hive_05" file="collision/am-5867_10.5in_Churro_Lite_1.stl"/>
+    <mesh name="mechanism_blue_hive_06" file="collision/am-5867_10.5in_Churro_Lite_2.stl"/>
+    <mesh name="mechanism_blue_hive_07" file="collision/am-5867_10.5in_Churro_Lite_3.stl"/>
+    <mesh name="mechanism_blue_hive_08" file="collision/am-5868_Basket_Base_Tube.stl"/>
+    <mesh name="mechanism_blue_hive_09" file="collision/am-5868_Basket_Base_Tube_1.stl"/>
+    <mesh name="pollen_hull" file="pieces/pollen_hull.stl"/>
+    <mesh name="nectar_red_hull" file="pieces/nectar_red_hull.stl"/>
+    <mesh name="nectar_blue_hull" file="pieces/nectar_blue_hull.stl"/>
+  </asset>
+  <worldbody>
+    <geom name="floor" class="field" type="plane" size="72.000 72.000 1" pos="0 -0.000 0" zaxis="0 1 0" rgba="0.1 0.3 0.2 1"/>
+    <geom name="cad_0000" class="field" type="mesh" mesh="cad_0000"/>
+    <geom name="cad_0001" class="field" type="mesh" mesh="cad_0001"/>
+    <geom name="cad_0002" class="field" type="mesh" mesh="cad_0002"/>
+    <geom name="cad_0003" class="field" type="mesh" mesh="cad_0003"/>
+    <geom name="cad_0004" class="field" type="mesh" mesh="cad_0004"/>
+    <geom name="cad_0005" class="field" type="mesh" mesh="cad_0005"/>
+    <geom name="cad_0006" class="field" type="mesh" mesh="cad_0006"/>
+    <geom name="cad_0007" class="field" type="mesh" mesh="cad_0007"/>
+    <geom name="cad_0008" class="field" type="mesh" mesh="cad_0008"/>
+    <geom name="cad_0009" class="field" type="mesh" mesh="cad_0009"/>
+    <geom name="cad_0010" class="field" type="mesh" mesh="cad_0010"/>
+    <geom name="cad_0011" class="field" type="mesh" mesh="cad_0011"/>
+    <geom name="cad_0012" class="field" type="mesh" mesh="cad_0012"/>
+    <geom name="cad_0013" class="field" type="mesh" mesh="cad_0013"/>
+    <geom name="cad_0014" class="field" type="mesh" mesh="cad_0014"/>
+    <geom name="cad_0015" class="field" type="mesh" mesh="cad_0015"/>
+    <geom name="cad_0028" class="field" type="mesh" mesh="cad_0028"/>
+    <geom name="cad_0029" class="field" type="mesh" mesh="cad_0029"/>
+    <geom name="cad_0030" class="field" type="mesh" mesh="cad_0030"/>
+    <geom name="cad_0031" class="field" type="mesh" mesh="cad_0031"/>
+    <geom name="cad_0032" class="field" type="mesh" mesh="cad_0032"/>
+    <geom name="cad_0033" class="field" type="mesh" mesh="cad_0033"/>
+    <geom name="cad_0034" class="field" type="mesh" mesh="cad_0034"/>
+    <geom name="cad_0035" class="field" type="mesh" mesh="cad_0035"/>
+    <geom name="cad_0036" class="field" type="mesh" mesh="cad_0036"/>
+    <geom name="cad_0037" class="field" type="mesh" mesh="cad_0037"/>
+    <geom name="cad_0038" class="field" type="mesh" mesh="cad_0038"/>
+    <geom name="cad_0039" class="field" type="mesh" mesh="cad_0039"/>
+    <geom name="cad_0040" class="field" type="mesh" mesh="cad_0040"/>
+    <geom name="cad_0041" class="field" type="mesh" mesh="cad_0041"/>
+    <geom name="cad_0042" class="field" type="mesh" mesh="cad_0042"/>
+    <geom name="cad_0043" class="field" type="mesh" mesh="cad_0043"/>
+    <geom name="cad_0044" class="field" type="mesh" mesh="cad_0044"/>
+    <geom name="cad_0045" class="field" type="mesh" mesh="cad_0045"/>
+    <geom name="cad_0046" class="field" type="mesh" mesh="cad_0046"/>
+    <geom name="cad_0047" class="field" type="mesh" mesh="cad_0047"/>
+    <geom name="cad_0048" class="field" type="mesh" mesh="cad_0048"/>
+    <geom name="cad_0049" class="field" type="mesh" mesh="cad_0049"/>
+    <geom name="cad_0050" class="field" type="mesh" mesh="cad_0050"/>
+    <geom name="cad_0051" class="field" type="mesh" mesh="cad_0051"/>
+    <geom name="cad_0052" class="field" type="mesh" mesh="cad_0052"/>
+    <geom name="cad_0053" class="field" type="mesh" mesh="cad_0053"/>
+    <geom name="cad_0054" class="field" type="mesh" mesh="cad_0054"/>
+    <geom name="cad_0055" class="field" type="mesh" mesh="cad_0055"/>
+    <geom name="cad_0056" class="field" type="mesh" mesh="cad_0056"/>
+    <geom name="cad_0057" class="field" type="mesh" mesh="cad_0057"/>
+    <geom name="cad_0058" class="field" type="mesh" mesh="cad_0058"/>
+    <geom name="cad_0059" class="field" type="mesh" mesh="cad_0059"/>
+    <geom name="cad_0060" class="field" type="mesh" mesh="cad_0060"/>
+    <geom name="cad_0061" class="field" type="mesh" mesh="cad_0061"/>
+    <geom name="cad_0062" class="field" type="mesh" mesh="cad_0062"/>
+    <geom name="cad_0063" class="field" type="mesh" mesh="cad_0063"/>
+    <geom name="cad_0064" class="field" type="mesh" mesh="cad_0064"/>
+    <geom name="cad_0065" class="field" type="mesh" mesh="cad_0065"/>
+    <geom name="cad_0066" class="field" type="mesh" mesh="cad_0066"/>
+    <geom name="cad_0067" class="field" type="mesh" mesh="cad_0067"/>
+    <geom name="cad_0068" class="field" type="mesh" mesh="cad_0068"/>
+    <geom name="cad_0069" class="field" type="mesh" mesh="cad_0069"/>
+    <geom name="cad_0070" class="field" type="mesh" mesh="cad_0070"/>
+    <geom name="cad_0071" class="field" type="mesh" mesh="cad_0071"/>
+    <geom name="cad_0072" class="field" type="mesh" mesh="cad_0072"/>
+    <geom name="cad_0073" class="field" type="mesh" mesh="cad_0073"/>
+    <geom name="cad_0074" class="field" type="mesh" mesh="cad_0074"/>
+    <geom name="cad_0075" class="field" type="mesh" mesh="cad_0075"/>
+    <geom name="cad_0076" class="field" type="mesh" mesh="cad_0076"/>
+    <geom name="cad_0077" class="field" type="mesh" mesh="cad_0077"/>
+    <geom name="cad_0078" class="field" type="mesh" mesh="cad_0078"/>
+    <geom name="cad_0079" class="field" type="mesh" mesh="cad_0079"/>
+    <geom name="cad_0080" class="field" type="mesh" mesh="cad_0080"/>
+    <geom name="cad_0081" class="field" type="mesh" mesh="cad_0081"/>
+    <geom name="cad_0082" class="field" type="mesh" mesh="cad_0082"/>
+    <geom name="cad_0083" class="field" type="mesh" mesh="cad_0083"/>
+    <geom name="cad_0084" class="field" type="mesh" mesh="cad_0084"/>
+    <geom name="cad_0085" class="field" type="mesh" mesh="cad_0085"/>
+    <geom name="cad_0086" class="field" type="mesh" mesh="cad_0086"/>
+    <geom name="cad_0087" class="field" type="mesh" mesh="cad_0087"/>
+    <geom name="cad_0088" class="field" type="mesh" mesh="cad_0088"/>
+    <geom name="cad_0089" class="field" type="mesh" mesh="cad_0089"/>
+    <geom name="cad_0090" class="field" type="mesh" mesh="cad_0090"/>
+    <geom name="cad_0091" class="field" type="mesh" mesh="cad_0091"/>
+    <geom name="cad_0092" class="field" type="mesh" mesh="cad_0092"/>
+    <geom name="cad_0093" class="field" type="mesh" mesh="cad_0093"/>
+    <geom name="cad_0094" class="field" type="mesh" mesh="cad_0094"/>
+    <geom name="cad_0095" class="field" type="mesh" mesh="cad_0095"/>
+    <geom name="cad_0096" class="field" type="mesh" mesh="cad_0096"/>
+    <geom name="cad_0097" class="field" type="mesh" mesh="cad_0097"/>
+    <geom name="cad_0098" class="field" type="mesh" mesh="cad_0098"/>
+    <geom name="cad_0099" class="field" type="mesh" mesh="cad_0099"/>
+    <geom name="cad_0100" class="field" type="mesh" mesh="cad_0100"/>
+    <geom name="cad_0101" class="field" type="mesh" mesh="cad_0101"/>
+    <geom name="cad_0102" class="field" type="mesh" mesh="cad_0102"/>
+    <geom name="cad_0103" class="field" type="mesh" mesh="cad_0103"/>
+    <geom name="cad_0104" class="field" type="mesh" mesh="cad_0104"/>
+    <geom name="cad_0105" class="field" type="mesh" mesh="cad_0105"/>
+    <geom name="cad_0106" class="field" type="mesh" mesh="cad_0106"/>
+    <geom name="cad_0107" class="field" type="mesh" mesh="cad_0107"/>
+    <geom name="cad_0108" class="field" type="mesh" mesh="cad_0108"/>
+    <geom name="cad_0109" class="field" type="mesh" mesh="cad_0109"/>
+    <geom name="cad_0110" class="field" type="mesh" mesh="cad_0110"/>
+    <geom name="cad_0111" class="field" type="mesh" mesh="cad_0111"/>
+    <geom name="cad_0112" class="field" type="mesh" mesh="cad_0112"/>
+    <geom name="cad_0113" class="field" type="mesh" mesh="cad_0113"/>
+    <geom name="cad_0114" class="field" type="mesh" mesh="cad_0114"/>
+    <geom name="cad_0115" class="field" type="mesh" mesh="cad_0115"/>
+    <geom name="cad_0116" class="field" type="mesh" mesh="cad_0116"/>
+    <geom name="cad_0117" class="field" type="mesh" mesh="cad_0117"/>
+    <geom name="cad_0118" class="field" type="mesh" mesh="cad_0118"/>
+    <geom name="cad_0119" class="field" type="mesh" mesh="cad_0119"/>
+    <geom name="cad_0120" class="field" type="mesh" mesh="cad_0120"/>
+    <geom name="cad_0121" class="field" type="mesh" mesh="cad_0121"/>
+    <geom name="cad_0122" class="field" type="mesh" mesh="cad_0122"/>
+    <geom name="cad_0123" class="field" type="mesh" mesh="cad_0123"/>
+    <geom name="cad_0124" class="field" type="mesh" mesh="cad_0124"/>
+    <geom name="cad_0125" class="field" type="mesh" mesh="cad_0125"/>
+    <geom name="cad_0126" class="field" type="mesh" mesh="cad_0126"/>
+    <geom name="cad_0127" class="field" type="mesh" mesh="cad_0127"/>
+    <geom name="cad_0128" class="field" type="mesh" mesh="cad_0128"/>
+    <geom name="cad_0129" class="field" type="mesh" mesh="cad_0129"/>
+    <geom name="cad_0130" class="field" type="mesh" mesh="cad_0130"/>
+    <geom name="cad_0131" class="field" type="mesh" mesh="cad_0131"/>
+    <geom name="cad_0132" class="field" type="mesh" mesh="cad_0132"/>
+    <geom name="cad_0133" class="field" type="mesh" mesh="cad_0133"/>
+    <geom name="cad_0134" class="field" type="mesh" mesh="cad_0134"/>
+    <geom name="cad_0135" class="field" type="mesh" mesh="cad_0135"/>
+    <geom name="cad_0136" class="field" type="mesh" mesh="cad_0136"/>
+    <geom name="cad_0137" class="field" type="mesh" mesh="cad_0137"/>
+    <geom name="cad_0138" class="field" type="mesh" mesh="cad_0138"/>
+    <geom name="cad_0139" class="field" type="mesh" mesh="cad_0139"/>
+    <geom name="cad_0140" class="field" type="mesh" mesh="cad_0140"/>
+    <geom name="cad_0141" class="field" type="mesh" mesh="cad_0141"/>
+    <geom name="cad_0142" class="field" type="mesh" mesh="cad_0142"/>
+    <geom name="cad_0143" class="field" type="mesh" mesh="cad_0143"/>
+    <geom name="cad_0144" class="field" type="mesh" mesh="cad_0144"/>
+    <geom name="cad_0145" class="field" type="mesh" mesh="cad_0145"/>
+    <geom name="cad_0146" class="field" type="mesh" mesh="cad_0146"/>
+    <geom name="cad_0147" class="field" type="mesh" mesh="cad_0147"/>
+    <geom name="cad_0148" class="field" type="mesh" mesh="cad_0148"/>
+    <geom name="cad_0149" class="field" type="mesh" mesh="cad_0149"/>
+    <geom name="cad_0150" class="field" type="mesh" mesh="cad_0150"/>
+    <geom name="cad_0151" class="field" type="mesh" mesh="cad_0151"/>
+    <geom name="cad_0152" class="field" type="mesh" mesh="cad_0152"/>
+    <geom name="cad_0153" class="field" type="mesh" mesh="cad_0153"/>
+    <geom name="cad_0154" class="field" type="mesh" mesh="cad_0154"/>
+    <geom name="cad_0155" class="field" type="mesh" mesh="cad_0155"/>
+    <geom name="cad_0156" class="field" type="mesh" mesh="cad_0156"/>
+    <geom name="cad_0157" class="field" type="mesh" mesh="cad_0157"/>
+    <geom name="cad_0158" class="field" type="mesh" mesh="cad_0158"/>
+    <geom name="cad_0159" class="field" type="mesh" mesh="cad_0159"/>
+    <geom name="cad_0160" class="field" type="mesh" mesh="cad_0160"/>
+    <geom name="cad_0161" class="field" type="mesh" mesh="cad_0161"/>
+    <geom name="cad_0162" class="field" type="mesh" mesh="cad_0162"/>
+    <geom name="cad_0163" class="field" type="mesh" mesh="cad_0163"/>
+    <geom name="cad_0164" class="field" type="mesh" mesh="cad_0164"/>
+    <geom name="cad_0165" class="field" type="mesh" mesh="cad_0165"/>
+    <geom name="cad_0166" class="field" type="mesh" mesh="cad_0166"/>
+    <geom name="cad_0167" class="field" type="mesh" mesh="cad_0167"/>
+    <geom name="cad_0168" class="field" type="mesh" mesh="cad_0168"/>
+    <geom name="cad_0169" class="field" type="mesh" mesh="cad_0169"/>
+    <geom name="cad_0170" class="field" type="mesh" mesh="cad_0170"/>
+    <geom name="cad_0171" class="field" type="mesh" mesh="cad_0171"/>
+    <geom name="cad_0172" class="field" type="mesh" mesh="cad_0172"/>
+    <geom name="cad_0173" class="field" type="mesh" mesh="cad_0173"/>
+    <geom name="cad_0174" class="field" type="mesh" mesh="cad_0174"/>
+    <geom name="cad_0175" class="field" type="mesh" mesh="cad_0175"/>
+    <geom name="cad_0176" class="field" type="mesh" mesh="cad_0176"/>
+    <geom name="perimeter_glass_x_neg" class="field" type="box" size="0.0590 5.4375 70.1300" pos="-70.7330 5.5275 0.0000"/>
+    <geom name="perimeter_glass_x_pos" class="field" type="box" size="0.0590 5.4375 70.1300" pos="70.7330 5.5275 0.0000"/>
+    <geom name="perimeter_glass_z_neg" class="field" type="box" size="70.1300 5.4375 0.0590" pos="0.0000 5.5275 -70.7330"/>
+    <geom name="perimeter_glass_z_pos" class="field" type="box" size="70.1300 5.4375 0.0590" pos="0.0000 5.5275 70.7330"/>
+    <geom name="trig_leave_interior" type="box" size="61.0000 6.0000 61.0000" pos="0.000 6.000 -0.000" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_restricted_for_red" type="box" size="36.0000 6.0000 72.0000" pos="36.000 6.000 -0.000" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_restricted_for_blue" type="box" size="36.0000 6.0000 72.0000" pos="-36.000 6.000 -0.000" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_red_park" type="box" size="5.5000 6.0000 11.5000" pos="-65.100 6.000 -35.250" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_blue_park" type="box" size="5.5000 6.0000 11.5000" pos="65.100 6.000 35.250" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_red_garden" type="box" size="11.5000 6.0000 1.0000" pos="-58.750 6.000 69.100" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_blue_garden" type="box" size="11.5000 6.0000 1.0000" pos="58.750 6.000 -69.100" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_red_cell_up" type="box" size="10.0000 6.0000 7.0000" pos="-12.740 53.800 8.650" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_blue_cell_up" type="box" size="10.0000 6.0000 7.0000" pos="12.760 53.800 -8.650" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_flower_1" type="box" size="2.5000 6.0000 2.5000" pos="23.400 12.750 68.040" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_flower_2" type="box" size="2.5000 6.0000 2.5000" pos="68.040 12.750 -23.390" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_flower_3" type="box" size="2.5000 6.0000 2.5000" pos="-23.390 12.750 -68.040" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <geom name="trig_flower_4" type="box" size="2.5000 6.0000 2.5000" pos="-68.040 12.750 23.390" rgba="0.2 0.6 0.8 0.15" contype="0" conaffinity="0" group="3" density="0"/>
+    <body name="red_0" pos="0 5.200 0">
+      <joint name="red_0_sx" type="slide" axis="1 0 0" damping="2"/>
+      <joint name="red_0_sz" type="slide" axis="0 0 1" damping="2"/>
+      <joint name="red_0_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
+      <geom name="red_0_geom" class="robot" type="box" size="9.000 5.000 9.000" mass="15" rgba="0.9 0.8 0.6 1"/>
+    </body>
+    <body name="red_1" pos="0 5.200 0">
+      <joint name="red_1_sx" type="slide" axis="1 0 0" damping="2"/>
+      <joint name="red_1_sz" type="slide" axis="0 0 1" damping="2"/>
+      <joint name="red_1_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
+      <geom name="red_1_geom" class="robot" type="box" size="9.000 5.000 9.000" mass="15" rgba="0.9 0.8 0.6 1"/>
+    </body>
+    <body name="blue_0" pos="0 5.200 0">
+      <joint name="blue_0_sx" type="slide" axis="1 0 0" damping="2"/>
+      <joint name="blue_0_sz" type="slide" axis="0 0 1" damping="2"/>
+      <joint name="blue_0_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
+      <geom name="blue_0_geom" class="robot" type="box" size="9.000 5.000 9.000" mass="15" rgba="0.9 0.8 0.6 1"/>
+    </body>
+    <body name="blue_1" pos="0 5.200 0">
+      <joint name="blue_1_sx" type="slide" axis="1 0 0" damping="2"/>
+      <joint name="blue_1_sz" type="slide" axis="0 0 1" damping="2"/>
+      <joint name="blue_1_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
+      <geom name="blue_1_geom" class="robot" type="box" size="9.000 5.000 9.000" mass="15" rgba="0.9 0.8 0.6 1"/>
+    </body>
+    <body name="field_mech_red_hive">
+      <inertial pos="-12.7500 42.0300 1.1100" mass="5" diaginertia="120 120 120"/>
+      <joint name="field_mech_red_hive" type="hinge" pos="-12.7500 42.0300 1.1100" axis="1.0000 0.0000 0.0000" range="-0.05000 1.04720" damping="18" armature="2"/>
+      <geom name="mechanism_red_hive_04_geom" class="field" type="mesh" mesh="mechanism_red_hive_04" density="0" contype="4" conaffinity="10"/>
+      <geom name="mechanism_red_hive_05_geom" class="field" type="mesh" mesh="mechanism_red_hive_05" density="0" contype="4" conaffinity="10"/>
+      <geom name="mechanism_red_hive_06_geom" class="field" type="mesh" mesh="mechanism_red_hive_06" density="0" contype="4" conaffinity="10"/>
+      <geom name="mechanism_red_hive_07_geom" class="field" type="mesh" mesh="mechanism_red_hive_07" density="0" contype="4" conaffinity="10"/>
+      <geom name="mechanism_red_hive_08_geom" class="field" type="mesh" mesh="mechanism_red_hive_08" density="0" contype="4" conaffinity="10"/>
+      <geom name="mechanism_red_hive_09_geom" class="field" type="mesh" mesh="mechanism_red_hive_09" density="0" contype="4" conaffinity="10"/>
+      <geom name="red_cell_up_floor" class="field" type="box" density="0" contype="4" conaffinity="10" size="10.0000 0.2500 7.0000" pos="-12.740 47.873 8.650"/>
+      <geom name="red_cell_up_left" class="field" type="box" density="0" contype="4" conaffinity="10" size="0.2500 4.5000 7.0000" pos="-22.740 52.623 8.650"/>
+      <geom name="red_cell_up_right" class="field" type="box" density="0" contype="4" conaffinity="10" size="0.2500 4.5000 7.0000" pos="-2.740 52.623 8.650"/>
+      <geom name="red_cell_up_back" class="field" type="box" density="0" contype="4" conaffinity="10" size="10.0000 4.5000 0.2500" pos="-12.740 52.623 15.650"/>
+    </body>
+    <body name="field_mech_blue_hive">
+      <inertial pos="12.7500 42.0300 -1.1100" mass="5" diaginertia="120 120 120"/>
+      <joint name="field_mech_blue_hive" type="hinge" pos="12.7500 42.0300 -1.1100" axis="1.0000 0.0000 0.0000" range="-1.04720 0.05000" damping="18" armature="2"/>
+      <geom name="mechanism_blue_hive_04_geom" class="field" type="mesh" mesh="mechanism_blue_hive_04" density="0" contype="4" conaffinity="10"/>
+      <geom name="mechanism_blue_hive_05_geom" class="field" type="mesh" mesh="mechanism_blue_hive_05" density="0" contype="4" conaffinity="10"/>
+      <geom name="mechanism_blue_hive_06_geom" class="field" type="mesh" mesh="mechanism_blue_hive_06" density="0" contype="4" conaffinity="10"/>
+      <geom name="mechanism_blue_hive_07_geom" class="field" type="mesh" mesh="mechanism_blue_hive_07" density="0" contype="4" conaffinity="10"/>
+      <geom name="mechanism_blue_hive_08_geom" class="field" type="mesh" mesh="mechanism_blue_hive_08" density="0" contype="4" conaffinity="10"/>
+      <geom name="mechanism_blue_hive_09_geom" class="field" type="mesh" mesh="mechanism_blue_hive_09" density="0" contype="4" conaffinity="10"/>
+      <geom name="blue_cell_up_floor" class="field" type="box" density="0" contype="4" conaffinity="10" size="10.0000 0.2500 7.0000" pos="12.760 47.908 -8.650"/>
+      <geom name="blue_cell_up_left" class="field" type="box" density="0" contype="4" conaffinity="10" size="0.2500 4.5000 7.0000" pos="2.760 52.658 -8.650"/>
+      <geom name="blue_cell_up_right" class="field" type="box" density="0" contype="4" conaffinity="10" size="0.2500 4.5000 7.0000" pos="22.760 52.658 -8.650"/>
+      <geom name="blue_cell_up_front" class="field" type="box" density="0" contype="4" conaffinity="10" size="10.0000 4.5000 0.2500" pos="12.760 52.658 -15.650"/>
+    </body>
+    <body name="gp_pollen_00" pos="0 0 0">
+      <freejoint name="gp_pollen_00_free"/>
+      <geom name="gp_pollen_00_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_01" pos="0 0 0">
+      <freejoint name="gp_pollen_01_free"/>
+      <geom name="gp_pollen_01_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_02" pos="0 0 0">
+      <freejoint name="gp_pollen_02_free"/>
+      <geom name="gp_pollen_02_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_03" pos="0 0 0">
+      <freejoint name="gp_pollen_03_free"/>
+      <geom name="gp_pollen_03_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_04" pos="0 0 0">
+      <freejoint name="gp_pollen_04_free"/>
+      <geom name="gp_pollen_04_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_05" pos="0 0 0">
+      <freejoint name="gp_pollen_05_free"/>
+      <geom name="gp_pollen_05_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_06" pos="0 0 0">
+      <freejoint name="gp_pollen_06_free"/>
+      <geom name="gp_pollen_06_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_07" pos="0 0 0">
+      <freejoint name="gp_pollen_07_free"/>
+      <geom name="gp_pollen_07_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_08" pos="0 0 0">
+      <freejoint name="gp_pollen_08_free"/>
+      <geom name="gp_pollen_08_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_09" pos="0 0 0">
+      <freejoint name="gp_pollen_09_free"/>
+      <geom name="gp_pollen_09_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_10" pos="0 0 0">
+      <freejoint name="gp_pollen_10_free"/>
+      <geom name="gp_pollen_10_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_11" pos="0 0 0">
+      <freejoint name="gp_pollen_11_free"/>
+      <geom name="gp_pollen_11_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_12" pos="0 0 0">
+      <freejoint name="gp_pollen_12_free"/>
+      <geom name="gp_pollen_12_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_13" pos="0 0 0">
+      <freejoint name="gp_pollen_13_free"/>
+      <geom name="gp_pollen_13_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_14" pos="0 0 0">
+      <freejoint name="gp_pollen_14_free"/>
+      <geom name="gp_pollen_14_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_15" pos="0 0 0">
+      <freejoint name="gp_pollen_15_free"/>
+      <geom name="gp_pollen_15_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_16" pos="0 0 0">
+      <freejoint name="gp_pollen_16_free"/>
+      <geom name="gp_pollen_16_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_17" pos="0 0 0">
+      <freejoint name="gp_pollen_17_free"/>
+      <geom name="gp_pollen_17_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_18" pos="0 0 0">
+      <freejoint name="gp_pollen_18_free"/>
+      <geom name="gp_pollen_18_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_19" pos="0 0 0">
+      <freejoint name="gp_pollen_19_free"/>
+      <geom name="gp_pollen_19_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_20" pos="0 0 0">
+      <freejoint name="gp_pollen_20_free"/>
+      <geom name="gp_pollen_20_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_21" pos="0 0 0">
+      <freejoint name="gp_pollen_21_free"/>
+      <geom name="gp_pollen_21_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_22" pos="0 0 0">
+      <freejoint name="gp_pollen_22_free"/>
+      <geom name="gp_pollen_22_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_23" pos="0 0 0">
+      <freejoint name="gp_pollen_23_free"/>
+      <geom name="gp_pollen_23_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_24" pos="0 0 0">
+      <freejoint name="gp_pollen_24_free"/>
+      <geom name="gp_pollen_24_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_25" pos="0 0 0">
+      <freejoint name="gp_pollen_25_free"/>
+      <geom name="gp_pollen_25_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_26" pos="0 0 0">
+      <freejoint name="gp_pollen_26_free"/>
+      <geom name="gp_pollen_26_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_27" pos="0 0 0">
+      <freejoint name="gp_pollen_27_free"/>
+      <geom name="gp_pollen_27_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_28" pos="0 0 0">
+      <freejoint name="gp_pollen_28_free"/>
+      <geom name="gp_pollen_28_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_29" pos="0 0 0">
+      <freejoint name="gp_pollen_29_free"/>
+      <geom name="gp_pollen_29_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_30" pos="0 0 0">
+      <freejoint name="gp_pollen_30_free"/>
+      <geom name="gp_pollen_30_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_31" pos="0 0 0">
+      <freejoint name="gp_pollen_31_free"/>
+      <geom name="gp_pollen_31_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_32" pos="0 0 0">
+      <freejoint name="gp_pollen_32_free"/>
+      <geom name="gp_pollen_32_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_33" pos="0 0 0">
+      <freejoint name="gp_pollen_33_free"/>
+      <geom name="gp_pollen_33_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_34" pos="0 0 0">
+      <freejoint name="gp_pollen_34_free"/>
+      <geom name="gp_pollen_34_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_35" pos="0 0 0">
+      <freejoint name="gp_pollen_35_free"/>
+      <geom name="gp_pollen_35_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_36" pos="0 0 0">
+      <freejoint name="gp_pollen_36_free"/>
+      <geom name="gp_pollen_36_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_37" pos="0 0 0">
+      <freejoint name="gp_pollen_37_free"/>
+      <geom name="gp_pollen_37_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_38" pos="0 0 0">
+      <freejoint name="gp_pollen_38_free"/>
+      <geom name="gp_pollen_38_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_39" pos="0 0 0">
+      <freejoint name="gp_pollen_39_free"/>
+      <geom name="gp_pollen_39_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_40" pos="0 0 0">
+      <freejoint name="gp_pollen_40_free"/>
+      <geom name="gp_pollen_40_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_41" pos="0 0 0">
+      <freejoint name="gp_pollen_41_free"/>
+      <geom name="gp_pollen_41_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_42" pos="0 0 0">
+      <freejoint name="gp_pollen_42_free"/>
+      <geom name="gp_pollen_42_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_43" pos="0 0 0">
+      <freejoint name="gp_pollen_43_free"/>
+      <geom name="gp_pollen_43_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_44" pos="0 0 0">
+      <freejoint name="gp_pollen_44_free"/>
+      <geom name="gp_pollen_44_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_45" pos="0 0 0">
+      <freejoint name="gp_pollen_45_free"/>
+      <geom name="gp_pollen_45_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_46" pos="0 0 0">
+      <freejoint name="gp_pollen_46_free"/>
+      <geom name="gp_pollen_46_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_pollen_47" pos="0 0 0">
+      <freejoint name="gp_pollen_47_free"/>
+      <geom name="gp_pollen_47_geom" class="piece_pollen" type="mesh" mesh="pollen_hull"/>
+    </body>
+    <body name="gp_nectar_red_00" pos="0 0 0">
+      <freejoint name="gp_nectar_red_00_free"/>
+      <geom name="gp_nectar_red_00_geom" class="piece_nectar_red" type="mesh" mesh="nectar_red_hull"/>
+    </body>
+    <body name="gp_nectar_red_01" pos="0 0 0">
+      <freejoint name="gp_nectar_red_01_free"/>
+      <geom name="gp_nectar_red_01_geom" class="piece_nectar_red" type="mesh" mesh="nectar_red_hull"/>
+    </body>
+    <body name="gp_nectar_red_02" pos="0 0 0">
+      <freejoint name="gp_nectar_red_02_free"/>
+      <geom name="gp_nectar_red_02_geom" class="piece_nectar_red" type="mesh" mesh="nectar_red_hull"/>
+    </body>
+    <body name="gp_nectar_red_03" pos="0 0 0">
+      <freejoint name="gp_nectar_red_03_free"/>
+      <geom name="gp_nectar_red_03_geom" class="piece_nectar_red" type="mesh" mesh="nectar_red_hull"/>
+    </body>
+    <body name="gp_nectar_red_04" pos="0 0 0">
+      <freejoint name="gp_nectar_red_04_free"/>
+      <geom name="gp_nectar_red_04_geom" class="piece_nectar_red" type="mesh" mesh="nectar_red_hull"/>
+    </body>
+    <body name="gp_nectar_red_05" pos="0 0 0">
+      <freejoint name="gp_nectar_red_05_free"/>
+      <geom name="gp_nectar_red_05_geom" class="piece_nectar_red" type="mesh" mesh="nectar_red_hull"/>
+    </body>
+    <body name="gp_nectar_red_06" pos="0 0 0">
+      <freejoint name="gp_nectar_red_06_free"/>
+      <geom name="gp_nectar_red_06_geom" class="piece_nectar_red" type="mesh" mesh="nectar_red_hull"/>
+    </body>
+    <body name="gp_nectar_red_07" pos="0 0 0">
+      <freejoint name="gp_nectar_red_07_free"/>
+      <geom name="gp_nectar_red_07_geom" class="piece_nectar_red" type="mesh" mesh="nectar_red_hull"/>
+    </body>
+    <body name="gp_nectar_red_08" pos="0 0 0">
+      <freejoint name="gp_nectar_red_08_free"/>
+      <geom name="gp_nectar_red_08_geom" class="piece_nectar_red" type="mesh" mesh="nectar_red_hull"/>
+    </body>
+    <body name="gp_nectar_red_09" pos="0 0 0">
+      <freejoint name="gp_nectar_red_09_free"/>
+      <geom name="gp_nectar_red_09_geom" class="piece_nectar_red" type="mesh" mesh="nectar_red_hull"/>
+    </body>
+    <body name="gp_nectar_red_10" pos="0 0 0">
+      <freejoint name="gp_nectar_red_10_free"/>
+      <geom name="gp_nectar_red_10_geom" class="piece_nectar_red" type="mesh" mesh="nectar_red_hull"/>
+    </body>
+    <body name="gp_nectar_blue_00" pos="0 0 0">
+      <freejoint name="gp_nectar_blue_00_free"/>
+      <geom name="gp_nectar_blue_00_geom" class="piece_nectar_blue" type="mesh" mesh="nectar_blue_hull"/>
+    </body>
+    <body name="gp_nectar_blue_01" pos="0 0 0">
+      <freejoint name="gp_nectar_blue_01_free"/>
+      <geom name="gp_nectar_blue_01_geom" class="piece_nectar_blue" type="mesh" mesh="nectar_blue_hull"/>
+    </body>
+    <body name="gp_nectar_blue_02" pos="0 0 0">
+      <freejoint name="gp_nectar_blue_02_free"/>
+      <geom name="gp_nectar_blue_02_geom" class="piece_nectar_blue" type="mesh" mesh="nectar_blue_hull"/>
+    </body>
+    <body name="gp_nectar_blue_03" pos="0 0 0">
+      <freejoint name="gp_nectar_blue_03_free"/>
+      <geom name="gp_nectar_blue_03_geom" class="piece_nectar_blue" type="mesh" mesh="nectar_blue_hull"/>
+    </body>
+    <body name="gp_nectar_blue_04" pos="0 0 0">
+      <freejoint name="gp_nectar_blue_04_free"/>
+      <geom name="gp_nectar_blue_04_geom" class="piece_nectar_blue" type="mesh" mesh="nectar_blue_hull"/>
+    </body>
+    <body name="gp_nectar_blue_05" pos="0 0 0">
+      <freejoint name="gp_nectar_blue_05_free"/>
+      <geom name="gp_nectar_blue_05_geom" class="piece_nectar_blue" type="mesh" mesh="nectar_blue_hull"/>
+    </body>
+    <body name="gp_nectar_blue_06" pos="0 0 0">
+      <freejoint name="gp_nectar_blue_06_free"/>
+      <geom name="gp_nectar_blue_06_geom" class="piece_nectar_blue" type="mesh" mesh="nectar_blue_hull"/>
+    </body>
+    <body name="gp_nectar_blue_07" pos="0 0 0">
+      <freejoint name="gp_nectar_blue_07_free"/>
+      <geom name="gp_nectar_blue_07_geom" class="piece_nectar_blue" type="mesh" mesh="nectar_blue_hull"/>
+    </body>
+    <body name="gp_nectar_blue_08" pos="0 0 0">
+      <freejoint name="gp_nectar_blue_08_free"/>
+      <geom name="gp_nectar_blue_08_geom" class="piece_nectar_blue" type="mesh" mesh="nectar_blue_hull"/>
+    </body>
+    <body name="gp_nectar_blue_09" pos="0 0 0">
+      <freejoint name="gp_nectar_blue_09_free"/>
+      <geom name="gp_nectar_blue_09_geom" class="piece_nectar_blue" type="mesh" mesh="nectar_blue_hull"/>
+    </body>
+    <body name="gp_nectar_blue_10" pos="0 0 0">
+      <freejoint name="gp_nectar_blue_10_free"/>
+      <geom name="gp_nectar_blue_10_geom" class="piece_nectar_blue" type="mesh" mesh="nectar_blue_hull"/>
+    </body>
+  </worldbody>
+</mujoco>

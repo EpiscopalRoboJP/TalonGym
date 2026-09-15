@@ -116,7 +116,7 @@ Downloads the official full-field STEP from the FIRST binary endpoint (`field-ca
 
 Seasons that declare `mesh_field_collision` **fail** if the official STEP is missing, stale, or collapses to one concave mesh — they are never overwritten with schematic AABB boxes. MuJoCo convexifies a single mesh, which would seal HIVE/CELL openings; collision is one convex hull per CAD solid.
 
-`--verify` checks the local manifest and derived files without re-downloading. Runtime MuJoCo loads the local CAD `collisionAsset` (convex assembly parts + typed piece hulls), not `field.glb` and not schematic AABBs. Those files are gitignored; clones rebuild them with this command.
+`--verify` checks the committed manifest and derived files without re-downloading. Runtime MuJoCo loads the local CAD `collisionAsset` (convex assembly parts + typed piece hulls), not `field.glb` and not schematic AABBs. BIOBUZZ meshes ship in git; run this command to regenerate after an official STEP change.
 
 ## `import-piece-cad`
 

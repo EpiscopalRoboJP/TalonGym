@@ -59,7 +59,7 @@ talongym/
     training/
       biobuzz_auto_{lightweight,workstation,cloud,easy}.json
   assets/
-    seasons/biobuzz_2026/    # gitignored tessellation: field.glb, collision/*.stl, pieces/, cad_manifest.json; rebuild via import-field-cad
+    seasons/biobuzz_2026/    # shipped tessellation: field.glb, collision/*.stl, pieces/, cad_manifest.json; rebuild via import-field-cad
   engine/                    # Rust crate: Rapier2D batched worlds
     Cargo.toml
     src/lib.rs
@@ -176,7 +176,7 @@ The Red Wall definition still holds for BIOBUZZ. Document alliance-specific note
 
 BIOBUZZ physical geometry is built from official STEP, not schematic boxes.
 
-- Raw STEP stays in `var/cad/` (gitignored). Derived GLB/STL, `cad_manifest.json`, and `field_mjcf.xml` are also gitignored; rebuild with `python -m talongym import-field-cad`.
+- Raw STEP stays in `var/cad/` (gitignored). Derived GLB/STL, `cad_manifest.json`, and `field_mjcf.xml` for BIOBUZZ are committed under `assets/seasons/biobuzz_2026/` so a clone can run Lab and MuJoCo without the `[cad]` extra. Rebuild with `python -m talongym import-field-cad` after an official STEP change.
 - Official field binary endpoint: `https://ftc-resources.firstinspires.org/ftc/archive/2027/field/field-cad-step` (handles `Content-Disposition`). POLLEN / red NECTAR / blue NECTAR STEP files are the AndyMark exports pinned in `python/talongym/assets/cad_sources.py`.
 - Coordinates in derived assets: FTC inches, Y-up (`x = ftc.x`, `y = height`, `z = -ftc.y`). Piece GLBs are centered at the geometric origin for later free joints.
 - **Collision:** one convex hull per CAD solid under `collision/`, plus four continuous STEP-bound glass proxies that close panel seams. Never a single concave field mesh — MuJoCo convexifies it and would seal HIVE/CELL openings. Piece hulls are one convex STL per type. The red and blue HIVE basket assemblies are grouped into separate hinge bodies; their A-frame and pivots remain static.

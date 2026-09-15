@@ -58,7 +58,7 @@ Open http://127.0.0.1:5173. Details: [LAB.md](LAB.md).
 | `var/ckpts/` | RecurrentPPO zips (`latest.zip`, `best.zip`, per-run folders) |
 | `var/last_replay.java` | CLI `replay` export |
 
-`var/` is gitignored. Copy the SQLite file to share a mentor-trained run with a laptop that cannot train. Season tessellation under `assets/seasons/` (`field.glb`, `collision/`, `pieces/`, `mechanisms/`, `cad_manifest.json`, `field_mjcf.xml`) is also gitignored; rebuild with `python -m talongym import-field-cad`.
+`var/` is gitignored. Copy the SQLite file to share a mentor-trained run with a laptop that cannot train. BIOBUZZ tessellation under `assets/seasons/biobuzz_2026/` (`field.glb`, `collision/`, `pieces/`, `mechanisms/`, `cad_manifest.json`, `field_mjcf.xml`) is committed with the repo. Rebuild from a new official STEP with `python -m talongym import-field-cad`.
 
 Set `TALONGYM_DATABASE_URL` to a `postgres://…` URL and install `[postgres]` to use Postgres instead of SQLite. If the URL is unset, Lab uses `var/talongym.db`.
 
