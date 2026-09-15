@@ -20,8 +20,28 @@ type FieldDoc = {
   provenance?: { verifyAgainstManual?: boolean; manualRevision?: string };
   fieldSizeIn?: { width: number; depth: number };
   elements?: FieldElement[];
+  gamePieces?: { typeId: string; shape?: { kind?: string; radius?: number; width?: number; depth?: number }; attributes?: { color?: string } }[];
+  spawns?: { id: string; pieceTypeId: string; poses: { x: number; y: number; z?: number }[] }[];
   [k: string]: unknown;
 };
+
+function spawnPieces(doc: FieldDoc): Frame["pieces"] {
+  const types = new Map((doc.gamePieces || []).map((gp) => [gp.typeId, gp]));
+  return (doc.spawns || []).flatMap((spawn) => {
+    const gp = types.get(spawn.pieceTypeId);
+    const sh = gp?.shape || {};
+    const radius = sh.kind === "circle" ? sh.radius || 2.5 : Math.max(sh.width || 3, sh.depth || 3) / 2;
+    return spawn.poses.map((pose, i) => ({
+      id: `${spawn.id}-${i}`,
+      typeId: spawn.pieceTypeId,
+      x: pose.x,
+      y: pose.y,
+      z: pose.z ?? radius,
+      radius,
+      color: gp?.attributes?.color,
+    }));
+  });
+}
 
 type Tab = "layout" | "json" | "scoring";
 type Lint = { ok: boolean; errors: string[] } | null;
@@ -145,7 +165,7 @@ export function FieldBuilderPage() {
       t: 0,
       trueScore: 0,
       robots: [],
-      pieces: [],
+      pieces: spawnPieces(doc),
       elements: elements.map((el) => ({
         id: el.id,
         type: el.type,

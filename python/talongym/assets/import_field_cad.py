@@ -17,6 +17,13 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
 
+from talongym.assets.cad_layout import (
+    build_layout,
+    cad_part_name,
+    lab_bounds_to_placement,
+    sync_field_to_cad_layout,
+    write_preset_json,
+)
 from talongym.assets.gltf_boxes import solids_from_field, write_glb
 from talongym.assets.mjcf_field import build_mjcf
 from talongym.paths import ASSETS_DIR, PRESETS_DIR, VAR_DIR
@@ -31,6 +38,10 @@ FIELD_SPAN_IN = 144.0
 # 20 mm is coarse enough for Lab; we still quadric-decimate after tessellation.
 DEFAULT_TOL_BY_UNIT = {"m": 0.02, "mm": 20.0, "in": 0.75, "unknown": 0.02}
 VISUAL_FACE_TARGET = 350_000
+# Screws, pins, rivets and cable ties are ~30% of official field CAD faces and invisible at field scale.
+HARDWARE_MAX_EXTENT_IN = 2.0
+PART_MIN_FACES = 500
+MAX_DECIMATED_FRACTION = 0.5
 # FTC (x, y floor, z height) -> Three/MuJoCo Y-up (x, height, -y).
 YUP_FROM_ZUP = [
     [1.0, 0.0, 0.0, 0.0],
@@ -208,19 +219,115 @@ def _paint_lab_mesh(mesh: Any) -> Any:
     return mesh
 
 
-def _decimate_visual(obj: Any, trimesh: Any, target: int = VISUAL_FACE_TARGET) -> tuple[Any, bool]:
-    mesh = _as_trimesh(obj, trimesh)
-    if len(mesh.faces) <= target:
-        return _paint_lab_mesh(mesh), False
-    try:
-        reduced = mesh.simplify_quadric_decimation(face_count=int(target))
-    except Exception as exc:
-        raise CadImportError(
-            "field mesh is too dense and fast-simplification is missing; pip install -e '.[cad]'"
-        ) from exc
-    if reduced is None or len(getattr(reduced, "faces", [])) < 32:
-        return _paint_lab_mesh(mesh), False
-    return _paint_lab_mesh(reduced), True
+def _visual_parts(
+    obj: Any,
+    trimesh: Any,
+    piece_parts: frozenset[str] = frozenset(),
+) -> tuple[list[Any], list[tuple[str, Any]]]:
+    """Baked mesh per assembly instance for Lab, plus (instance name, Lab bounds) placements.
+
+    Fasteners too small to see are dropped. In-field instances of ``piece_parts`` are placed
+    but not drawn: the sim spawns and renders those game pieces itself.
+    """
+    if isinstance(obj, trimesh.Trimesh):
+        return [obj], []
+    if not isinstance(obj, trimesh.Scene):
+        raise CadImportError(f"unsupported mesh type {type(obj).__name__}")
+    parts = []
+    placements = []
+    half = 0.5 * FIELD_SPAN_IN
+    for node in obj.graph.nodes_geometry:
+        transform, geom_name = obj.graph[node]
+        geom = obj.geometry.get(geom_name)
+        if not isinstance(geom, trimesh.Trimesh) or not len(geom.faces):
+            continue
+        part = geom.copy()
+        part.apply_transform(transform)
+        if float(max(part.extents)) < HARDWARE_MAX_EXTENT_IN:
+            continue
+        lo, hi = part.bounds
+        placements.append((geom_name, part.bounds.copy()))
+        in_field = abs(0.5 * (lo[0] + hi[0])) < half and abs(0.5 * (lo[2] + hi[2])) < half
+        if in_field and cad_part_name(geom_name) in piece_parts:
+            continue
+        # glTF splits vertices at every CAD face edge; unwelded seams read as open borders
+        # to the decimator, which then shrinks each surface patch away from its neighbours.
+        part.merge_vertices(merge_tex=True, merge_norm=True)
+        parts.append(part)
+    if not parts:
+        raise CadImportError("STEP scene has no triangle mesh")
+    return parts, placements
+
+
+def _part_face_budgets(face_counts: list[int], target: int) -> list[int]:
+    """Scale every part by one ratio, never taking a part below PART_MIN_FACES."""
+
+    def budgets(ratio: float) -> list[int]:
+        return [min(n, max(PART_MIN_FACES, int(n * ratio))) for n in face_counts]
+
+    if sum(face_counts) <= target:
+        return list(face_counts)
+    lo, hi = 0.0, 1.0
+    for _ in range(40):
+        mid = 0.5 * (lo + hi)
+        if sum(budgets(mid)) > target:
+            hi = mid
+        else:
+            lo = mid
+    return budgets(lo)
+
+
+def _decimate_visual(parts: list[Any], trimesh: Any, target: int = VISUAL_FACE_TARGET) -> tuple[Any, bool]:
+    # Decimating the merged assembly as one mesh lets collapses cross part boundaries,
+    # which punches holes in flat panels and leaves floating shards. Budget per part.
+    counts = [len(p.faces) for p in parts]
+    budgets = _part_face_budgets(counts, target)
+    decimated = False
+    out = []
+    for part, count, budget in zip(parts, counts, budgets, strict=True):
+        if budget < count:
+            try:
+                reduced = part.simplify_quadric_decimation(face_count=int(budget))
+            except Exception as exc:
+                raise CadImportError(
+                    "field mesh is too dense and fast-simplification is missing; pip install -e '.[cad]'"
+                ) from exc
+            # A decimator that stalls far above budget only made the collapses it was forced
+            # into, which on foam tiles open holes where four corners meet. Keep those exact.
+            kept = len(getattr(reduced, "faces", [])) if reduced is not None else 0
+            if 4 <= kept <= count * MAX_DECIMATED_FRACTION:
+                part = reduced
+                decimated = True
+        out.append(part)
+    mesh = out[0] if len(out) == 1 else trimesh.util.concatenate(out)
+    return _paint_lab_mesh(mesh), decimated
+
+
+def tile_surface_height(mesh: Any, bin_in: float = 0.05, search_in: float = 6.0) -> float:
+    """Height of the largest upward-facing surface near the floor inside the field footprint.
+
+    Official CAD puts parts (under-tile bars) below the foam tiles, so the lowest vertex is
+    not where robots drive. Lab and physics treat y=0 as the tile top.
+    """
+    normals = mesh.face_normals
+    centers = mesh.triangles_center
+    half = 0.5 * FIELD_SPAN_IN
+    low = float(mesh.bounds[0][1])
+    mask = (
+        (normals[:, 1] > 0.99)
+        & (abs(centers[:, 0]) < half)
+        & (abs(centers[:, 2]) < half)
+        & (centers[:, 1] < low + search_in)
+    )
+    if not mask.any():
+        return low
+    bins = ((centers[mask, 1] - low) / bin_in).astype(int)
+    areas: dict[int, float] = {}
+    for b, area in zip(bins.tolist(), mesh.area_faces[mask].tolist(), strict=True):
+        areas[b] = areas.get(b, 0.0) + area
+    best = max(areas, key=areas.__getitem__)
+    ys = centers[mask, 1][bins == best]
+    return float(ys.max())
 
 
 def align_field_mesh(obj: Any, units: str | None = None) -> tuple[Any, dict[str, Any]]:
@@ -297,7 +404,11 @@ def convert_step_to_trimesh(
     units: str | None = None,
     tol_linear: float | None = None,
     raw_glb: Path | None = None,
-) -> tuple[Any, dict[str, Any]]:
+    field: dict[str, Any] | None = None,
+) -> tuple[Any, dict[str, Any], dict[str, Any]]:
+    """Lab mesh, import meta, and the CAD coordinate layout (see cad_layout)."""
+    field = field or {}
+    piece_parts = frozenset(gp["cadPart"] for gp in field.get("gamePieces") or [] if gp.get("cadPart"))
     trimesh = _require_trimesh()
     _require_cascadio()
     step_path = Path(step_path)
@@ -315,13 +426,22 @@ def convert_step_to_trimesh(
     if loaded is None:
         raise CadImportError(f"trimesh could not load tessellated {raw_glb}")
     aligned, meta = align_field_mesh(loaded, units=sniffed)
-    visual, decimated = _decimate_visual(aligned, trimesh)
+    parts, placements = _visual_parts(aligned, trimesh, piece_parts)
+    visual, decimated = _decimate_visual(parts, trimesh)
+    tile_top = tile_surface_height(visual)
+    visual.apply_translation([0.0, -tile_top, 0.0])
+    layout = build_layout(
+        [lab_bounds_to_placement(name, b[0], b[1], tile_top) for name, b in placements], field, tile_top
+    )
+    meta["tileSurfaceIn"] = round(tile_top, 3)
+    meta["minIn"] = [round(float(v), 3) for v in visual.bounds[0]]
+    meta["maxIn"] = [round(float(v), 3) for v in visual.bounds[1]]
     meta["rawGlb"] = str(raw_glb)
     meta["sniffedUnits"] = sniffed
     meta["tolLinear"] = float(tol_linear) if tol_linear is not None else default_linear_deflection(sniffed)
     meta["decimated"] = decimated
     meta["faceCount"] = _face_count(visual)
-    return visual, meta
+    return visual, meta, layout
 
 
 def write_assets_from_field(
@@ -374,6 +494,32 @@ def try_official_step(page_url: str = DEFAULT_CAD_PAGE) -> Path | None:
         return None
 
 
+def _import_step(
+    field: dict[str, Any],
+    field_path: Path,
+    step: Path,
+    tol_linear: float | None,
+    year_hint: str,
+) -> dict[str, Any]:
+    mesh, meta, layout = convert_step_to_trimesh(step, tol_linear=tol_linear, field=field)
+    synced, sync_report = sync_field_to_cad_layout(field, layout)
+    if synced != field:
+        write_preset_json(field_path, synced)
+    paths = write_step_visual_and_aabb_colliders(synced, mesh, year_hint=year_hint)
+    layout_path = Path(paths["glb"]).with_name("field_layout.json")
+    layout_path.write_text(json.dumps(layout, indent=1) + "\n", encoding="utf-8")
+    return {
+        "ok": True,
+        "source": f"official_step:{step.name}",
+        "step": str(step),
+        **paths,
+        "layout": str(layout_path),
+        "fieldPreset": str(field_path),
+        "presetSync": sync_report,
+        **meta,
+    }
+
+
 def import_field_cad(
     field_path: Path | None = None,
     page_url: str = DEFAULT_CAD_PAGE,
@@ -381,31 +527,15 @@ def import_field_cad(
     step_path: Path | None = None,
     tol_linear: float | None = None,
 ) -> dict[str, Any]:
+    field_path = Path(field_path) if field_path else PRESETS_DIR / "seasons" / "biobuzz_2026" / "field.json"
     field = load_field_json(field_path)
     if step_path is not None:
-        staged = stage_step(Path(step_path))
-        mesh, meta = convert_step_to_trimesh(staged, tol_linear=tol_linear)
-        paths = write_step_visual_and_aabb_colliders(field, mesh, year_hint=year_hint)
-        return {
-            "ok": True,
-            "source": f"official_step:{staged.name}",
-            "step": str(staged),
-            **paths,
-            **meta,
-        }
+        return _import_step(field, field_path, stage_step(Path(step_path)), tol_linear, year_hint)
     step = try_official_step(page_url)
     note = "aabb_tessellation"
     if step is not None:
         try:
-            mesh, meta = convert_step_to_trimesh(step, tol_linear=tol_linear)
-            paths = write_step_visual_and_aabb_colliders(field, mesh, year_hint=year_hint)
-            return {
-                "ok": True,
-                "source": f"official_step:{step.name}",
-                "step": str(step),
-                **paths,
-                **meta,
-            }
+            return _import_step(field, field_path, step, tol_linear, year_hint)
         except Exception as exc:
             note = f"step_failed:{exc}"
     paths = write_assets_from_field(field, year_hint=year_hint)

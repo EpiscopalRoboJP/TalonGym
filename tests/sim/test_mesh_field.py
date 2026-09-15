@@ -58,7 +58,7 @@ def test_piece_hits_hive_frame():
     bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
     world = World(bundle, seed=0)
     world.reset(seed=0, static_teammate=False)
-    piece = next(iter(world.pieces.values()))
+    piece = next(p for p in world.pieces.values() if not p.staged)
     piece.x, piece.y, piece.z = -40.0, 0.0, 22.0
     piece.vx, piece.vy, piece.vz = 80.0, 0.0, 0.0
     piece.kick = True
@@ -99,3 +99,31 @@ def test_ballistic_tip_still_once():
             break
     assert int(world.accumulators.get("launched_count") or 0) >= 1
     assert int(world.accumulators.get("tip_count") or 0) <= 1
+
+
+def test_cad_staged_pieces_hold_until_intaken_and_stack_drops():
+    bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
+    world = World(bundle, seed=0, allow_missing_mesh=True)
+    world.reset(seed=0, static_teammate=False)
+    flower = next(el for el in world.elements if el["id"] == "flower_1")
+    fx, fy = flower["pose"]["x"], flower["pose"]["y"]
+    stack = sorted(
+        (p for p in world.pieces.values() if abs(p.x - fx) < 0.5 and abs(p.y - fy) < 0.5),
+        key=lambda p: p.z,
+    )
+    assert len(stack) == 4 and all(p.staged for p in stack)
+    hive = [p for p in world.pieces.values() if p.type_id.startswith("nectar")]
+    assert hive and all(p.staged for p in hive)
+    slots = [p.z for p in stack]
+    for _ in range(50):
+        world.step(np.array([world.actor().body.x, world.actor().body.y, 0.0]), 0.2, 0)
+    assert [p.z for p in stack] == slots
+    assert all(p.staged for p in hive)
+
+    assert world._staged_below(stack[1])
+    world._release_staged(stack[0])
+    assert not stack[0].staged
+    assert [p.z for p in stack[1:]] == slots[:3]
+    snap = world.snapshot()
+    pollen = next(p for p in snap["pieces"] if p["id"] == stack[1].id)
+    assert pollen["staged"] is True and pollen["radius"] == pytest.approx(1.4)

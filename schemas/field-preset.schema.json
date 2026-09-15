@@ -201,6 +201,13 @@
         "isTrigger": { "type": "boolean", "default": false },
         "triggerId": { "type": "string" },
         "renderMesh": { "type": "string" },
+        "cadPart": {
+          "description": "Official field CAD part name(s), without the _N instance suffix. import-field-cad groups touching instances (e.g. the tape strips outlining a zone) and snaps this element's x/y to the nearest group center in field_layout.json.",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "minItems": 1, "items": { "type": "string" } }
+          ]
+        },
         "tags": {
           "type": "array",
           "items": { "type": "string" }
@@ -218,6 +225,10 @@
         "massKg": { "type": "number", "exclusiveMinimum": 0 },
         "restitution": { "type": "number", "minimum": 0, "maximum": 1 },
         "color": { "type": "string" },
+        "cadPart": {
+          "type": "string",
+          "description": "Official field CAD part name for this piece. import-field-cad removes in-field instances from the Lab mesh and regenerates spawns from their CAD poses."
+        },
         "attributes": {
           "type": "object",
           "additionalProperties": true,

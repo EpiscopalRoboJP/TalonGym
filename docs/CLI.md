@@ -110,6 +110,8 @@ python -m talongym import-field-cad --step "C:\Users\242440\Downloads\am-5850 BI
 
 Writes `assets/seasons/<slug>/field.glb` (Lab) and `field_mjcf.xml` (MuJoCo AABBs). `--step` tessellates a local official STEP with `trimesh`/`cascadio` (`pip install -e ".[cad]"`). Without `--step`, it tries the archive page; HubSpot often hides the file, in which case field preset AABBs are tessellated. Raw STEP is copied to `var/cad/` and is not committed. Physics stays AABB even when the Lab mesh is official CAD, so robots can still drive under the hive.
 
+A STEP import also writes `field_layout.json`: every visible CAD part instance with its center and size in the preset's FTC frame (inches, origin at field center on the tile surface). Field elements and game piece types that name a `cadPart` are synced from it into the field preset: elements snap to their CAD position (tape outlines are grouped, so a zone lands on its tape box), in-field CAD game pieces are removed from `field.glb` and become spawns, and start slots are slid clear of colliders. Pieces spawned inside a fixture or above the tiles (flower stacks, hive NECTAR) start staged: physics leaves them in place until a robot intakes one, and the pieces above drop a slot. `tests/assets/test_cad_layout.py` fails if the preset drifts from the committed layout.
+
 ## `import-robot-cad`
 
 ```bash

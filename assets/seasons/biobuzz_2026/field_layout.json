@@ -1,0 +1,4086 @@
+{
+ "schemaVersion": "1.0.0",
+ "fieldId": "biobuzz_2026_field_v1",
+ "coordinateSystem": {
+  "convention": "ftc_official_red_wall",
+  "units": "inch",
+  "origin": "field_center_tile_surface",
+  "xIncreases": "right_when_facing_from_red_wall",
+  "yIncreases": "away_from_red_wall",
+  "headingPositive": "ccw",
+  "notes": "Red half is x<0; audience wall is y=-72. Red ALLIANCE AREA is audience-left. AUTO sides are tile columns A\u2013C (red) / D\u2013E\u2013F (blue)."
+ },
+ "units": "inch",
+ "tileSurfaceCadHeightIn": 1.705,
+ "parts": [
+  {
+   "part": "Corner Hinge Rivet Field",
+   "instance": "Corner Hinge Rivet Field_2",
+   "x": -70.91,
+   "y": -69.32,
+   "z": -0.01,
+   "sizeIn": [
+    1.47,
+    4.31,
+    0.19
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field",
+   "instance": "Corner Hinge Rivet Field_1",
+   "x": -70.91,
+   "y": 69.32,
+   "z": 11.05,
+   "sizeIn": [
+    1.47,
+    4.31,
+    0.19
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field",
+   "instance": "Corner Hinge Rivet Field_3",
+   "x": -69.32,
+   "y": -70.91,
+   "z": 11.05,
+   "sizeIn": [
+    4.31,
+    1.47,
+    0.19
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field",
+   "instance": "Corner Hinge Rivet Field",
+   "x": -69.32,
+   "y": 70.91,
+   "z": -0.01,
+   "sizeIn": [
+    4.31,
+    1.47,
+    0.19
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field",
+   "instance": "Corner Hinge Rivet Field_4",
+   "x": 69.32,
+   "y": -70.91,
+   "z": -0.01,
+   "sizeIn": [
+    4.31,
+    1.47,
+    0.19
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field",
+   "instance": "Corner Hinge Rivet Field_7",
+   "x": 69.32,
+   "y": 70.91,
+   "z": 11.05,
+   "sizeIn": [
+    4.31,
+    1.47,
+    0.19
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field",
+   "instance": "Corner Hinge Rivet Field_5",
+   "x": 70.91,
+   "y": -69.32,
+   "z": 11.05,
+   "sizeIn": [
+    1.47,
+    4.31,
+    0.19
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field",
+   "instance": "Corner Hinge Rivet Field_6",
+   "x": 70.91,
+   "y": 69.32,
+   "z": -0.01,
+   "sizeIn": [
+    1.47,
+    4.31,
+    0.19
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field FLAT",
+   "instance": "Corner Hinge Rivet Field FLAT_3",
+   "x": -70.91,
+   "y": -69.32,
+   "z": 11.09,
+   "sizeIn": [
+    1.47,
+    4.31,
+    0.09
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field FLAT",
+   "instance": "Corner Hinge Rivet Field FLAT",
+   "x": -70.91,
+   "y": 69.32,
+   "z": -0.05,
+   "sizeIn": [
+    1.47,
+    4.31,
+    0.09
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field FLAT",
+   "instance": "Corner Hinge Rivet Field FLAT_2",
+   "x": -69.32,
+   "y": -70.91,
+   "z": -0.05,
+   "sizeIn": [
+    4.31,
+    1.47,
+    0.09
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field FLAT",
+   "instance": "Corner Hinge Rivet Field FLAT_1",
+   "x": -69.32,
+   "y": 70.91,
+   "z": 11.09,
+   "sizeIn": [
+    4.31,
+    1.47,
+    0.09
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field FLAT",
+   "instance": "Corner Hinge Rivet Field FLAT_5",
+   "x": 69.32,
+   "y": -70.91,
+   "z": 11.09,
+   "sizeIn": [
+    4.31,
+    1.47,
+    0.09
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field FLAT",
+   "instance": "Corner Hinge Rivet Field FLAT_6",
+   "x": 69.32,
+   "y": 70.91,
+   "z": -0.05,
+   "sizeIn": [
+    4.31,
+    1.47,
+    0.09
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field FLAT",
+   "instance": "Corner Hinge Rivet Field FLAT_4",
+   "x": 70.91,
+   "y": -69.32,
+   "z": -0.05,
+   "sizeIn": [
+    1.47,
+    4.31,
+    0.09
+   ],
+   "inField": true
+  },
+  {
+   "part": "Corner Hinge Rivet Field FLAT",
+   "instance": "Corner Hinge Rivet Field FLAT_7",
+   "x": 70.91,
+   "y": 69.32,
+   "z": 11.09,
+   "sizeIn": [
+    1.47,
+    4.31,
+    0.09
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in_7",
+   "x": -70.73,
+   "y": -46.8,
+   "z": 5.52,
+   "sizeIn": [
+    0.12,
+    46.67,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in_1",
+   "x": -70.73,
+   "y": -0.0,
+   "z": 5.52,
+   "sizeIn": [
+    0.12,
+    46.67,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in_3",
+   "x": -70.73,
+   "y": 46.8,
+   "z": 5.52,
+   "sizeIn": [
+    0.12,
+    46.67,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in_6",
+   "x": -46.8,
+   "y": -70.73,
+   "z": 5.52,
+   "sizeIn": [
+    46.67,
+    0.12,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in_4",
+   "x": -46.8,
+   "y": 70.73,
+   "z": 5.52,
+   "sizeIn": [
+    46.67,
+    0.12,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in_2",
+   "x": -0.0,
+   "y": -70.73,
+   "z": 5.52,
+   "sizeIn": [
+    46.67,
+    0.12,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in_5",
+   "x": -0.0,
+   "y": 70.73,
+   "z": 5.52,
+   "sizeIn": [
+    46.67,
+    0.12,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in_9",
+   "x": 46.8,
+   "y": -70.73,
+   "z": 5.52,
+   "sizeIn": [
+    46.67,
+    0.12,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in_10",
+   "x": 46.8,
+   "y": 70.73,
+   "z": 5.52,
+   "sizeIn": [
+    46.67,
+    0.12,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in_8",
+   "x": 70.73,
+   "y": -46.8,
+   "z": 5.52,
+   "sizeIn": [
+    0.12,
+    46.67,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in",
+   "x": 70.73,
+   "y": -0.0,
+   "z": 5.52,
+   "sizeIn": [
+    0.12,
+    46.67,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "FTC Field Side Glass 11in",
+   "instance": "FTC Field Side Glass 11in_11",
+   "x": 70.73,
+   "y": 46.8,
+   "z": 5.52,
+   "sizeIn": [
+    0.12,
+    46.67,
+    10.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "Gaffer Tape, Blue, 1in Wide, 11in Long",
+   "instance": "Gaffer Tape, Blue, 1in Wide, 11in Long_1",
+   "x": 64.6,
+   "y": -46.1,
+   "z": -0.01,
+   "sizeIn": [
+    11.0,
+    1.0,
+    0.01
+   ],
+   "inField": true
+  },
+  {
+   "part": "Gaffer Tape, Blue, 1in Wide, 11in Long",
+   "instance": "Gaffer Tape, Blue, 1in Wide, 11in Long",
+   "x": 64.6,
+   "y": -24.41,
+   "z": -0.01,
+   "sizeIn": [
+    11.0,
+    1.0,
+    0.01
+   ],
+   "inField": true
+  },
+  {
+   "part": "Gaffer Tape, Blue, 1in Wide, 20.69in Long",
+   "instance": "Gaffer Tape, Blue, 1in Wide, 20.69in Long",
+   "x": 59.6,
+   "y": -35.25,
+   "z": -0.01,
+   "sizeIn": [
+    1.0,
+    20.69,
+    0.01
+   ],
+   "inField": true
+  },
+  {
+   "part": "Gaffer Tape, Blue, 1in Wide, 22.69in Long",
+   "instance": "Gaffer Tape, Blue, 1in Wide, 22.69in Long",
+   "x": 58.76,
+   "y": 68.6,
+   "z": -0.01,
+   "sizeIn": [
+    22.69,
+    1.0,
+    0.01
+   ],
+   "inField": true
+  },
+  {
+   "part": "Gaffer Tape, Blue, 1in Wide, 22.69in Long",
+   "instance": "Gaffer Tape, Blue, 1in Wide, 22.69in Long_1",
+   "x": 58.76,
+   "y": 69.6,
+   "z": -0.01,
+   "sizeIn": [
+    22.69,
+    1.0,
+    0.01
+   ],
+   "inField": true
+  },
+  {
+   "part": "Gaffer Tape, Blue, 1in Wide, 54in Long",
+   "instance": "Gaffer Tape, Blue, 1in Wide, 54in Long_1",
+   "x": 98.65,
+   "y": -47.91,
+   "z": -0.59,
+   "sizeIn": [
+    54.0,
+    1.0,
+    0.01
+   ],
+   "inField": false
+  },
+  {
+   "part": "Gaffer Tape, Blue, 1in Wide, 54in Long",
+   "instance": "Gaffer Tape, Blue, 1in Wide, 54in Long",
+   "x": 98.65,
+   "y": 47.91,
+   "z": -0.59,
+   "sizeIn": [
+    54.0,
+    1.0,
+    0.01
+   ],
+   "inField": false
+  },
+  {
+   "part": "Gaffer Tape, Blue, 1in Wide, 94.82in Long",
+   "instance": "Gaffer Tape, Blue, 1in Wide, 94.82in Long",
+   "x": 125.15,
+   "y": -0.0,
+   "z": -0.59,
+   "sizeIn": [
+    1.0,
+    94.82,
+    0.01
+   ],
+   "inField": false
+  },
+  {
+   "part": "Gaffer Tape, Red, 1in Wide, 11in Long",
+   "instance": "Gaffer Tape, Red, 1in Wide, 11in Long",
+   "x": -64.6,
+   "y": 24.41,
+   "z": -0.01,
+   "sizeIn": [
+    11.0,
+    1.0,
+    0.01
+   ],
+   "inField": true
+  },
+  {
+   "part": "Gaffer Tape, Red, 1in Wide, 11in Long",
+   "instance": "Gaffer Tape, Red, 1in Wide, 11in Long_1",
+   "x": -64.6,
+   "y": 46.1,
+   "z": -0.01,
+   "sizeIn": [
+    11.0,
+    1.0,
+    0.01
+   ],
+   "inField": true
+  },
+  {
+   "part": "Gaffer Tape, Red, 1in Wide, 20.69in Long",
+   "instance": "Gaffer Tape, Red, 1in Wide, 20.69in Long",
+   "x": -59.6,
+   "y": 35.25,
+   "z": -0.01,
+   "sizeIn": [
+    1.0,
+    20.69,
+    0.01
+   ],
+   "inField": true
+  },
+  {
+   "part": "Gaffer Tape, Red, 1in Wide, 22.69in Long",
+   "instance": "Gaffer Tape, Red, 1in Wide, 22.69in Long",
+   "x": -58.76,
+   "y": -69.6,
+   "z": -0.01,
+   "sizeIn": [
+    22.69,
+    1.0,
+    0.01
+   ],
+   "inField": true
+  },
+  {
+   "part": "Gaffer Tape, Red, 1in Wide, 22.69in Long",
+   "instance": "Gaffer Tape, Red, 1in Wide, 22.69in Long_1",
+   "x": -58.76,
+   "y": -68.6,
+   "z": -0.01,
+   "sizeIn": [
+    22.69,
+    1.0,
+    0.01
+   ],
+   "inField": true
+  },
+  {
+   "part": "Gaffer Tape, Red, 1in Wide, 54in Long",
+   "instance": "Gaffer Tape, Red, 1in Wide, 54in Long",
+   "x": -98.65,
+   "y": -47.91,
+   "z": -0.59,
+   "sizeIn": [
+    54.0,
+    1.0,
+    0.01
+   ],
+   "inField": false
+  },
+  {
+   "part": "Gaffer Tape, Red, 1in Wide, 54in Long",
+   "instance": "Gaffer Tape, Red, 1in Wide, 54in Long_1",
+   "x": -98.65,
+   "y": 47.91,
+   "z": -0.59,
+   "sizeIn": [
+    54.0,
+    1.0,
+    0.01
+   ],
+   "inField": false
+  },
+  {
+   "part": "Gaffer Tape, Red, 1in Wide, 94.82in Long",
+   "instance": "Gaffer Tape, Red, 1in Wide, 94.82in Long",
+   "x": -125.15,
+   "y": -0.0,
+   "z": -0.59,
+   "sizeIn": [
+    1.0,
+    94.82,
+    0.01
+   ],
+   "inField": false
+  },
+  {
+   "part": "NewStrapClip",
+   "instance": "NewStrapClip_2",
+   "x": -70.56,
+   "y": -6.0,
+   "z": -0.56,
+   "sizeIn": [
+    2.39,
+    1.5,
+    0.29
+   ],
+   "inField": true
+  },
+  {
+   "part": "NewStrapClip",
+   "instance": "NewStrapClip_3",
+   "x": -6.0,
+   "y": -70.56,
+   "z": -0.56,
+   "sizeIn": [
+    1.5,
+    2.39,
+    0.29
+   ],
+   "inField": true
+  },
+  {
+   "part": "NewStrapClip",
+   "instance": "NewStrapClip_1",
+   "x": -6.0,
+   "y": 70.56,
+   "z": -0.56,
+   "sizeIn": [
+    1.5,
+    2.39,
+    0.29
+   ],
+   "inField": true
+  },
+  {
+   "part": "NewStrapClip",
+   "instance": "NewStrapClip",
+   "x": 70.56,
+   "y": -6.0,
+   "z": -0.56,
+   "sizeIn": [
+    2.39,
+    1.5,
+    0.29
+   ],
+   "inField": true
+  },
+  {
+   "part": "Perimeter Mid-Section Strap",
+   "instance": "Perimeter Mid-Section Strap_1",
+   "x": -6.0,
+   "y": 0.0,
+   "z": -0.63,
+   "sizeIn": [
+    1.0,
+    139.97,
+    0.4
+   ],
+   "inField": true
+  },
+  {
+   "part": "Perimeter Mid-Section Strap",
+   "instance": "Perimeter Mid-Section Strap",
+   "x": 0.0,
+   "y": -6.0,
+   "z": -0.63,
+   "sizeIn": [
+    139.97,
+    1.0,
+    0.4
+   ],
+   "inField": true
+  },
+  {
+   "part": "Socket head cap screw #10-32 x 2",
+   "instance": "Socket head cap screw #10-32 x 2_6",
+   "x": -13.04,
+   "y": -18.6,
+   "z": 52.13,
+   "sizeIn": [
+    2.19,
+    0.31,
+    0.31
+   ],
+   "inField": true
+  },
+  {
+   "part": "Socket head cap screw #10-32 x 2",
+   "instance": "Socket head cap screw #10-32 x 2_3",
+   "x": -12.65,
+   "y": -0.0,
+   "z": 43.94,
+   "sizeIn": [
+    2.19,
+    0.31,
+    0.31
+   ],
+   "inField": true
+  },
+  {
+   "part": "Socket head cap screw #10-32 x 2",
+   "instance": "Socket head cap screw #10-32 x 2_7",
+   "x": -12.44,
+   "y": 16.39,
+   "z": 31.92,
+   "sizeIn": [
+    2.19,
+    0.31,
+    0.31
+   ],
+   "inField": true
+  },
+  {
+   "part": "Socket head cap screw #10-32 x 2",
+   "instance": "Socket head cap screw #10-32 x 2_2",
+   "x": -10.99,
+   "y": -0.0,
+   "z": 41.84,
+   "sizeIn": [
+    0.31,
+    0.31,
+    2.19
+   ],
+   "inField": true
+  },
+  {
+   "part": "Socket head cap screw #10-32 x 2",
+   "instance": "Socket head cap screw #10-32 x 2_1",
+   "x": 11.01,
+   "y": -0.0,
+   "z": 41.84,
+   "sizeIn": [
+    0.31,
+    0.31,
+    2.19
+   ],
+   "inField": true
+  },
+  {
+   "part": "Socket head cap screw #10-32 x 2",
+   "instance": "Socket head cap screw #10-32 x 2_4",
+   "x": 12.46,
+   "y": -16.39,
+   "z": 31.92,
+   "sizeIn": [
+    2.19,
+    0.31,
+    0.31
+   ],
+   "inField": true
+  },
+  {
+   "part": "Socket head cap screw #10-32 x 2",
+   "instance": "Socket head cap screw #10-32 x 2",
+   "x": 12.66,
+   "y": -0.0,
+   "z": 43.94,
+   "sizeIn": [
+    2.19,
+    0.31,
+    0.31
+   ],
+   "inField": true
+  },
+  {
+   "part": "Socket head cap screw #10-32 x 2",
+   "instance": "Socket head cap screw #10-32 x 2_5",
+   "x": 13.06,
+   "y": 18.6,
+   "z": 52.13,
+   "sizeIn": [
+    2.19,
+    0.31,
+    0.31
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-1xxx: Under Tile Washer",
+   "instance": "am-1xxx: Under Tile Washer_2",
+   "x": -65.9,
+   "y": -23.39,
+   "z": -0.56,
+   "sizeIn": [
+    3.0,
+    3.0,
+    0.07
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-1xxx: Under Tile Washer",
+   "instance": "am-1xxx: Under Tile Washer_3",
+   "x": -23.39,
+   "y": 65.9,
+   "z": -0.56,
+   "sizeIn": [
+    3.0,
+    3.0,
+    0.07
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-1xxx: Under Tile Washer",
+   "instance": "am-1xxx: Under Tile Washer",
+   "x": 23.39,
+   "y": -65.9,
+   "z": -0.56,
+   "sizeIn": [
+    3.0,
+    3.0,
+    0.07
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-1xxx: Under Tile Washer",
+   "instance": "am-1xxx: Under Tile Washer_1",
+   "x": 65.9,
+   "y": 23.39,
+   "z": -0.56,
+   "sizeIn": [
+    3.0,
+    3.0,
+    0.07
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_6",
+   "x": -35.25,
+   "y": -35.25,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_9",
+   "x": -35.25,
+   "y": -11.75,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_5",
+   "x": -35.25,
+   "y": 11.75,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_8",
+   "x": -35.25,
+   "y": 35.25,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_13",
+   "x": -11.75,
+   "y": -35.25,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_4",
+   "x": -11.75,
+   "y": -11.75,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "x": -11.75,
+   "y": 11.75,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_10",
+   "x": -11.75,
+   "y": 35.25,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_15",
+   "x": 11.75,
+   "y": -35.25,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_12",
+   "x": 11.75,
+   "y": -11.75,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_3",
+   "x": 11.75,
+   "y": 11.75,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_2",
+   "x": 11.75,
+   "y": 35.25,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_14",
+   "x": 35.25,
+   "y": -35.25,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_1",
+   "x": 35.25,
+   "y": -11.75,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_7",
+   "x": 35.25,
+   "y": 11.75,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Center: FIRST Tech Challenge Field Soft Tiles_11",
+   "x": 35.25,
+   "y": 35.25,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Corner: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Corner: FIRST Tech Challenge Field Soft Tiles",
+   "x": -58.59,
+   "y": -58.59,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Corner: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Corner: FIRST Tech Challenge Field Soft Tiles_2",
+   "x": -58.59,
+   "y": 58.59,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Corner: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Corner: FIRST Tech Challenge Field Soft Tiles_3",
+   "x": 58.59,
+   "y": -58.59,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Corner: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Corner: FIRST Tech Challenge Field Soft Tiles_1",
+   "x": 58.59,
+   "y": 58.59,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_8",
+   "x": -58.59,
+   "y": -35.25,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_7",
+   "x": -58.59,
+   "y": -11.75,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_5",
+   "x": -58.59,
+   "y": 11.75,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_12",
+   "x": -58.59,
+   "y": 35.25,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_13",
+   "x": -35.25,
+   "y": -58.59,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_11",
+   "x": -35.25,
+   "y": 58.59,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_14",
+   "x": -11.75,
+   "y": -58.59,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_1",
+   "x": -11.75,
+   "y": 58.59,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_4",
+   "x": 11.75,
+   "y": -58.59,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_15",
+   "x": 11.75,
+   "y": 58.59,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_9",
+   "x": 35.25,
+   "y": -58.59,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_10",
+   "x": 35.25,
+   "y": 58.59,
+   "z": -0.3,
+   "sizeIn": [
+    24.31,
+    23.99,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_3",
+   "x": 58.59,
+   "y": -35.25,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "x": 58.59,
+   "y": -11.75,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_2",
+   "x": 58.59,
+   "y": 11.75,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles",
+   "instance": "am-2499-Side: FIRST Tech Challenge Field Soft Tiles_6",
+   "x": 58.59,
+   "y": 35.25,
+   "z": -0.3,
+   "sizeIn": [
+    23.99,
+    24.31,
+    0.59
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_15",
+   "x": -71.12,
+   "y": -46.8,
+   "z": -0.01,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_14",
+   "x": -71.12,
+   "y": -46.79,
+   "z": 11.05,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_3",
+   "x": -71.12,
+   "y": -0.0,
+   "z": -0.01,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_2",
+   "x": -71.12,
+   "y": -0.0,
+   "z": 11.05,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_6",
+   "x": -71.12,
+   "y": 46.79,
+   "z": -0.01,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_7",
+   "x": -71.12,
+   "y": 46.8,
+   "z": 11.05,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_12",
+   "x": -46.8,
+   "y": -71.12,
+   "z": 11.05,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_8",
+   "x": -46.8,
+   "y": 71.12,
+   "z": -0.01,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_13",
+   "x": -46.79,
+   "y": -71.12,
+   "z": -0.01,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_9",
+   "x": -46.79,
+   "y": 71.12,
+   "z": 11.05,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_4",
+   "x": -0.0,
+   "y": -71.12,
+   "z": -0.01,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_5",
+   "x": 0.0,
+   "y": -71.12,
+   "z": 11.05,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_10",
+   "x": 0.0,
+   "y": 71.12,
+   "z": -0.01,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_11",
+   "x": 0.0,
+   "y": 71.12,
+   "z": 11.05,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_18",
+   "x": 46.79,
+   "y": -71.12,
+   "z": 11.05,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_21",
+   "x": 46.79,
+   "y": 71.12,
+   "z": -0.01,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_19",
+   "x": 46.8,
+   "y": -71.12,
+   "z": -0.01,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_20",
+   "x": 46.8,
+   "y": 71.12,
+   "z": 11.05,
+   "sizeIn": [
+    46.67,
+    1.06,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_17",
+   "x": 71.12,
+   "y": -46.8,
+   "z": 11.05,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_16",
+   "x": 71.12,
+   "y": -46.79,
+   "z": -0.01,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_1",
+   "x": 71.12,
+   "y": -0.0,
+   "z": -0.01,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes",
+   "x": 71.12,
+   "y": -0.0,
+   "z": 11.05,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_23",
+   "x": 71.12,
+   "y": 46.79,
+   "z": 11.05,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2556a: FTC Rail with Rivet Holes",
+   "instance": "am-2556a: FTC Rail with Rivet Holes_22",
+   "x": 71.12,
+   "y": 46.8,
+   "z": -0.01,
+   "sizeIn": [
+    1.06,
+    46.67,
+    1.17
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_7",
+   "x": -71.27,
+   "y": -23.4,
+   "z": -0.27,
+   "sizeIn": [
+    0.75,
+    10.0,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_6",
+   "x": -71.27,
+   "y": -23.4,
+   "z": 11.29,
+   "sizeIn": [
+    0.75,
+    10.0,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_5",
+   "x": -71.27,
+   "y": 23.4,
+   "z": -0.27,
+   "sizeIn": [
+    0.75,
+    10.0,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_4",
+   "x": -71.27,
+   "y": 23.4,
+   "z": 11.29,
+   "sizeIn": [
+    0.75,
+    10.0,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_11",
+   "x": -23.4,
+   "y": -71.27,
+   "z": -0.27,
+   "sizeIn": [
+    10.0,
+    0.75,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_10",
+   "x": -23.4,
+   "y": -71.27,
+   "z": 11.29,
+   "sizeIn": [
+    10.0,
+    0.75,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_15",
+   "x": -23.4,
+   "y": 71.27,
+   "z": -0.27,
+   "sizeIn": [
+    10.0,
+    0.75,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_12",
+   "x": -23.4,
+   "y": 71.27,
+   "z": 11.29,
+   "sizeIn": [
+    10.0,
+    0.75,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_8",
+   "x": 23.4,
+   "y": -71.27,
+   "z": -0.27,
+   "sizeIn": [
+    10.0,
+    0.75,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_9",
+   "x": 23.4,
+   "y": -71.27,
+   "z": 11.29,
+   "sizeIn": [
+    10.0,
+    0.75,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_13",
+   "x": 23.4,
+   "y": 71.27,
+   "z": -0.27,
+   "sizeIn": [
+    10.0,
+    0.75,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_14",
+   "x": 23.4,
+   "y": 71.27,
+   "z": 11.29,
+   "sizeIn": [
+    10.0,
+    0.75,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_2",
+   "x": 71.27,
+   "y": -23.4,
+   "z": -0.27,
+   "sizeIn": [
+    0.75,
+    10.0,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_3",
+   "x": 71.27,
+   "y": -23.4,
+   "z": 11.29,
+   "sizeIn": [
+    0.75,
+    10.0,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link_1",
+   "x": 71.27,
+   "y": 23.4,
+   "z": -0.27,
+   "sizeIn": [
+    0.75,
+    10.0,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-2580a: FIRST Tech Challenge Panel Link",
+   "instance": "am-2580a: FIRST Tech Challenge Panel Link",
+   "x": 71.27,
+   "y": 23.4,
+   "z": 11.29,
+   "sizeIn": [
+    0.75,
+    10.0,
+    0.5
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5706 Artifact Tray__Fillet1",
+   "instance": "am-5706 Artifact Tray__Fillet1_1",
+   "x": -76.78,
+   "y": -0.0,
+   "z": 0.9,
+   "sizeIn": [
+    10.25,
+    15.75,
+    3.0
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5706 Artifact Tray__Fillet1",
+   "instance": "am-5706 Artifact Tray__Fillet1",
+   "x": 76.78,
+   "y": -0.0,
+   "z": 0.9,
+   "sizeIn": [
+    10.25,
+    15.75,
+    3.0
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_39",
+   "x": -73.05,
+   "y": 26.41,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_19",
+   "x": -73.05,
+   "y": 29.21,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_27",
+   "x": -73.05,
+   "y": 32.01,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_17",
+   "x": -73.05,
+   "y": 34.81,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_12",
+   "x": -73.05,
+   "y": 37.61,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_23",
+   "x": -73.05,
+   "y": 40.41,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_37",
+   "x": -73.05,
+   "y": 43.21,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_29",
+   "x": -73.05,
+   "y": 46.01,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_35",
+   "x": -69.27,
+   "y": -69.27,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.8
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_31",
+   "x": -68.04,
+   "y": -23.39,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_13",
+   "x": -68.04,
+   "y": -23.39,
+   "z": 4.28,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_16",
+   "x": -68.04,
+   "y": -23.39,
+   "z": 7.17,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_28",
+   "x": -68.04,
+   "y": -23.39,
+   "z": 10.06,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_5",
+   "x": -66.38,
+   "y": -69.27,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.8
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_24",
+   "x": -63.49,
+   "y": -69.27,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.8
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_36",
+   "x": -60.6,
+   "y": -69.27,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.8
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_21",
+   "x": -23.39,
+   "y": 68.04,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_25",
+   "x": -23.39,
+   "y": 68.04,
+   "z": 4.28,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_18",
+   "x": -23.39,
+   "y": 68.04,
+   "z": 7.17,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_1",
+   "x": -23.39,
+   "y": 68.04,
+   "z": 10.06,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_9",
+   "x": 23.39,
+   "y": -68.04,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_32",
+   "x": 23.39,
+   "y": -68.04,
+   "z": 4.28,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_20",
+   "x": 23.39,
+   "y": -68.04,
+   "z": 7.17,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_33",
+   "x": 23.39,
+   "y": -68.04,
+   "z": 10.06,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_26",
+   "x": 60.6,
+   "y": 69.27,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.8
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_4",
+   "x": 63.49,
+   "y": 69.27,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.8
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_22",
+   "x": 66.38,
+   "y": 69.27,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.8
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_6",
+   "x": 68.04,
+   "y": 23.39,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_30",
+   "x": 68.04,
+   "y": 23.39,
+   "z": 4.28,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen",
+   "x": 68.04,
+   "y": 23.39,
+   "z": 7.17,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_15",
+   "x": 68.04,
+   "y": 23.39,
+   "z": 10.06,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_14",
+   "x": 69.27,
+   "y": 69.27,
+   "z": 1.39,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.8
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_2",
+   "x": 73.05,
+   "y": -46.01,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_34",
+   "x": 73.05,
+   "y": -43.21,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_8",
+   "x": 73.05,
+   "y": -40.41,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_3",
+   "x": 73.05,
+   "y": -37.61,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_11",
+   "x": 73.05,
+   "y": -34.81,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_10",
+   "x": 73.05,
+   "y": -32.01,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_38",
+   "x": 73.05,
+   "y": -29.21,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5851: Pollen",
+   "instance": "am-5851: Pollen_7",
+   "x": 73.05,
+   "y": -26.41,
+   "z": 0.81,
+   "sizeIn": [
+    2.8,
+    2.8,
+    2.77
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5852: Blue Nectar",
+   "instance": "am-5852: Blue Nectar_6",
+   "x": 13.77,
+   "y": 9.51,
+   "z": 49.93,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5852: Blue Nectar",
+   "instance": "am-5852: Blue Nectar",
+   "x": 17.39,
+   "y": 9.51,
+   "z": 49.93,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5852: Blue Nectar",
+   "instance": "am-5852: Blue Nectar_5",
+   "x": 21.01,
+   "y": 9.51,
+   "z": 49.93,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5852: Blue Nectar",
+   "instance": "am-5852: Blue Nectar_2",
+   "x": 73.58,
+   "y": -3.62,
+   "z": 1.33,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.56
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5852: Blue Nectar",
+   "instance": "am-5852: Blue Nectar_1",
+   "x": 73.58,
+   "y": -0.0,
+   "z": 1.33,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.56
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5852: Blue Nectar",
+   "instance": "am-5852: Blue Nectar_3",
+   "x": 73.58,
+   "y": 3.62,
+   "z": 1.33,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.56
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5852: Blue Nectar",
+   "instance": "am-5852: Blue Nectar_7",
+   "x": 76.71,
+   "y": -1.81,
+   "z": 1.33,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.56
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5852: Blue Nectar",
+   "instance": "am-5852: Blue Nectar_4",
+   "x": 76.71,
+   "y": 1.81,
+   "z": 1.33,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.56
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5852: Red Nectar",
+   "instance": "am-5852: Red Nectar_4",
+   "x": -76.71,
+   "y": -1.81,
+   "z": 1.33,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.56
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5852: Red Nectar",
+   "instance": "am-5852: Red Nectar_1",
+   "x": -76.71,
+   "y": 1.81,
+   "z": 1.33,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.56
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5852: Red Nectar",
+   "instance": "am-5852: Red Nectar",
+   "x": -73.57,
+   "y": -3.62,
+   "z": 1.33,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.56
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5852: Red Nectar",
+   "instance": "am-5852: Red Nectar_6",
+   "x": -73.57,
+   "y": -0.0,
+   "z": 1.33,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.56
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5852: Red Nectar",
+   "instance": "am-5852: Red Nectar_3",
+   "x": -73.57,
+   "y": 3.62,
+   "z": 1.33,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.56
+   ],
+   "inField": false
+  },
+  {
+   "part": "am-5852: Red Nectar",
+   "instance": "am-5852: Red Nectar_2",
+   "x": -20.99,
+   "y": -9.51,
+   "z": 49.93,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5852: Red Nectar",
+   "instance": "am-5852: Red Nectar_5",
+   "x": -17.37,
+   "y": -9.51,
+   "z": 49.93,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5852: Red Nectar",
+   "instance": "am-5852: Red Nectar_7",
+   "x": -13.75,
+   "y": -9.51,
+   "z": 49.93,
+   "sizeIn": [
+    3.62,
+    3.62,
+    3.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5857: Flower Layer C",
+   "instance": "am-5857: Flower Layer C_2",
+   "x": -68.04,
+   "y": -23.39,
+   "z": 20.82,
+   "sizeIn": [
+    4.8,
+    5.93,
+    1.15
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5857: Flower Layer C",
+   "instance": "am-5857: Flower Layer C_3",
+   "x": -23.39,
+   "y": 68.04,
+   "z": 20.82,
+   "sizeIn": [
+    5.93,
+    4.8,
+    1.15
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5857: Flower Layer C",
+   "instance": "am-5857: Flower Layer C",
+   "x": 23.39,
+   "y": -68.04,
+   "z": 20.82,
+   "sizeIn": [
+    5.93,
+    4.8,
+    1.15
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5857: Flower Layer C",
+   "instance": "am-5857: Flower Layer C_1",
+   "x": 68.04,
+   "y": 23.39,
+   "z": 20.82,
+   "sizeIn": [
+    4.8,
+    5.93,
+    1.15
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5858: Flower Layer B",
+   "instance": "am-5858: Flower Layer B_2",
+   "x": -68.14,
+   "y": -23.39,
+   "z": 4.57,
+   "sizeIn": [
+    5.01,
+    5.95,
+    1.35
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5858: Flower Layer B",
+   "instance": "am-5858: Flower Layer B_3",
+   "x": -23.39,
+   "y": 68.14,
+   "z": 4.57,
+   "sizeIn": [
+    5.95,
+    5.01,
+    1.35
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5858: Flower Layer B",
+   "instance": "am-5858: Flower Layer B",
+   "x": 23.39,
+   "y": -68.14,
+   "z": 4.57,
+   "sizeIn": [
+    5.95,
+    5.01,
+    1.35
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5858: Flower Layer B",
+   "instance": "am-5858: Flower Layer B_1",
+   "x": 68.14,
+   "y": 23.39,
+   "z": 4.57,
+   "sizeIn": [
+    5.01,
+    5.95,
+    1.35
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5859: Flower Layer X",
+   "instance": "am-5859: Flower Layer X_2",
+   "x": -68.08,
+   "y": -23.39,
+   "z": 0.07,
+   "sizeIn": [
+    4.87,
+    5.95,
+    0.55
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5859: Flower Layer X",
+   "instance": "am-5859: Flower Layer X_3",
+   "x": -23.39,
+   "y": 68.08,
+   "z": 0.07,
+   "sizeIn": [
+    5.95,
+    4.87,
+    0.55
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5859: Flower Layer X",
+   "instance": "am-5859: Flower Layer X",
+   "x": 23.39,
+   "y": -68.08,
+   "z": 0.07,
+   "sizeIn": [
+    5.95,
+    4.87,
+    0.55
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5859: Flower Layer X",
+   "instance": "am-5859: Flower Layer X_1",
+   "x": 68.08,
+   "y": 23.39,
+   "z": 0.07,
+   "sizeIn": [
+    4.87,
+    5.95,
+    0.55
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5860: Flower Field Bracket",
+   "instance": "am-5860: Flower Field Bracket_2",
+   "x": -70.4,
+   "y": -23.39,
+   "z": 11.63,
+   "sizeIn": [
+    2.79,
+    6.67,
+    0.4
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5860: Flower Field Bracket",
+   "instance": "am-5860: Flower Field Bracket_3",
+   "x": -23.39,
+   "y": 70.4,
+   "z": 11.63,
+   "sizeIn": [
+    6.67,
+    2.79,
+    0.4
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5860: Flower Field Bracket",
+   "instance": "am-5860: Flower Field Bracket",
+   "x": 23.39,
+   "y": -70.4,
+   "z": 11.63,
+   "sizeIn": [
+    6.67,
+    2.79,
+    0.4
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5860: Flower Field Bracket",
+   "instance": "am-5860: Flower Field Bracket_1",
+   "x": 70.4,
+   "y": 23.39,
+   "z": 11.63,
+   "sizeIn": [
+    2.79,
+    6.67,
+    0.4
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5861: Flower Under Field Bracket",
+   "instance": "am-5861: Flower Under Field Bracket_2",
+   "x": -70.47,
+   "y": -23.39,
+   "z": -0.22,
+   "sizeIn": [
+    2.36,
+    6.0,
+    0.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5861: Flower Under Field Bracket",
+   "instance": "am-5861: Flower Under Field Bracket_3",
+   "x": -23.39,
+   "y": 70.47,
+   "z": -0.22,
+   "sizeIn": [
+    6.0,
+    2.36,
+    0.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5861: Flower Under Field Bracket",
+   "instance": "am-5861: Flower Under Field Bracket",
+   "x": 23.39,
+   "y": -70.47,
+   "z": -0.22,
+   "sizeIn": [
+    6.0,
+    2.36,
+    0.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5861: Flower Under Field Bracket",
+   "instance": "am-5861: Flower Under Field Bracket_1",
+   "x": 70.47,
+   "y": 23.39,
+   "z": -0.22,
+   "sizeIn": [
+    2.36,
+    6.0,
+    0.88
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_11",
+   "x": -69.77,
+   "y": -25.12,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_8",
+   "x": -69.77,
+   "y": -21.67,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_10",
+   "x": -66.32,
+   "y": -25.12,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_9",
+   "x": -66.32,
+   "y": -21.67,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_13",
+   "x": -25.12,
+   "y": 66.32,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_14",
+   "x": -25.12,
+   "y": 69.77,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_12",
+   "x": -21.67,
+   "y": 66.32,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_15",
+   "x": -21.67,
+   "y": 69.77,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_1",
+   "x": 21.67,
+   "y": -69.77,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe",
+   "x": 21.67,
+   "y": -66.32,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_3",
+   "x": 25.12,
+   "y": -69.77,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_2",
+   "x": 25.12,
+   "y": -66.32,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_4",
+   "x": 66.32,
+   "y": 21.67,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_6",
+   "x": 66.32,
+   "y": 25.12,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_5",
+   "x": 69.77,
+   "y": 21.67,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5862: Flower HIPS Pipe",
+   "instance": "am-5862: Flower HIPS Pipe_7",
+   "x": 69.77,
+   "y": 25.12,
+   "z": 12.74,
+   "sizeIn": [
+    1.05,
+    1.05,
+    17.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5863: Axle Holder",
+   "instance": "am-5863: Axle Holder_1",
+   "x": -11.3,
+   "y": -0.0,
+   "z": 43.03,
+   "sizeIn": [
+    1.61,
+    1.31,
+    2.55
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5863: Axle Holder",
+   "instance": "am-5863: Axle Holder",
+   "x": 11.31,
+   "y": -0.0,
+   "z": 43.03,
+   "sizeIn": [
+    1.61,
+    1.31,
+    2.55
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5864: Pivot Damper Holder",
+   "instance": "am-5864: Pivot Damper Holder_3",
+   "x": -12.74,
+   "y": -3.57,
+   "z": 44.44,
+   "sizeIn": [
+    1.18,
+    1.87,
+    2.13
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5864: Pivot Damper Holder",
+   "instance": "am-5864: Pivot Damper Holder_2",
+   "x": -12.74,
+   "y": 2.22,
+   "z": 41.1,
+   "sizeIn": [
+    1.18,
+    2.12,
+    1.75
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5864: Pivot Damper Holder",
+   "instance": "am-5864: Pivot Damper Holder_1",
+   "x": 12.76,
+   "y": -2.22,
+   "z": 41.1,
+   "sizeIn": [
+    1.18,
+    2.12,
+    1.75
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5864: Pivot Damper Holder",
+   "instance": "am-5864: Pivot Damper Holder",
+   "x": 12.76,
+   "y": 3.57,
+   "z": 44.44,
+   "sizeIn": [
+    1.18,
+    1.87,
+    2.13
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5865: Blumotion 970A Damper",
+   "instance": "am-5865: Blumotion 970A Damper_2",
+   "x": -12.74,
+   "y": -3.54,
+   "z": 44.1,
+   "sizeIn": [
+    0.47,
+    0.63,
+    2.57
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5865: Blumotion 970A Damper",
+   "instance": "am-5865: Blumotion 970A Damper_3",
+   "x": -12.74,
+   "y": 1.93,
+   "z": 40.98,
+   "sizeIn": [
+    0.47,
+    2.43,
+    1.33
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5865: Blumotion 970A Damper",
+   "instance": "am-5865: Blumotion 970A Damper",
+   "x": 12.76,
+   "y": -1.93,
+   "z": 40.98,
+   "sizeIn": [
+    0.47,
+    2.43,
+    1.33
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5865: Blumotion 970A Damper",
+   "instance": "am-5865: Blumotion 970A Damper_1",
+   "x": 12.76,
+   "y": 3.54,
+   "z": 44.1,
+   "sizeIn": [
+    0.47,
+    0.63,
+    2.57
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5866-blue: Blue Goal Rib",
+   "instance": "am-5866-blue: Blue Goal Rib_1",
+   "x": 12.76,
+   "y": -20.25,
+   "z": 37.74,
+   "sizeIn": [
+    21.0,
+    9.76,
+    14.21
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5866-blue: Blue Goal Rib",
+   "instance": "am-5866-blue: Blue Goal Rib",
+   "x": 12.76,
+   "y": -11.07,
+   "z": 43.11,
+   "sizeIn": [
+    21.0,
+    8.75,
+    14.9
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5866-blue: Blue Goal Rib",
+   "instance": "am-5866-blue: Blue Goal Rib_3",
+   "x": 12.76,
+   "y": 6.51,
+   "z": 53.19,
+   "sizeIn": [
+    21.0,
+    9.76,
+    14.21
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5866-blue: Blue Goal Rib",
+   "instance": "am-5866-blue: Blue Goal Rib_2",
+   "x": 12.76,
+   "y": 15.69,
+   "z": 58.56,
+   "sizeIn": [
+    21.0,
+    8.75,
+    14.9
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5866-red: Red Goal Rib",
+   "instance": "am-5866-red: Red Goal Rib_1",
+   "x": -12.74,
+   "y": -15.69,
+   "z": 58.56,
+   "sizeIn": [
+    21.0,
+    8.75,
+    14.9
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5866-red: Red Goal Rib",
+   "instance": "am-5866-red: Red Goal Rib",
+   "x": -12.74,
+   "y": -6.51,
+   "z": 53.19,
+   "sizeIn": [
+    21.0,
+    9.76,
+    14.21
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5866-red: Red Goal Rib",
+   "instance": "am-5866-red: Red Goal Rib_3",
+   "x": -12.74,
+   "y": 11.07,
+   "z": 43.11,
+   "sizeIn": [
+    21.0,
+    8.75,
+    14.9
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5866-red: Red Goal Rib",
+   "instance": "am-5866-red: Red Goal Rib_2",
+   "x": -12.74,
+   "y": 20.25,
+   "z": 37.74,
+   "sizeIn": [
+    21.0,
+    9.76,
+    14.21
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5867: 10.5in Churro Lite",
+   "instance": "am-5867: 10.5in Churro Lite_5",
+   "x": -22.4,
+   "y": -10.28,
+   "z": 57.06,
+   "sizeIn": [
+    0.37,
+    9.31,
+    5.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5867: 10.5in Churro Lite",
+   "instance": "am-5867: 10.5in Churro Lite_7",
+   "x": -22.4,
+   "y": 16.48,
+   "z": 41.61,
+   "sizeIn": [
+    0.37,
+    9.31,
+    5.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5867: 10.5in Churro Lite",
+   "instance": "am-5867: 10.5in Churro Lite_4",
+   "x": -3.08,
+   "y": -10.26,
+   "z": 57.05,
+   "sizeIn": [
+    0.37,
+    9.31,
+    5.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5867: 10.5in Churro Lite",
+   "instance": "am-5867: 10.5in Churro Lite_6",
+   "x": -3.08,
+   "y": 16.5,
+   "z": 41.6,
+   "sizeIn": [
+    0.37,
+    9.31,
+    5.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5867: 10.5in Churro Lite",
+   "instance": "am-5867: 10.5in Churro Lite_1",
+   "x": 3.1,
+   "y": -16.5,
+   "z": 41.6,
+   "sizeIn": [
+    0.37,
+    9.31,
+    5.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5867: 10.5in Churro Lite",
+   "instance": "am-5867: 10.5in Churro Lite_2",
+   "x": 3.1,
+   "y": 10.28,
+   "z": 57.06,
+   "sizeIn": [
+    0.37,
+    9.31,
+    5.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5867: 10.5in Churro Lite",
+   "instance": "am-5867: 10.5in Churro Lite",
+   "x": 22.42,
+   "y": -16.5,
+   "z": 41.6,
+   "sizeIn": [
+    0.37,
+    9.31,
+    5.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5867: 10.5in Churro Lite",
+   "instance": "am-5867: 10.5in Churro Lite_3",
+   "x": 22.42,
+   "y": 10.28,
+   "z": 57.06,
+   "sizeIn": [
+    0.37,
+    9.31,
+    5.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5868: Basket Base Tube",
+   "instance": "am-5868: Basket Base Tube_2",
+   "x": -12.74,
+   "y": -12.43,
+   "z": 48.57,
+   "sizeIn": [
+    1.0,
+    15.01,
+    9.24
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5868: Basket Base Tube",
+   "instance": "am-5868: Basket Base Tube_3",
+   "x": -12.74,
+   "y": 10.22,
+   "z": 35.48,
+   "sizeIn": [
+    1.0,
+    15.01,
+    9.24
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5868: Basket Base Tube",
+   "instance": "am-5868: Basket Base Tube",
+   "x": 12.76,
+   "y": -10.22,
+   "z": 35.48,
+   "sizeIn": [
+    1.0,
+    15.01,
+    9.24
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5868: Basket Base Tube",
+   "instance": "am-5868: Basket Base Tube_1",
+   "x": 12.76,
+   "y": 12.43,
+   "z": 48.57,
+   "sizeIn": [
+    1.0,
+    15.01,
+    9.24
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5869: Hive Goal Top Skin",
+   "instance": "am-5869: Hive Goal Top Skin_2",
+   "x": -12.74,
+   "y": -8.65,
+   "z": 59.99,
+   "sizeIn": [
+    19.83,
+    13.29,
+    11.28
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5869: Hive Goal Top Skin",
+   "instance": "am-5869: Hive Goal Top Skin_3",
+   "x": -12.74,
+   "y": 18.23,
+   "z": 44.48,
+   "sizeIn": [
+    19.83,
+    13.29,
+    11.28
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5869: Hive Goal Top Skin",
+   "instance": "am-5869: Hive Goal Top Skin",
+   "x": 12.76,
+   "y": -18.23,
+   "z": 44.48,
+   "sizeIn": [
+    19.83,
+    13.29,
+    11.28
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5869: Hive Goal Top Skin",
+   "instance": "am-5869: Hive Goal Top Skin_1",
+   "x": 12.76,
+   "y": 8.65,
+   "z": 59.99,
+   "sizeIn": [
+    19.83,
+    13.29,
+    11.28
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5871: Hive Goal Back Skin",
+   "instance": "am-5871: Hive Goal Back Skin_2",
+   "x": -12.74,
+   "y": -5.36,
+   "z": 53.51,
+   "sizeIn": [
+    20.94,
+    7.49,
+    12.95
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5871: Hive Goal Back Skin",
+   "instance": "am-5871: Hive Goal Back Skin_3",
+   "x": -12.74,
+   "y": 10.97,
+   "z": 44.08,
+   "sizeIn": [
+    20.94,
+    7.49,
+    12.95
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5871: Hive Goal Back Skin",
+   "instance": "am-5871: Hive Goal Back Skin",
+   "x": 12.76,
+   "y": -10.97,
+   "z": 44.08,
+   "sizeIn": [
+    20.94,
+    7.49,
+    12.95
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5871: Hive Goal Back Skin",
+   "instance": "am-5871: Hive Goal Back Skin_1",
+   "x": 12.76,
+   "y": 5.36,
+   "z": 53.51,
+   "sizeIn": [
+    20.94,
+    7.49,
+    12.95
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5873: Goal Pivot Bracket",
+   "instance": "am-5873: Goal Pivot Bracket_3",
+   "x": -13.28,
+   "y": -1.11,
+   "z": 42.02,
+   "sizeIn": [
+    0.07,
+    12.11,
+    7.32
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5873: Goal Pivot Bracket",
+   "instance": "am-5873: Goal Pivot Bracket_2",
+   "x": -12.2,
+   "y": -1.11,
+   "z": 42.02,
+   "sizeIn": [
+    0.07,
+    12.11,
+    7.32
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5873: Goal Pivot Bracket",
+   "instance": "am-5873: Goal Pivot Bracket_1",
+   "x": 12.22,
+   "y": 1.11,
+   "z": 42.02,
+   "sizeIn": [
+    0.07,
+    12.11,
+    7.32
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5873: Goal Pivot Bracket",
+   "instance": "am-5873: Goal Pivot Bracket",
+   "x": 13.3,
+   "y": 1.11,
+   "z": 42.02,
+   "sizeIn": [
+    0.07,
+    12.11,
+    7.32
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5874: A-Frame Top Corner",
+   "instance": "am-5874: A-Frame Top Corner_1",
+   "x": -12.12,
+   "y": -0.0,
+   "z": 41.84,
+   "sizeIn": [
+    3.25,
+    3.05,
+    4.73
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5874: A-Frame Top Corner",
+   "instance": "am-5874: A-Frame Top Corner",
+   "x": 12.13,
+   "y": -0.0,
+   "z": 41.84,
+   "sizeIn": [
+    3.25,
+    3.05,
+    4.73
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5875: A-Frame Top Bar",
+   "instance": "am-5875: A-Frame Top Bar",
+   "x": 0.01,
+   "y": -0.0,
+   "z": 41.44,
+   "sizeIn": [
+    24.0,
+    1.0,
+    1.0
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5876: A-Frame Leg",
+   "instance": "am-5876: A-Frame Leg_3",
+   "x": -18.26,
+   "y": -9.53,
+   "z": 20.8,
+   "sizeIn": [
+    12.04,
+    19.07,
+    41.18
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5876: A-Frame Leg",
+   "instance": "am-5876: A-Frame Leg_2",
+   "x": -18.26,
+   "y": 9.53,
+   "z": 20.8,
+   "sizeIn": [
+    12.04,
+    19.07,
+    41.18
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5876: A-Frame Leg",
+   "instance": "am-5876: A-Frame Leg_1",
+   "x": 18.28,
+   "y": -9.53,
+   "z": 20.8,
+   "sizeIn": [
+    12.04,
+    19.07,
+    41.18
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5876: A-Frame Leg",
+   "instance": "am-5876: A-Frame Leg",
+   "x": 18.28,
+   "y": 9.53,
+   "z": 20.8,
+   "sizeIn": [
+    12.04,
+    19.07,
+    41.18
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5877: ACM Panel",
+   "instance": "am-5877: ACM Panel_1",
+   "x": 0.01,
+   "y": -2.92,
+   "z": 37.04,
+   "sizeIn": [
+    30.16,
+    2.73,
+    5.95
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5877: ACM Panel",
+   "instance": "am-5877: ACM Panel",
+   "x": 0.01,
+   "y": 2.92,
+   "z": 37.04,
+   "sizeIn": [
+    30.16,
+    2.73,
+    5.95
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5878: Sheet Metal Foot Bar",
+   "instance": "am-5878: Sheet Metal Foot Bar_1",
+   "x": -23.74,
+   "y": -0.0,
+   "z": 1.06,
+   "sizeIn": [
+    1.98,
+    38.94,
+    2.15
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5878: Sheet Metal Foot Bar",
+   "instance": "am-5878: Sheet Metal Foot Bar",
+   "x": 23.74,
+   "y": -0.0,
+   "z": 1.06,
+   "sizeIn": [
+    1.98,
+    38.94,
+    2.15
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5879-A: Frame Foot A",
+   "instance": "am-5879-A: Frame Foot A_1",
+   "x": -23.71,
+   "y": -18.34,
+   "z": 1.09,
+   "sizeIn": [
+    1.86,
+    2.28,
+    2.05
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5879-A: Frame Foot A",
+   "instance": "am-5879-A: Frame Foot A",
+   "x": 23.72,
+   "y": 18.34,
+   "z": 1.09,
+   "sizeIn": [
+    1.86,
+    2.28,
+    2.05
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5879-B: Frame Foot B",
+   "instance": "am-5879-B: Frame Foot B_1",
+   "x": -23.71,
+   "y": 18.34,
+   "z": 1.09,
+   "sizeIn": [
+    1.86,
+    2.28,
+    2.05
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5879-B: Frame Foot B",
+   "instance": "am-5879-B: Frame Foot B",
+   "x": 23.72,
+   "y": -18.34,
+   "z": 1.09,
+   "sizeIn": [
+    1.86,
+    2.28,
+    2.05
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5880: 47.5in CC Under Tile Bar",
+   "instance": "am-5880: 47.5in CC Under Tile Bar_1",
+   "x": -0.0,
+   "y": -16.53,
+   "z": -0.69,
+   "sizeIn": [
+    49.0,
+    1.5,
+    0.12
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5880: 47.5in CC Under Tile Bar",
+   "instance": "am-5880: 47.5in CC Under Tile Bar",
+   "x": -0.0,
+   "y": 16.53,
+   "z": -0.69,
+   "sizeIn": [
+    49.0,
+    1.5,
+    0.12
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5883: Panel Sticker",
+   "instance": "am-5883: Panel Sticker_1",
+   "x": 0.01,
+   "y": -2.97,
+   "z": 37.06,
+   "sizeIn": [
+    30.16,
+    2.64,
+    5.9
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5883: Panel Sticker",
+   "instance": "am-5883: Panel Sticker",
+   "x": 0.01,
+   "y": 2.97,
+   "z": 37.06,
+   "sizeIn": [
+    30.16,
+    2.64,
+    5.9
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5884: Flower Backstop",
+   "instance": "am-5884: Flower Backstop_2",
+   "x": -69.42,
+   "y": -23.39,
+   "z": 22.52,
+   "sizeIn": [
+    2.02,
+    5.45,
+    0.25
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5884: Flower Backstop",
+   "instance": "am-5884: Flower Backstop_3",
+   "x": -23.39,
+   "y": 69.42,
+   "z": 22.52,
+   "sizeIn": [
+    5.45,
+    2.02,
+    0.25
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5884: Flower Backstop",
+   "instance": "am-5884: Flower Backstop",
+   "x": 23.39,
+   "y": -69.42,
+   "z": 22.52,
+   "sizeIn": [
+    5.45,
+    2.02,
+    0.25
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5884: Flower Backstop",
+   "instance": "am-5884: Flower Backstop_1",
+   "x": 69.42,
+   "y": 23.39,
+   "z": 22.52,
+   "sizeIn": [
+    2.02,
+    5.45,
+    0.25
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5888-blue1: Blue Goal April Tag (Audience)",
+   "instance": "am-5888-blue1: Blue Goal April Tag (Audience)",
+   "x": 12.76,
+   "y": -11.39,
+   "z": 35.64,
+   "sizeIn": [
+    17.0,
+    4.34,
+    2.51
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5888-blue2: Blue Goal April Tag (Scoring)",
+   "instance": "am-5888-blue2: Blue Goal April Tag (Scoring)",
+   "x": 12.76,
+   "y": 12.89,
+   "z": 49.66,
+   "sizeIn": [
+    17.0,
+    4.34,
+    2.51
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5888-red1: Red Goal April Tag (Audience)",
+   "instance": "am-5888-red1: Red Goal April Tag (Audience)",
+   "x": -12.74,
+   "y": -12.89,
+   "z": 49.66,
+   "sizeIn": [
+    17.0,
+    4.34,
+    2.51
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5888-red2: Red Goal April Tag (Scoring)",
+   "instance": "am-5888-red2: Red Goal April Tag (Scoring)",
+   "x": -12.74,
+   "y": 11.39,
+   "z": 35.64,
+   "sizeIn": [
+    17.0,
+    4.34,
+    2.51
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5888: Hive Goal Bottom Skin",
+   "instance": "am-5888: Hive Goal Bottom Skin_2",
+   "x": -12.74,
+   "y": -12.24,
+   "z": 53.78,
+   "sizeIn": [
+    20.2,
+    14.06,
+    12.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5888: Hive Goal Bottom Skin",
+   "instance": "am-5888: Hive Goal Bottom Skin_3",
+   "x": -12.74,
+   "y": 14.64,
+   "z": 38.26,
+   "sizeIn": [
+    20.2,
+    14.06,
+    12.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5888: Hive Goal Bottom Skin",
+   "instance": "am-5888: Hive Goal Bottom Skin",
+   "x": 12.76,
+   "y": -14.64,
+   "z": 38.26,
+   "sizeIn": [
+    20.2,
+    14.06,
+    12.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5888: Hive Goal Bottom Skin",
+   "instance": "am-5888: Hive Goal Bottom Skin_1",
+   "x": 12.76,
+   "y": 12.24,
+   "z": 53.78,
+   "sizeIn": [
+    20.2,
+    14.06,
+    12.62
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5892: Flower Peanut Support",
+   "instance": "am-5892: Flower Peanut Support_4",
+   "x": -69.86,
+   "y": -24.65,
+   "z": 2.22,
+   "sizeIn": [
+    1.28,
+    1.28,
+    3.75
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5892: Flower Peanut Support",
+   "instance": "am-5892: Flower Peanut Support_5",
+   "x": -69.86,
+   "y": -22.14,
+   "z": 2.22,
+   "sizeIn": [
+    1.28,
+    1.28,
+    3.75
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5892: Flower Peanut Support",
+   "instance": "am-5892: Flower Peanut Support_6",
+   "x": -24.65,
+   "y": 69.86,
+   "z": 2.22,
+   "sizeIn": [
+    1.28,
+    1.28,
+    3.75
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5892: Flower Peanut Support",
+   "instance": "am-5892: Flower Peanut Support_7",
+   "x": -22.14,
+   "y": 69.86,
+   "z": 2.22,
+   "sizeIn": [
+    1.28,
+    1.28,
+    3.75
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5892: Flower Peanut Support",
+   "instance": "am-5892: Flower Peanut Support",
+   "x": 22.14,
+   "y": -69.86,
+   "z": 2.22,
+   "sizeIn": [
+    1.28,
+    1.28,
+    3.75
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5892: Flower Peanut Support",
+   "instance": "am-5892: Flower Peanut Support_1",
+   "x": 24.65,
+   "y": -69.86,
+   "z": 2.22,
+   "sizeIn": [
+    1.28,
+    1.28,
+    3.75
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5892: Flower Peanut Support",
+   "instance": "am-5892: Flower Peanut Support_2",
+   "x": 69.86,
+   "y": 22.14,
+   "z": 2.22,
+   "sizeIn": [
+    1.28,
+    1.28,
+    3.75
+   ],
+   "inField": true
+  },
+  {
+   "part": "am-5892: Flower Peanut Support",
+   "instance": "am-5892: Flower Peanut Support_3",
+   "x": 69.86,
+   "y": 24.65,
+   "z": 2.22,
+   "sizeIn": [
+    1.28,
+    1.28,
+    3.75
+   ],
+   "inField": true
+  }
+ ]
+}

@@ -7,7 +7,9 @@ import { API } from "../api";
 import { theme } from "../theme";
 
 const BIOBUZZ_GLB = "seasons/biobuzz_2026/field.glb";
-const CAD_ASSET_VERSION = "am-5850e";
+const CAD_ASSET_VERSION = "am-5850g";
+// Frames carry each piece's radius; this only covers pieces with an unknown type.
+const PIECE_RADIUS_FALLBACK_IN = 2.5;
 
 export function resolveBackgroundAsset(frame: Frame | null | undefined, fallback?: string | null) {
   if (frame?.backgroundAsset) return frame.backgroundAsset;
@@ -106,7 +108,8 @@ function ZoneOverlay({ el, fieldArea, active }: { el: El; fieldArea: number; act
   const depth = sh.depth || sh.radius || 4;
   const large = width * depth > 0.15 * fieldArea;
   const color = overlayColor(el);
-  const y = el.type === "tape" ? 0.12 : large ? 0.04 : 0.08;
+  // Field CAD tile tops sit at y=0 but vary by ~0.1 in, so overlays stack clear of them and the grid.
+  const y = el.type === "tape" ? 0.3 : large ? 0.2 : 0.25;
   const hw = width / 2;
   const hd = depth / 2;
   const x = inch(pose.x);
@@ -414,8 +417,8 @@ function FieldMeshes({
       {(frame.pieces || [])
         .filter((p) => !p.scored)
         .map((p) => (
-          <mesh key={p.id} position={[inch(p.x), p.z ?? 2.6, inch(-p.y)]}>
-            <sphereGeometry args={[2.5, 16, 16]} />
+          <mesh key={p.id} position={[inch(p.x), p.z ?? p.radius ?? PIECE_RADIUS_FALLBACK_IN, inch(-p.y)]}>
+            <sphereGeometry args={[p.radius ?? PIECE_RADIUS_FALLBACK_IN, 16, 16]} />
             <meshStandardMaterial color={pieceColor(p.color)} />
           </mesh>
         ))}
@@ -460,11 +463,15 @@ export function FieldScene({
   const d = frame?.fieldSizeIn.depth || 144;
   const span = Math.max(w, d);
   return (
-    <Canvas camera={{ position: [0, span * 1.45, span * 0.95], fov: 40 }} style={{ width: "100%", height: "100%" }}>
+    // near=1 (default 0.1) gives ~10x depth precision for near-coplanar CAD surfaces at field distance.
+    <Canvas
+      camera={{ position: [0, span * 1.45, span * 0.95], fov: 40, near: 1, far: 5000 }}
+      style={{ width: "100%", height: "100%" }}
+    >
       <color attach="background" args={[theme.scene]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[80, 200, 60]} intensity={1.1} />
-      <Grid args={[w, d]} cellSize={24} sectionSize={72} cellColor={theme.grid} sectionColor={theme.gridSection} fadeDistance={400} />
+      <Grid position={[0, 0.1, 0]} args={[w, d]} cellSize={24} sectionSize={72} cellColor={theme.grid} sectionColor={theme.gridSection} fadeDistance={400} />
       <CameraRig view={view} w={w} d={d} />
       {frame && <FieldMeshes frame={frame} showFov={showFov} path={path} cadFallback={cadAsset} />}
       <OrbitControls makeDefault />

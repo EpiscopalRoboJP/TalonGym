@@ -224,10 +224,15 @@ class FTCAutoEnv(gym.Env):
 
     def _potential(self) -> float:
         rs = self.world.robots.get(self.learner_id) or self.world.actor()
+        reach_z = self.world.robot_hz * 2.0
         floor = [
             p
             for p in self.world.pieces.values()
-            if not p.held_by and not p.scored and not p.in_flight
+            if not p.held_by
+            and not p.scored
+            and not p.in_flight
+            # Staged pieces only count when a robot could take them: bottom of a stack, within reach.
+            and not (p.staged and (p.z - p.radius > reach_z or self.world._staged_below(p)))
         ]
         if rs.held:
             goal = next((e for e in self.world.elements if e.get("type") == "goal" and e.get("alliance") == rs.body.alliance), None)

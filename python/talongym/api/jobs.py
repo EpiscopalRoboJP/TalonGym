@@ -8,7 +8,7 @@ import numpy as np
 
 from talongym import paths
 from talongym.api import db
-from talongym.api.cad_frames import ensure_background_asset
+from talongym.api.cad_frames import normalize_frame
 from talongym.eval.harness import run_trials
 from talongym.export.roadrunner import export_from_replay
 from talongym.presets.loader import load_bundle
@@ -69,7 +69,7 @@ def ws_rollout_frames(frames: list[dict[str, Any]] | None) -> list[dict[str, Any
     for fr in frames[::step][:48]:
         if not isinstance(fr, dict):
             continue
-        slim = ensure_background_asset({k: _jsonable(fr.get(k)) for k in keep if k in fr}) or {}
+        slim = normalize_frame({k: _jsonable(fr.get(k)) for k in keep if k in fr}) or {}
         out.append(slim)
     return out
 

@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from talongym import __version__
 from talongym.api import db, jobs
-from talongym.api.cad_frames import ensure_background_asset
+from talongym.api.cad_frames import normalize_frame
 from talongym.eval.harness import run_trials
 from talongym.export.roadrunner import export_from_replay
 from talongym.paths import WEB_DIST
@@ -248,7 +248,7 @@ def replay_chunks(replay_id: str, fromStep: int = 0, limit: int = 500) -> dict[s
     row = db.get_replay(replay_id)
     if not row:
         raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": replay_id}})
-    frames = [ensure_background_asset(fr) or fr for fr in row["frames"][fromStep : fromStep + min(limit, 500)]]
+    frames = [normalize_frame(fr) or fr for fr in row["frames"][fromStep : fromStep + min(limit, 500)]]
     return {"fromStep": fromStep, "frames": frames, "done": fromStep + len(frames) >= len(row["frames"])}
 
 

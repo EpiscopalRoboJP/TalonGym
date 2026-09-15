@@ -46,6 +46,12 @@ class Piece:
     vz: float = 0.0
     ballistic: bool = False
     kick: bool = False
+    # Held by a field fixture (flower column, hive basket) until intaken; skipped by physics.
+    staged: bool = False
+
+
+# A spawn this far above resting height is sitting in a fixture, not on the tiles.
+STAGED_Z_TOL_IN = 0.25
 
 
 @dataclass
@@ -294,8 +300,10 @@ class World:
             color = (spec.get("attributes") or {}).get("color")
             xy_sigma, _ = self.spawn_jitter_sigma()
             for pose in spawn.get("poses") or []:
-                jx = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 else 0.0
-                jy = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 else 0.0
+                z = float(pose.get("z") or rad)
+                staged = z > rad + STAGED_Z_TOL_IN or self._inside_fixture(float(pose["x"]), float(pose["y"]))
+                jx = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 and not staged else 0.0
+                jy = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 and not staged else 0.0
                 name = f"p{pid}"
                 pid += 1
                 piece = Piece(
@@ -307,7 +315,8 @@ class World:
                     attrs={"color": color, "passed_goal_top": False, "passed_archway": False},
                     restitution=float(spec.get("restitution") or 0.3),
                     mass=float(spec.get("massKg") or 0.1),
-                    z=float(pose.get("z") or rad),
+                    z=z,
+                    staged=staged,
                 )
                 self.pieces[name] = piece
         self.robots = {}
@@ -317,6 +326,32 @@ class World:
         self.pending_piece_ops = []
         self.backend.reset_batch(1)
         self._sense()
+
+    def _inside_fixture(self, x: float, y: float) -> bool:
+        for el in self.elements:
+            if not el.get("isCollider") or "perimeter" in (el.get("tags") or []):
+                continue
+            if point_in_shape(self.element_shapes.get(el["id"]), x, y):
+                return True
+        return False
+
+    def _staged_below(self, p: Piece) -> bool:
+        return any(
+            q.staged and q.z < p.z and math.hypot(q.x - p.x, q.y - p.y) < p.radius
+            for q in self.pieces.values()
+            if q.id != p.id
+        )
+
+    def _release_staged(self, p: Piece) -> None:
+        """Take ``p`` out of its fixture; staged pieces stacked above drop one slot."""
+        above = sorted(
+            (q for q in self.pieces.values() if q.staged and q.id != p.id and q.z > p.z and math.hypot(q.x - p.x, q.y - p.y) < p.radius),
+            key=lambda q: q.z,
+        )
+        slot = p.z
+        for q in above:
+            q.z, slot = slot, q.z
+        p.staged = False
 
     def _start_slot(self, alliance: str, slot: int) -> dict[str, Any] | None:
         found = [
@@ -498,6 +533,8 @@ class World:
             for p in self.pieces.values():
                 if p.held_by or p.in_flight or p.scored:
                     continue
+                if p.staged and self._staged_below(p):
+                    continue
                 hit, intake = self._piece_in_reach(rs, p)
                 if not hit:
                     continue
@@ -510,6 +547,8 @@ class World:
                     continue
                 rs.intake_timer += dt
                 if rs.intake_timer >= cycle:
+                    if p.staged:
+                        self._release_staged(p)
                     p.held_by = rs.body.id
                     p.vx = p.vy = 0.0
                     p.x, p.y = rs.body.x, rs.body.y
@@ -870,7 +909,7 @@ class World:
             floor_bodies: list[Body] = []
             floor_index: dict[str, Piece] = {}
             for p in self.pieces.values():
-                if p.held_by or p.scored:
+                if p.held_by or p.scored or p.staged:
                     continue
                 if p.in_flight and p.flight:
                     continue
@@ -974,6 +1013,8 @@ class World:
                     "x": p.x,
                     "y": p.y,
                     "z": p.z,
+                    "radius": p.radius,
+                    "staged": p.staged,
                     "color": p.attrs.get("color"),
                     "heldBy": p.held_by,
                     "inFlight": p.in_flight,

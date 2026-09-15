@@ -268,3 +268,15 @@ def test_biobuzz_frames_get_cad_background():
     assert stamped["backgroundAsset"] == "seasons/biobuzz_2026/field.glb"
     kept = ensure_background_asset({**frame, "backgroundAsset": "custom.glb"})
     assert kept["backgroundAsset"] == "custom.glb"
+
+
+def test_old_replay_pieces_get_radius_from_field_preset():
+    from talongym.api.cad_frames import normalize_frame
+
+    frame = {"pieces": [{"id": "p0", "typeId": "pollen", "x": 0, "y": 0}, {"id": "p1", "typeId": "mystery", "x": 1, "y": 1}]}
+    out = normalize_frame(frame)
+    assert out["pieces"][0]["radius"] == 1.4
+    assert "radius" not in out["pieces"][1]
+    assert "radius" not in frame["pieces"][0]
+    current = {"pieces": [{"id": "p0", "typeId": "pollen", "radius": 2.0}]}
+    assert normalize_frame(current)["pieces"][0]["radius"] == 2.0

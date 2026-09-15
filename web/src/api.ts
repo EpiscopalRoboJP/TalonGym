@@ -222,7 +222,19 @@ export type Frame = {
     enteredRestricted?: boolean;
   }[];
   robotDesign?: RobotDesign;
-  pieces: { id: string; x: number; y: number; z?: number; color?: string; heldBy?: string | null; inFlight?: boolean; scored?: boolean }[];
+  pieces: {
+    id: string;
+    typeId?: string;
+    x: number;
+    y: number;
+    z?: number;
+    radius?: number;
+    staged?: boolean;
+    color?: string;
+    heldBy?: string | null;
+    inFlight?: boolean;
+    scored?: boolean;
+  }[];
   elements: {
     id: string;
     type?: string;
