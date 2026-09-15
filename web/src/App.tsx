@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getJson, type Health } from "./api";
 import { ToastHost } from "./ToastHost";
@@ -69,7 +69,21 @@ export function App() {
         <Route path="/build/field" element={<FieldBuilderPage />} />
         <Route path="/build/robot" element={<RobotBuilderPage />} />
         <Route path="/compare" element={<ComparePage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
+    </div>
+  );
+}
+
+function NotFoundPage() {
+  return (
+    <div className="page single">
+      <div className="page-head">
+        <h2>Not found</h2>
+        <p className="note">
+          No Lab page at this URL. <Link to="/">Back to Replay</Link>
+        </p>
+      </div>
     </div>
   );
 }

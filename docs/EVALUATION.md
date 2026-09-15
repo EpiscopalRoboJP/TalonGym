@@ -6,9 +6,10 @@ Do not pick a strategy from one lucky rollout. TalonGym ranks policies on **true
 
 ```bash
 python -m talongym evaluate --trials 32
+python -m talongym evaluate --checkpoint var/ckpts/best.zip --trials 32
 ```
 
-Runs [`scripted_auto`](../python/talongym/training/policies.py) on the active bundle. Seeds are `10_000_000 … 10_000_000 + n - 1` (same start as training-preset `heldOutSeedStart`).
+Default runs [`scripted_auto`](../python/talongym/training/policies.py) on the active bundle. Lab Compare can eval a **trained** checkpoint from a run. Seeds are `10_000_000 … 10_000_000 + n - 1` (same start as training-preset `heldOutSeedStart`).
 
 Printed fields:
 
@@ -48,7 +49,7 @@ POST /api/v1/evaluations
 }
 ```
 
-`policy`: `scripted` (default) or `checkpoint` / `trained` with `runId` and/or `checkpoint` path. n is clamped to `[8, 500]`. The best trial’s frames are stored as a replay (`report.replayId`).
+`policy`: `scripted` (default) or `checkpoint` / `trained` with `runId` and/or `checkpoint` path. n is clamped to `[8, 500]`. The request is **synchronous** (HTTP 200). `objective` (`mean_true_score` \| `p10_true_score` \| `lcb_true_score`) is stored on the report as `objective` / `objectiveValue`. The best trial’s frames are stored as a replay (`report.replayId`).
 
 ## Report fields
 
@@ -61,6 +62,7 @@ From [`python/talongym/eval/harness.py`](../python/talongym/eval/harness.py):
 | `collisionRate`, `collisionTimeMean`, `firstContactS` | Contact with walls/robots |
 | `restrictedEntryRate` | Data rule / accumulator `restricted_entry` (G402-style), not a hardcoded season name. The same node also deducts −15 from `trueScore` (training foul proxy); the rate remains a side metric. |
 | `bestScore`, `bestFrames` | Highest true score this batch (frames dropped after the API saves a replay) |
+| `objective`, `objectiveValue` | Requested objective and the scalar used for it (mean / p10 / LCB) |
 | `bestLabelEligible` | n ≥ 500 for a single batch |
 
 Shaping never appears in this report.

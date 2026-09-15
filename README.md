@@ -30,7 +30,7 @@ That is the only supported way a TalonGym result may be used at an event. It mat
 |------|----------|--------------------------------|-------|
 | Lightweight / local | Typical FTC laptop, CPU-only | 8–32 | Reduced randomization; still reports true score + CIs |
 | Workstation | Mentor / school desktop | 128–512 | Default overnight training path |
-| Cloud (optional, Phase 5) | Club with a rented GPU/CPU box | 1024+ via Ray | Documented upgrade; not required |
+| Cloud (optional) | Club with a rented GPU/CPU box | 1024 RecurrentPPO envs | Same `bc_then_ppo` as workstation; `[scale]` RLlib is a toy extra |
 
 `python -m talongym detect` prints which mode this machine is. `python -m talongym train --easy` loads that season’s easy run config and fills `nEnvs` from the detection (override with `TALONGYM_COMPUTE_PROFILE=lightweight_cpu|workstation|cloud`).
 

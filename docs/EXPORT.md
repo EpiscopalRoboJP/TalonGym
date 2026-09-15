@@ -32,7 +32,7 @@ This is still a simulated path. Calibrate the robot preset before treating timin
 
 ## Distill (feed-forward demo)
 
-LSTM ONNX is not a supported deployment path (`POST /runs/{id}/export/onnx` returns **501** unless `distill=true`).
+LSTM ONNX is not a supported deployment path (`POST /runs/{id}/export/onnx` returns **501** unless `distill=true`). `distill=true` clones the **scripted** AUTO policy into a feed-forward ONNX demo and stores it as an artifact on the run id you posted — it is **not** the selected run’s LSTM checkpoint.
 
 ```bash
 python -m talongym distill --steps 256

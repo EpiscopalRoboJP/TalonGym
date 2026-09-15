@@ -456,13 +456,15 @@ export function TrainPage() {
           </button>
         </div>
         <p className="note">
-          {profile === "demo" && "4,096 steps, 2 envs, scripted fallback if RL extras are missing."}
+          {profile === "demo" &&
+            "Demo is a short local scripted fallback (4,096 steps, 2 envs) if RL extras are missing. It is not a scaled trainer."}
           {profile === "short" && "16,384-step RecurrentPPO on 4 envs. No scripted fallback."}
           {profile === "easy" &&
             (compute
-              ? `Autodetect ${compute.profile} · ${compute.hardware.cpuCount} cores · ${compute.hardware.ramGb != null ? `${compute.hardware.ramGb.toFixed(0)} GB` : "RAM n/a"} · ${compute.nEnvs} envs${compute.hardware.cuda ? " · CUDA" : ""}. Uses the season easy run config.`
-              : "Autodetects laptop / workstation / cloud and uses that machine's easy run config.")}
-          {profile === "preset" && "Uses the training preset budget and nEnvs (lightweight, workstation, or cloud)."}
+              ? `Autodetect ${compute.profile} · ${compute.hardware.cpuCount} cores · ${compute.hardware.ramGb != null ? `${compute.hardware.ramGb.toFixed(0)} GB` : "RAM n/a"} · ${compute.nEnvs} envs${compute.hardware.cuda ? " · CUDA" : ""}. Uses the season easy run config. Cloud here is a hardware profile, not a Ray/RLlib cluster.`
+              : "Autodetects laptop / workstation / cloud hardware and uses that machine's easy run config. Cloud is a bigger local box, not a Ray cluster.")}
+          {profile === "preset" &&
+            "Uses the selected training preset budget and nEnvs. The cloud preset is a larger local RecurrentPPO config, not a Ray/RLlib loop."}
         </p>
         <details open={!current}>
           <summary>Run configuration</summary>

@@ -25,6 +25,7 @@ from talongym.training.curriculum import (
     motif_known_at_t0,
     objective_value,
     opponent_for,
+    resolved_action_tier,
     stage_info,
     teammate_for,
 )
@@ -151,7 +152,7 @@ def train_ppo(
     budget_cfg = (training or {}).get("budget") or {}
     eval_cfg = (training or {}).get("evaluation") or {}
     objective_name = str((training or {}).get("objective") or "mean_true_score")
-    action_tier = str((training or {}).get("actionTier") or "high_level_waypoint")
+    action_tier = resolved_action_tier(training, bundle.robot)
     n_envs = max(1, int(n_envs))
     eval_n = int(eval_episodes if eval_episodes is not None else (1 if total_steps < 2048 else 4))
     held0 = int(eval_cfg.get("heldOutSeedStart") or 10_000_000)

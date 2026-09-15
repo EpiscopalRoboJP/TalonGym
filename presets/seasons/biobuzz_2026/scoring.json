@@ -186,5 +186,5 @@
       "thresholdsByEventClass": { "other": 7 }
     }
   ],
-  "optimizationObjectives": ["mean_true_score", "lcb_true_score", "p10_true_score", "rp_proxy_probability"]
+  "optimizationObjectives": ["mean_true_score", "lcb_true_score", "p10_true_score"]
 }

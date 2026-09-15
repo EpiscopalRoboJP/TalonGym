@@ -1,4 +1,4 @@
-"""Group-relative policy optimization for sparse end-of-AUTO true score."""
+"""Experimental GRPO loop. No shipped preset; not a product training path."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from talongym import paths
 from talongym.env.ftc_auto import FTCAutoEnv
 from talongym.eval.harness import bootstrap_ci
 from talongym.presets.loader import LoadedPresets, load_bundle
-from talongym.training.curriculum import objective_value
+from talongym.training.curriculum import objective_value, resolved_action_tier
 from talongym.training.ppo import RecurrentPolicyAdapter, record_policy_episode
 
 
@@ -49,7 +49,7 @@ def train_grpo(
     group_size = max(2, int(algo_cfg.get("groupSize") or group_size))
     eval_cfg = (bundle.training or {}).get("evaluation") or {}
     held0 = int(eval_cfg.get("heldOutSeedStart") or 10_000_000)
-    action_tier = str((bundle.training or {}).get("actionTier") or "high_level_waypoint")
+    action_tier = resolved_action_tier(bundle.training, bundle.robot)
     match_setup = _kwargs.get("match_setup")
 
     try:

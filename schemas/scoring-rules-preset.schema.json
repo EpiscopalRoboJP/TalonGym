@@ -156,7 +156,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["mean_true_score", "lcb_true_score", "p10_true_score", "rp_proxy_probability"]
+        "enum": ["mean_true_score", "lcb_true_score", "p10_true_score"]
       }
     }
   },

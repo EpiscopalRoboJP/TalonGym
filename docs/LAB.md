@@ -26,20 +26,22 @@ The top bar health chip is `GET /api/v1/health` (`engine`, `db`, ok). If it says
 
 | Path | Page |
 |------|------|
-| `/` and `/replay/:replayId?` | 3D replay, score inspect, Road Runner export |
+| `/` and `/replay/:replayId?` | 3D replay, score inspect, drive-only Road Runner export |
 | `/train/:runId?` | Start/watch RecurrentPPO, true vs shaping charts |
 | `/build/field` | Field + scoring JSON editor, lint, save |
 | `/build/robot` | Drivetrain / constraint / mechanism sliders |
 | `/compare` | Evaluation leaderboard with CI whiskers |
+| any other path | Not-found page with a link back to Replay |
 
 ## Replay
 
 - **Record scripted AUTO** — POST `/replays/demo`, then select the new id.
-- Play / pause, 0.25× / 1× / 2×, 3/4 or top camera, FOV cones, scrub slider.
+- Play / pause, 0.25× / 1× / 2×, 3/4 or top camera, scrub slider.
+- **FOV** checkbox appears when the robot design has a camera sensor. The overlay is a wedge from robot pose using that sensor’s `fovDeg` / `rangeIn` (not a fixed disc).
 - Keys: Space play/pause, arrows step, Home/End jump (when focus is not in an input).
 - **Score** tab: running `trueScore` (net of fouls), sticky penalties, signed explains. Restricted-entry fouls and wall/robot contact are marked on the scrubber and flashed on the robot.
-- **Field state** tab: ramp queue, gate, privileged vs observed match variables (inspection only).
-- **Export** tab: Road Runner 1.0 Actions from the decimated path. Paste into an AUTO OpMode; the Control Hub runs it. TalonGym does not stream this during a MATCH.
+- **Field state** tab: named ramp queues, gate, privileged vs observed match variables (inspection only).
+- **Export** tab: drive-only Road Runner 1.0 from executed (decimated) poses. Mechanism timeline is comments (`t` / verb / actuator), not a working AUTO — intake and launch still need team OpMode code. TalonGym does not stream this during a MATCH.
 
 Training and evaluation jobs also store replays; pick them from the dropdown (id · source · true score).
 
@@ -47,7 +49,7 @@ Training and evaluation jobs also store replays; pick them from the dropdown (id
 
 See [TRAINING.md](TRAINING.md)#3-train-from-the-lab.
 
-- Demo / Short / Easy / Preset budgets. Easy autodetects laptop vs workstation vs cloud (`GET /compute`) and loads `*_easy`.
+- Demo / Short / Easy / Preset budgets. Demo is a short scripted fallback if RL extras are missing, not a scaled trainer. Easy autodetects laptop vs workstation vs cloud hardware (`GET /compute`) and loads `*_easy`. The cloud preset is a larger local RecurrentPPO config, not a Ray/RLlib cluster.
 - **Configure robot starts** (under Advanced presets) to pick official `startSlotId` values and legal along-wall offsets. Illegal G304 poses never reach training.
 - Live rollout of the current run (downsampled WebSocket frames).
 - **Set as default** writes the training preset bundle; **Use current selection** writes the three ids without requiring a training preset.
@@ -60,11 +62,11 @@ True-score and shaping charts are separate. Copy on the page states that shaping
 
 Load a field preset, edit elements (pose, shape, tags), lint against the JSON Schema, PUT to replace. Scoring tab edits the paired scoring document. Stale `manualRevision` vs `LATEST_KNOWN_MANUAL` should show in list metadata. Do not invent point values; keep `verifyAgainstManual: true` until a second person checks the manual.
 
-Saves go to the API/SQLite row, not a silent browser blob.
+Saves go to the API/SQLite row, not a silent browser blob. Invalid JSON in the advanced editor is shown as an error; save and validate do not throw in the click handler.
 
 ## Robot builder
 
-Visual design editor: top-down robot-frame inch grid (+x forward, +y left) plus a 3D preview. Place intake mouths and launcher muzzles, then set cycle times, muzzle speed, hood pitch/yaw, and MeepMeep vel/accel. Chassis length/width/height drive both the canvas and replay collision box.
+Visual design editor: top-down robot-frame inch grid (+x forward, +y left) plus a 3D preview. Place intake mouths and launcher muzzles, then set cycle times, muzzle speed, hood pitch/yaw, and MeepMeep vel/accel. Chassis length/width/height drive both the canvas and replay collision box. Swerve is treated as holonomic (same velocity clip as mecanum), not per-module IK. Camera FOV/range sliders write an AprilTag camera sensor if the preset has none.
 
 **Custom 3D model:** upload STL, OBJ, GLB, glTF, or STEP. The API converts to a light GLB (viewer) and a convex hull (optional physics) under `var/assets/robots/<id>/`. **Fit chassis to model** copies the mesh bounds into length/width/height. Leave **Use mesh for collision** off to keep AABB physics; turn it on for a 2D hull on planar fields and a MuJoCo mesh geom on BIOBUZZ (slower; fidelity, not overnight PPO). Offset/yaw/scale line the CAD up with chassis center. Save still goes through validate + PUT.
 
@@ -74,11 +76,12 @@ Save with PUT `/presets/robot/{id}` after `POST /presets/validate`. **Save as ne
 
 [EVALUATION.md](EVALUATION.md) for the statistics.
 
-- **Run 24-trial evaluation (scripted)** — stores a row; n&lt;500 so it stays unlabeled.
-- **Optional checkpoint eval** — loads the selected run’s checkpoint artifact.
+- **Run 24-trial evaluation (scripted)** — stores a row; n&lt;500 so it cannot earn “best”.
+- **500-trial eval** — posts `nTrials: 500` (API clamp). That size can earn “best” if CIs do not overlap. The eval runs inline, so the Lab waits.
+- **Optional checkpoint eval** — 24- or 500-trial against the selected run’s checkpoint artifact.
+- Empty leaderboard explains that there are no rows yet. Collision rate is shown when the report includes it.
 - Whiskers are bootstrap 95% CIs on mean true score.
-- Banner: no strategy is labeled statistically best if n&lt;500 or intervals overlap.
-- Per-row Road Runner export from that eval’s best replay.
+- Per-row export is drive-only Road Runner 1.0; mechanism timeline is comments, not a complete AUTO.
 
 ## API surface the UI uses
 

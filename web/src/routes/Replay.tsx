@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FieldScene, type SceneView } from "../scene/FieldScene";
+import { FieldScene, aprilTagCamera, type SceneView } from "../scene/FieldScene";
 import { KeyValues } from "../KeyValues";
 import { getJson, loadReplayFrames, postJson, postText, type Frame, type FrameExplain } from "../api";
+import { DRIVE_EXPORT_NOTE, namedQueues, resolveReplayId } from "../labHonesty";
 
 type ReplayMeta = { id: string; trueScore?: number; source?: string };
 type Tab = "score" | "field" | "export";
@@ -48,24 +49,40 @@ export function ReplayPage() {
   const [java, setJava] = useState("");
   const [tab, setTab] = useState<Tab>("score");
 
+  const selectedId = resolveReplayId(replayId, active);
+
   useEffect(() => {
-    if (replayId && replayId !== active) setActive(replayId);
+    if (replayId) setActive(replayId);
   }, [replayId]);
 
   useEffect(() => {
+    let cancelled = false;
     getJson<ReplayMeta[]>("/replays").then((list) => {
-      setIds(list);
-      if (!active && list[0]) selectReplay(list[0].id);
+      if (!cancelled) setIds(list);
     });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (!active) return;
-    loadReplayFrames(active).then((f) => {
+    // URL /replay/:id always wins; never replace it with list[0] from a stale empty active.
+    if (replayId || active || !ids[0]) return;
+    selectReplay(ids[0].id);
+  }, [replayId, active, ids]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    let cancelled = false;
+    loadReplayFrames(selectedId).then((f) => {
+      if (cancelled) return;
       setFrames(f);
       setI(0);
     });
-  }, [active]);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
 
   useEffect(() => {
     if (!playing || frames.length === 0) return;
@@ -135,6 +152,7 @@ export function ReplayPage() {
   const foulNow = frameHasFoulStep(frame);
   const foulT = foulNow ? frame?.t : firstFoul?.t;
   const foulBanner = foulNow || penalties.length > 0 ? `FOUL at t=${(foulT ?? 0).toFixed(2)}` : null;
+  const hasCamera = Boolean(aprilTagCamera(frame?.robotDesign) || aprilTagCamera(frames[0]?.robotDesign));
 
   function selectReplay(id: string) {
     setActive(id);
@@ -154,8 +172,8 @@ export function ReplayPage() {
   }
 
   async function exportRr() {
-    if (!active) return;
-    const text = await postText(`/replays/${active}/export/roadrunner`, { dialect: "rr1_actions" });
+    if (!selectedId) return;
+    const text = await postText(`/replays/${selectedId}/export/roadrunner`, { dialect: "rr1_actions" });
     setJava(text);
   }
 
@@ -187,9 +205,11 @@ export function ReplayPage() {
                 top
               </button>
             </div>
-            <label className="check" style={{ margin: 0 }}>
-              <input type="checkbox" checked={showFov} onChange={(e) => setShowFov(e.target.checked)} /> FOV
-            </label>
+            {hasCamera && (
+              <label className="check" style={{ margin: 0 }}>
+                <input type="checkbox" checked={showFov} onChange={(e) => setShowFov(e.target.checked)} /> FOV
+              </label>
+            )}
           </div>
           <div className="scrub-wrap">
             {markers.length > 0 && (
@@ -222,7 +242,8 @@ export function ReplayPage() {
           <p className="note">Visualizer only. Space play/pause · arrows step · Home/End jump.</p>
         </div>
         <label htmlFor="replay-select">Replay</label>
-        <select id="replay-select" value={active} onChange={(e) => selectReplay(e.target.value)}>
+        <select id="replay-select" value={selectedId} onChange={(e) => selectReplay(e.target.value)}>
+          {selectedId && !ids.some((r) => r.id === selectedId) && <option value={selectedId}>{selectedId}</option>}
           {ids.map((r) => (
             <option key={r.id} value={r.id}>
               {r.id} · {r.source || "run"} · {r.trueScore ?? "?"}
@@ -278,7 +299,7 @@ export function ReplayPage() {
         {tab === "field" && (
           <div className="card">
             <h3>Field state</h3>
-            <div className="stat">Ramp queue: {(frame?.queues && Object.values(frame.queues)[0]?.join(" ")) || "empty"}</div>
+            <div className="stat">Ramp queues: {namedQueues(frame?.queues)}</div>
             <p className="stat">Gate</p>
             <KeyValues data={frame?.gate as Record<string, unknown>} />
             <p className="stat">Privileged match vars (inspection-only)</p>
@@ -290,9 +311,10 @@ export function ReplayPage() {
         {tab === "export" && (
           <div className="card">
             <h3>Export</h3>
+            <p className="note">{DRIVE_EXPORT_NOTE}</p>
             <div className="row">
               <button type="button" onClick={exportRr}>
-                Road Runner 1.0
+                Road Runner 1.0 (drive only)
               </button>
             </div>
             {java && (
@@ -300,7 +322,7 @@ export function ReplayPage() {
                 {java}
               </pre>
             )}
-            {path.length > 0 && <p className="note">{path.length} planned-path samples (decimated poses).</p>}
+            {path.length > 0 && <p className="note">{path.length} executed poses (every 5th frame), not a planner path.</p>}
           </div>
         )}
       </aside>

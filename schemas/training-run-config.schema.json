@@ -9,7 +9,6 @@
     "id",
     "presets",
     "algorithm",
-    "actionTier",
     "computeProfile",
     "episode",
     "budget",
@@ -53,7 +52,8 @@
     },
     "actionTier": {
       "type": "string",
-      "enum": ["high_level_waypoint", "low_level_velocity"]
+      "enum": ["high_level_waypoint", "low_level_velocity", "physical_actuators"],
+      "description": "If omitted, train uses robot.defaultActionTier (else high_level_waypoint)."
     },
     "computeProfile": {
       "type": "string",
@@ -129,7 +129,7 @@
     },
     "objective": {
       "type": "string",
-      "enum": ["mean_true_score", "lcb_true_score", "p10_true_score", "rp_proxy_probability"]
+      "enum": ["mean_true_score", "lcb_true_score", "p10_true_score"]
     },
     "export": {
       "type": "object",

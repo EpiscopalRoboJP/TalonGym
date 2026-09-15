@@ -3,6 +3,7 @@ from talongym.training.curriculum import (
     curriculum_unlocks,
     full_noise,
     opponent_for,
+    resolved_action_tier,
     stage_info,
     teammate_for,
 )
@@ -26,3 +27,9 @@ def test_biobuzz_curriculum_switches_with_progress():
     assert info["index"] == 0
     assert stage_info(training, 0.5)["index"] == 1
     assert stage_info(training, 0.99)["index"] == 2
+
+
+def test_resolved_action_tier_honors_robot_default():
+    assert resolved_action_tier({"actionTier": "physical_actuators"}, {"defaultActionTier": "high_level_waypoint"}) == "physical_actuators"
+    assert resolved_action_tier({}, {"defaultActionTier": "physical_actuators"}) == "physical_actuators"
+    assert resolved_action_tier(None, None) == "high_level_waypoint"

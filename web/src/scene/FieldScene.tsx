@@ -4,6 +4,7 @@ import { Html, OrbitControls, Grid, Line, useGLTF } from "@react-three/drei";
 import { DoubleSide, FrontSide, Mesh, Object3D } from "three";
 import type {
   ActuatorSpec,
+  CameraSensorSpec,
   Frame,
   FramePiece,
   FrameRobot,
@@ -15,6 +16,7 @@ import type {
   RobotPartTransform,
 } from "../api";
 import { API } from "../api";
+import { pickCameraSensor } from "../labHonesty";
 import { theme } from "../theme";
 import {
   buildPieceCatalog,
@@ -397,10 +399,9 @@ function CollisionPrimitive({ part }: { part: RigidPartSpec }) {
   }
   if (collision.kind === "convex_mesh") {
     return (
-      <mesh>
-        <boxGeometry args={[4, 2, 4]} />
-        <meshStandardMaterial color={color} transparent opacity={0.55} />
-      </mesh>
+      <Html center style={{ pointerEvents: "none", color: theme.cream, fontSize: "10px", whiteSpace: "nowrap" }}>
+        convex_mesh (not previewed)
+      </Html>
     );
   }
   const length = collision.lengthIn || collision.radiusIn * 2;
@@ -498,6 +499,28 @@ function StorageSlotMarkers({ path }: { path: PiecePathSpec }) {
   );
 }
 
+export function aprilTagCamera(design?: RobotDesign | null): CameraSensorSpec | undefined {
+  return pickCameraSensor(design);
+}
+
+function FovWedge({ sensor, chassisHeight }: { sensor: CameraSensorSpec; chassisHeight: number }) {
+  const fovDeg = sensor.fovDeg ?? 70;
+  const rangeIn = sensor.rangeIn ?? 96;
+  if (!(rangeIn > 0) || !(fovDeg > 0)) return null;
+  const pose = sensor.poseOnRobot || {};
+  const fov = (fovDeg * Math.PI) / 180;
+  const localY = (pose.z ?? chassisHeight / 2) - chassisHeight / 2 + 0.2;
+  const segments = Math.max(8, Math.ceil(fovDeg / 4));
+  return (
+    <group position={[pose.x || 0, localY, -(pose.y || 0)]} rotation={[0, ((pose.headingDeg || 0) * Math.PI) / 180, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[rangeIn, segments, -fov / 2, fov]} />
+        <meshStandardMaterial color={theme.gold} transparent opacity={0.18} side={DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
+
 export function RobotActor({
   x = 0,
   y = 0,
@@ -538,6 +561,7 @@ export function RobotActor({
   const chassisColor = highlight ? theme.restricted : dynamic ? theme.chassis : theme.chassisIdle;
   const emissiveIntensity = highlight === "foul" ? 0.55 : highlight === "contact" ? 0.35 : 0;
   const previewParts = hideBody ? [] : design?.rigidParts || [];
+  const camera = aprilTagCamera(design);
   return (
     <group position={[inch(x), height / 2, inch(-y)]} rotation={[0, (headingDeg * Math.PI) / 180, 0]}>
       {cadUrl && !hideBody && (
@@ -591,12 +615,7 @@ export function RobotActor({
         </>
       )}
       {telemetry && <RobotTelemetry robot={telemetry} chassisHeight={height} />}
-      {showFov && dynamic && (
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[20, 0.2, 0]}>
-          <circleGeometry args={[40, 24, -0.6, 1.2]} />
-          <meshStandardMaterial color={theme.gold} transparent opacity={0.18} />
-        </mesh>
-      )}
+      {showFov && dynamic && camera && <FovWedge sensor={camera} chassisHeight={height} />}
     </group>
   );
 }

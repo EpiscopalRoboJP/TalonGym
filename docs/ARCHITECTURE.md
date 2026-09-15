@@ -16,19 +16,19 @@ TalonGym is a **season-plugin, Gymnasium-first** FTC Autonomous trainer with a R
 
 | Decision | Choice | Why |
 |----------|--------|-----|
-| Physics | **2.5D default** (Rapier2D / planar contacts + scoring volumes). BIOBUZZ sets `mesh_field_collision` and runs **MuJoCo 3D** (Y-up inches) against CAD-derived colliders. | BIOBUZZ AUTO is launch-into-cell; robots must drive under the hive. Missing MuJoCo **refuses** a mesh-field training run — no silent planar fallback. |
-| Rapier vs Box2D | **Project-owned Rapier2D batched PyO3 ABI**, with a **Phase 0 benchmark gate** and Box2D v3 subprocess fallback | Off-the-shelf Box2D v3 Python bindings are early and one-world-per-call. Official Rapier Python packages are unpublished. A narrow batched `step(n_worlds)` is the only path to the throughput budget. If the Rust spike slips, drop to Box2D workers rather than inventing a third engine. |
+| Physics | **2.5D default** via Python `Planar2DBackend` (`engine: planar2d`). The Rapier crate is a **stub** (`rapier2d-stub`); Box2D is **not built**. BIOBUZZ sets `mesh_field_collision` and runs **MuJoCo 3D** (Y-up inches) against CAD-derived colliders. | BIOBUZZ AUTO is launch-into-cell; robots must drive under the hive. Missing MuJoCo **refuses** a mesh-field training run — no silent planar fallback (Lab scoring/API tests may planar-fallback; training does not). |
+| Rapier vs Box2D | **Not shipped.** Health reports `planar2d` while the Rapier crate is a stub. There is no Box2D worker pool. | A batched Rapier `step(n_worlds)` remains the Phase 0 spike; until it meets the gate, Python planar contacts are the 2.5D path. |
 | 3D physics | **Opt-in `MujocoFieldBackend`** when the field declares `collisionAsset` / `mesh_field_collision`. The old chassis-only adapter remains for `talongym validate-3d`. | Required for ballistic CELL launches. Viewer still does not run physics. |
-| Action space MVP | **High-level waypoint / spline** executed by a Road Runner-like follower | Trains faster; maps onto exportable RR 1.0 segments. Low-level `(vx, vy, ω)` is Phase 5 transfer/validation. |
-| Algorithm | **BIOBUZZ:** `bc_then_ppo` (scripted clone, then asymmetric-critic PPO). Optional `grpo` for sparse TIP. Actor stays encoder-only. | Scratch LSTM PPO does not learn a 30s +20 TIP. 2025–26 robot RL is BC then on-policy RL, often with a privileged critic or group baseline. Not a VLA. |
+| Action space MVP | **High-level waypoint / spline** executed by a Road Runner-like follower | Trains faster; maps onto exportable RR 1.0 segments. `physical_actuators` is a legal training `actionTier` (robot builder). Low-level `(vx, vy, ω)` is Phase 5 transfer/validation. |
+| Algorithm | **BIOBUZZ:** `bc_then_ppo` (scripted clone, then asymmetric-critic PPO). Actor stays encoder-only. | Scratch LSTM PPO does not learn a 30s +20 TIP. `grpo` and `rllib_ppo` exist as experimental unused code (no product preset). Not a VLA. |
 | Frontend | React + react-three-fiber; FastAPI BFF; **no localStorage** | Matches the product requirement. Persistence is SQLite (MVP) → Postgres (Phase 5). |
-| Multi-agent | Gymnasium single-agent MVP; **PettingZoo parallel API** from Phase 4 | Two robots per alliance is real; it is not the first learning problem. |
+| Multi-agent | Gymnasium single-agent MVP; **PettingZoo** is a required dependency wrapping an unused Phase 4 module (`python/talongym/env/petting.py`) | Two robots per alliance is real; it is not the first learning problem. |
 | Export | **Road Runner 1.0 `TrajectoryActionBuilder` / Actions** default; 0.5.x `TrajectorySequence` as compatibility | RR 1.0 replaced trajectory sequences. Emitting deprecated APIs as the primary path would strand teams. |
 | POLLEN size | **2.8 in** (Competition Manual V1 §9.8) | Pre-Kickoff planning notes said ~3 in; the manual is 2.8 in. |
 
 ### What 2.5D means, precisely
 
-- **Simulated in Rapier2D:** chassis vs walls, chassis vs chassis, floor pieces vs floor pieces, floor pieces vs chassis (pushing). Gravity is off in-plane; friction and restitution are data.
+- **Simulated in Planar2D (Rapier crate is a stub):** chassis vs walls, chassis vs chassis, floor pieces vs floor pieces, floor pieces vs chassis (pushing). Gravity is off in-plane; friction and restitution are data.
 - **Not simulated as rigid-body flight by default:** a piece “in the goal” can be an FSM (`held → launched → in_goal_volume → scored`) with timers. BIOBUZZ mesh seasons keep pieces as free rigid bodies with physical mechanism launch; `retained_queue` remains an engine capability for seasons that need an ordered overflow buffer.
 - **Visualizer:** extrudes `WorldState` (2D poses + FSM + queue) into meshes. It is a renderer.
 
@@ -65,7 +65,7 @@ talongym/
     src/lib.rs
   python/
     talongym/
-      sim/                   # WorldState, PhysicsBackend protocol, Rapier bindings, Box2D fallback
+      sim/                   # WorldState, PhysicsBackend protocol; Planar2D default; Rapier stub; no Box2D
       rules/                 # compile ScoringRulesPreset → DAG, evaluate per tick
       robot/                 # drivetrain FK/IK, motor model, sensors, mechanism FSMs
       env/                   # FTCAutoEnv, wrappers, PettingZoo
@@ -95,8 +95,8 @@ flowchart LR
   presets[Preset JSON] --> compiler[Preset compiler]
   compiler --> world[WorldState plus FSMs]
   compiler --> dag[Compiled rule DAG]
-  world --> rapier[Rapier2D batch]
-  rapier --> world
+  world --> planar[Planar2D / MuJoCo mesh]
+  planar --> world
   world --> sensors[Sensor models]
   sensors --> obs[Policy observation]
   world --> dag
@@ -218,7 +218,7 @@ class FTCAutoEnv(gymnasium.Env):
 
 `options` may set `match_setup` (enabled robots, official same-alliance `startSlotId`, and offsets inside that slot’s `legalRegion`). Runtime still enforces G304: own alliance half, touching the perimeter, and not in a LOADING ZONE or FLOWER. LEAVE is awarded only after the chassis leaves the wall. `opponent_mode`, `action_tier`, `full_noise`, and `ballistic_launch` are also legal `options`. Run/evaluation APIs use the camel-case `matchSetup` equivalent.
 
-**Control rate:** 25 Hz default (preset `episode.controlHz`; legal 20–50). Physics substeps: 2 (50 Hz Rapier) unless the Phase 0 bench says otherwise. Episode length: **30.0 s AUTO**, then truncation. TRANSITION (8 s official; 15 s at FIRST Championship) is **not** simulated in MVP; end-of-AUTO scoring uses the AUTO `phaseEnd` hook with a configurable `settle_time_s` (default 0.5 s) to stand in for “come to rest.”
+**Control rate:** 25 Hz default (preset `episode.controlHz`; legal 20–50). Physics substeps: 2 unless the Phase 0 bench says otherwise. Episode length: **30.0 s AUTO**, then truncation. `World.phase` is always `"AUTO"`; TRANSITION/TELEOP scoring nodes never run. TRANSITION (8 s official; 15 s at FIRST Championship) is **not** simulated; end-of-AUTO scoring uses the AUTO `phaseEnd` hook with a configurable `settle_time_s` (default 0.5 s) to stand in for “come to rest.”
 
 ### Observation space (`Dict`) — policy-visible only
 
@@ -256,7 +256,11 @@ A follower (pure pursuit + heading PID, constraints from the robot preset) consu
 
 **Tier B — `low_level_velocity` (Phase 5)**
 
-`Box(3,)` = `(vx, vy, omega)` in in/s and rad/s, clipped by motor model (torque-speed curve + current limit). Mecanum inverse kinematics inside the drivetrain plugin. Tank ignores `vy`. Swerve solves module states.
+`Box(3,)` = `(vx, vy, omega)` in in/s and rad/s, clipped by motor model (torque-speed curve + current limit). Mecanum inverse kinematics inside the drivetrain plugin. Tank ignores `vy`. Swerve is clipped as holonomic (same as mecanum); module-level IK is not solved.
+
+**Tier C — `physical_actuators`**
+
+Legal on the robot preset (`defaultActionTier`) and training `actionTier`. PPO uses the robot default when the training JSON omits `actionTier`.
 
 ### Reward signature
 
@@ -281,7 +285,7 @@ Default shaping (coefficients in the training config, not the scoring preset):
 
 **reset**
 
-1. Seed NumPy + Rapier world from `seed`.
+1. Seed NumPy + the physics backend from `seed`.
 2. Draw match variables (motif, etc.).
 3. Spawn pieces, robots (G304-legal start slots only; jitter is resampled inside the slot’s legal region), randomize build tolerance.
 4. Zero all sensors’ observed-match-var flags.
@@ -291,7 +295,7 @@ Default shaping (coefficients in the training config, not the scoring preset):
 **step**
 
 1. Clip action; follower or IK → wheel forces / velocities.
-2. Rapier `step` × substeps.
+2. Physics backend `step` × substeps (`planar2d` or MuJoCo mesh).
 3. Advance mechanism FSMs (timers, trigger volumes).
 4. Sensor models (vision last, using updated poses + occluders).
 5. Rule DAG: triggers this tick → conditions → actions → score channels.
@@ -302,9 +306,9 @@ Default shaping (coefficients in the training config, not the scoring preset):
 
 `RecurrentPPO.predict(obs, state=lstm_states, episode_start=done)`. VecEnv must set `episode_start` on truncate. Do not carry LSTM across episodes.
 
-### PettingZoo (Phase 4)
+### PettingZoo (Phase 4, unused)
 
-`FTCAutoAECEnv` / `parallel_wrapper` with agents `red_0`, `red_1`, `blue_0`, `blue_1`. Shared alliance reward optional. Single-agent Gym is `FTCAutoEnv` with teammate/opponents from `TrainingRunConfig.presets.teammatePolicy` / `opponentPolicy`.
+`python/talongym/env/petting.py` is a Phase 4 wrapper (`FTCAutoParallelEnv`). It is not on the Lab or CLI train path. Single-agent Gym is `FTCAutoEnv` with teammate/opponents from `TrainingRunConfig.presets.teammatePolicy` / `opponentPolicy`. `frozen_policy` loads a checkpoint path or run artifact; if missing, the opponent is skipped (logged), not a hardcoded zip.
 
 ---
 
@@ -312,78 +316,68 @@ Default shaping (coefficients in the training config, not the scoring preset):
 
 Base URL: `/api/v1`. Auth: none for local MVP; later a team token. **No browser storage.** All presets, runs, and reports are SQLite rows.
 
-Error envelope:
+Typical error body: `{ "error": { "code": "SCHEMA"|"NOT_FOUND"|…, "message": "..." } }`.
 
-```json
-{ "error": { "code": "PRESET_STALE", "message": "...", "details": {} } }
-```
+HTTP today: 400 validation, 404 missing, 409 preset in use, 422 schema, 501 LSTM ONNX, 503 mesh/CAD extras. There is **no** `PRESET_STALE` code and **no** worker-busy 503. Stale presets are a boolean on list rows (`stale`), not an error envelope.
 
-HTTP: 400 validation, 404 missing, 409 job conflict, 422 schema, 503 worker busy.
+Training jobs are **in-process threads**. The SQLite `jobs` table is a write-only status log (`enqueue_job`); no worker reads it.
 
 ### REST
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/health` | `{ "ok": true, "engine": "rapier2d", "capabilityVersion": 1 }` |
-| GET | `/presets/field` | List field presets (id, season, manualRevision, stale) |
-| POST | `/presets/field` | Create; body = FieldPreset JSON; 201 |
-| GET | `/presets/field/{id}` | Full document |
-| PUT | `/presets/field/{id}` | Replace; bump revision |
-| DELETE | `/presets/field/{id}` | 204 if unused; 409 if referenced by a run |
-| GET/POST/PUT/DELETE | `/presets/robot` … | Same for RobotPreset |
-| GET/POST/PUT/DELETE | `/presets/scoring` … | Same for ScoringRulesPreset |
-| POST | `/presets/validate` | `{ "kind": "field"|"robot"|"scoring"|"training", "document": {} }` → `{ "ok", "errors", "unsupportedCapabilities" }` |
+| GET | `/health` | `{ "ok", "engine": "planar2d" (Rapier stub fallback), "fieldEngine", "db", "capabilityVersion": 1, "computeProfile", "nEnvs" }` |
+| GET | `/compute` | Detected profile and recommended nEnvs |
+| GET/PUT | `/defaults` | Active field/robot/scoring/training ids |
+| GET | `/presets/{kind}` | List (`field` \| `robot` \| `scoring` \| `training`) |
+| POST | `/presets/{kind}` | Create; 201 |
+| GET | `/presets/{kind}/{id}` | Full document |
+| PUT | `/presets/{kind}/{id}` | Replace |
+| DELETE | `/presets/{kind}/{id}` | 204 if unused; 409 if referenced by a run |
+| POST | `/presets/validate` | `{ "kind", "document" }` → `{ "ok", "errors", "unsupportedCapabilities" }` |
 | GET | `/runs` | Training runs |
-| POST | `/runs` | Body = TrainingRunConfig; enqueues job; 202 `{ "runId" }` |
-| GET | `/runs/{id}` | Status, hyperparams, latest metrics, artifact ids |
-| POST | `/runs/{id}/cancel` | Cooperative cancel |
-| GET | `/runs/{id}/artifacts` | List (ckpt, onnx, replay, report, export) |
-| GET | `/artifacts/{id}` | Download |
-| POST | `/evaluations` | `{ "policyArtifactId", "nTrials", "objective" }` → 202 |
-| GET | `/evaluations/{id}` | Report with CIs; `bestLabelEligible: bool` |
-| GET | `/comparisons/{id}` | Ranked evaluations; no “best” if overlapping CIs |
-| GET | `/replays/{id}` | Metadata (duration, hz, preset hashes) |
-| GET | `/replays/{id}/chunks?fromStep=&limit=` | Array of `WorldState` frames (max 500/request) |
+| POST | `/runs` | Starts an in-process thread; 202 `{ "runId" }` |
+| GET | `/runs/{id}` | Status, config, metrics, `artifactIds`, `artifacts` |
+| GET | `/runs/{id}/artifacts` | Artifact rows (checkpoint, roadrunner, onnx_ff, …) |
+| POST | `/runs/{id}/cancel` | Cooperative cancel: `request_cancel` + state `cancelling` until the worker acknowledges `cancelled` |
+| POST | `/runs/{id}/export/onnx` | **501** unless `distill=true`, which distills the **scripted** AUTO (not the run checkpoint) into feed-forward ONNX |
+| GET | `/replays` | Replay list |
+| GET | `/replays/{id}` | Metadata |
+| GET | `/replays/{id}/chunks?fromStep=&limit=` | Frames (max 500/request) |
 | POST | `/replays/{id}/export/roadrunner` | `{ "dialect": "rr1_actions" }` → text/plain Java |
-| POST | `/runs/{id}/export/onnx` | 202; 501 if policy is LSTM and ONNX path unsupported (see risks) |
+| POST | `/replays/demo` | Scripted demo replay; 201 |
+| POST | `/evaluations` | **200**, synchronous. `{ "nTrials", "objective", "policy", "runId", "checkpoint", "matchSetup" }` |
+| GET | `/evaluations` | List |
+| GET | `/evaluations/{id}` | Report with CIs; `bestLabelEligible` |
+| GET | `/comparisons/latest` | Ranked evaluations; no “best” if overlapping CIs or n&lt;500. There is no `GET /comparisons/{id}`. |
+| POST | `/presets/robot/{id}/model` | Upload robot CAD |
+| GET | `/field-assets/{path}` | Season meshes |
+| GET | `/robot-assets/{path}` | Robot meshes |
 
-Layout/field-builder autosave uses PUT on the field preset, not a separate undocumented blob.
+Layout/field-builder autosave uses PUT on the field preset. `EvalBody.objective` (`mean_true_score` \| `p10_true_score` \| `lcb_true_score`) is stored as `report.objective` / `objectiveValue`. There is no `rp_proxy_probability` objective.
 
 ### WebSocket
 
 `GET /api/v1/ws/runs/{runId}` (upgrade).
 
-Envelope:
+The server **pushes** JSON text frames (`v`, `seq`, `type`, `payload`). Client text is **read and discarded**. There is no `ack`, no `BACKPRESSURE`, and no `?afterSeq=` resume.
 
-```json
-{
-  "v": 1,
-  "type": "metrics|status|rollout|log|error|ping",
-  "seq": 1842,
-  "ts": "2026-09-08T16:00:00.000Z",
-  "payload": {}
-}
-```
-
-- `status`: `{ "state": "queued|running|cancelling|succeeded|failed", "step": 0, "nEnvs": 32 }`
-- `metrics`: `{ "envSteps", "objectiveMean", "trueScoreMean", "shapingMean", "entropy", "approxKl" }` — **true vs shaping always separate keys**
-- `rollout`: downsampled `WorldState` (every Nth control step, N=5 default) for the live 3D view. If the client `seq` lags >500, server sends `{ "type": "error", "payload": { "code": "BACKPRESSURE", "resumeFrom": seq } }` and drops frames.
-- `log`: `{ "level", "message" }`
-- Client → server: `{ "v":1, "type":"ack", "seq": 1842 }` and `{ "v":1, "type":"setRolloutHz", "payload": { "every": 10 } }`
-
-Resume: reconnect with `?afterSeq=`.
+- `status`: `{ "state": "queued|running|cancelling|succeeded|failed|cancelled", … }`
+- `metrics`: `{ "envSteps", "trueScoreMean", "shapingMean", … }` — **true vs shaping always separate keys**
+- `rollout`: downsampled `WorldState` for the live 3D view
+- `log` / `error`
 
 ### Frontend routes (React Router)
 
 | Route | View |
 |-------|------|
-| `/replay/:replayId?` | 3D field, robot(s), pieces, FSM overlays, MeepMeep-style scrub, play/pause/speed, FOV cones, planned path, optional reward heatmap |
-| `/train/:runId?` | Dashboard: true-score curve, shaping curve (clearly labeled not-leaderboard), success rate, score histogram, hyperparams, live scene |
-| `/build/field` | Grid editor, import background image/CAD-derived JSON, season templates |
-| `/build/robot` | Drivetrain, MeepMeep constraint sliders, sensors, mechanism capacity/cycle times |
-| `/compare` | Leaderboard of evaluations with CI whiskers; Export RR per row |
+| `/replay/:replayId?` | 3D field, robots, pieces, FSM overlays, scrub, play/pause/speed. FOV cones and planned path are best-effort overlays, not a physics planner. No reward heatmap. |
+| `/train/:runId?` | Sparklines (true score vs shaping) and live scene. No score histogram, success-rate plot, or hyperparam editor panel. |
+| `/build/field` | Pose + JSON field editor (not a free-form grid CAD tool) |
+| `/build/robot` | Drivetrain, constraints, sensors, mechanisms, `defaultActionTier` including `physical_actuators` |
+| `/compare` | Leaderboard of evaluations with CI whiskers; Export RR per row. No scoring graph editor. |
 
-Stale preset: if `provenance.manualRevision` is older than `engine.latestKnownManual[season]`, banner: “Preset matches V1; a newer Team Update exists.”
+Stale preset: list rows include `stale` when `provenance.manualRevision` differs from `LATEST_KNOWN_MANUAL[season]`. There is no blocking `PRESET_STALE` API error.
 
 ---
 
@@ -392,11 +386,11 @@ Stale preset: if `provenance.manualRevision` is older than `engine.latestKnownMa
 ### Phase 0 — Foundation benchmark (done when)
 
 - Schemas frozen at `1.0.0`; compiler rejects unknown capabilities.
-- Rapier batched stepping **or** documented fallback to Box2D workers.
+- 2.5D path is Python `Planar2DBackend`. Rapier crate is a stub; Box2D is not built.
 - **Throughput gate (measure, then lock):**
   - Lightweight laptop: **≥ 5×10³** control-steps/s at 8 envs, BIOBUZZ single robot, no viewer.
   - Workstation 16-core: **≥ 5×10⁴** control-steps/s at 256 envs.
-  - If Rapier spike misses 50% of workstation gate after two weeks, ship Box2D fallback and do not block Phase 1.
+  - If Rapier spike misses 50% of workstation gate after two weeks, keep Planar2D and do not block Phase 1. Do not invent a third engine.
 - Deterministic replay: same seed + action log → bit-stable poses at 1e-4 in.
 - BIOBUZZ field + scoring presets compile; provenance fields populated; `verifyAgainstManual` still true until mentor sign-off.
 - No frontend physics.
@@ -414,7 +408,7 @@ Time-to-useful-policy is a **measured** number after Phase 1, not a promise. Pla
 
 ### Phase 2 — Season tooling
 
-- `/build/field` and `/build/robot`; scoring graph editor (node list + lint, not a free-form script box).
+- `/build/field` and `/build/robot`; scoring graph editor is Phase 2 and **not shipped**.
 - Stale-version banners.
 - Season-agnostic regression: new games as volumes + end-of-AUTO scoring; **no season nouns in engine identifiers**.
 - Randomization seasons use `matchVariables` + `sequenceEquals` when needed.
@@ -431,17 +425,17 @@ Time-to-useful-policy is a **measured** number after Phase 1, not a promise. Pla
 Keep the plan-file numbering mapped as:
 
 - Plan-file Phase 4 ≈ this Phase 3 (multi-agent).
-- Plan-file Phase 5 ≈ this Phase 4: low-level velocity, real-log calibration, ONNX demo for feed-forward clone of the follower targets (LSTM ONNX best-effort), Ray/RLlib, self-play, Postgres + job queue, optional MuJoCo validation mode.
+- Plan-file Phase 5 ≈ this Phase 4: low-level velocity, real-log calibration, ONNX demo for feed-forward clone of the follower targets (LSTM ONNX remains 501), experimental Ray/RLlib toy, self-play, Postgres + job queue, optional MuJoCo validation mode.
 
 ---
 
 ## 7. Risks and mitigations
 
-1. **Rapier Python ABI slips.** Mitigation: Phase 0 time-box; Box2D v3 process pool with shared-memory states; keep `PhysicsBackend` protocol tiny (`reset_batch`, `step_batch`, `contacts`).
+1. **Rapier Python ABI slips.** Mitigation: Phase 0 time-box; ship Python `Planar2DBackend`. Box2D is not implemented. Keep `PhysicsBackend` protocol tiny (`reset_batch`, `step_batch`, `contacts`).
 2. **Policy cheats motif.** Mitigation: unit tests that mutate privileged motif without moving the robot/camera and assert obs unchanged; curriculum that starts with `motif_known_at_t0` then disables it.
-3. **Shaping optimizes the wrong game.** Mitigation: leaderboard binds to `true_score`; freeze shaping coefficients in the run config hash; abort train if true_score and objective diverge past a threshold for 1e6 steps.
+3. **Shaping optimizes the wrong game.** Mitigation: leaderboard binds to `true_score`; freeze shaping coefficients in the run config hash. Automatic abort when true_score and objective diverge is **not implemented**.
 4. **Sim-to-real gap on launch.** Mitigation: ballistic launches use the mesh field when unlocked; launch success can also be a Bernoulli + heading/range model fit from team logs (`calibrate/`). MuJoCo is required for BIOBUZZ training — no silent planar fallback.
-5. **LSTM ONNX / in-browser demo is lossy.** Mitigation: the only field path is (a) follower waypoint sequence pasted into an AUTO OpMode the Control Hub runs; (b) ONNX of a distilled feed-forward policy is a demo only. Do not claim on-robot NN inference.
+5. **LSTM ONNX / in-browser demo is lossy.** Mitigation: the only field path is (a) follower waypoint sequence pasted into an AUTO OpMode the Control Hub runs; (b) `distill=true` writes a feed-forward clone of the **scripted** policy, not the run. Do not claim on-robot NN inference.
 6. **Multi-robot collisions ignored in MVP then surprise in quals.** Mitigation: even single-agent MVP spawns a **static** teammate bounding box by default (configurable off) and penalizes contact.
 7. **Mid-season Team Updates silently desync.** Mitigation: `manualRevision` + hash on every preset; UI stale banner; evaluations store preset hash immutably.
 8. **Laptop cannot train.** Mitigation: lightweight profile + “import a run the mentor trained” via SQLite file copy; cloud path documented, not required.
@@ -469,7 +463,7 @@ Do not treat the following as engine work. They are **preset sign-off** question
 | Phenomenon | Modeled as |
 |------------|------------|
 | Planar holonomic / tank motion | Motor-limited 2D rigid body |
-| Wall / robot / piece push | Rapier contacts |
+| Wall / robot / piece push | Planar2D contacts (Rapier stub unused) |
 | Intake capture | Volume + cycle timer + capacity |
 | Launch / score | Trigger path + optional ballistic mesh |
 | Vision / match vars | FOV, range, occluder rays, false-negative rate |
@@ -516,7 +510,7 @@ Engine identifiers are capability names and geometry kinds (`aabb`, `volumeEnter
 ## Drivetrain, motors, sensors (robot model)
 
 - Plugins: `mecanum` (default), `tank`, `swerve`.
-- Forward/inverse kinematics in `python/talongym/robot/`.
+- Forward/inverse kinematics in `python/talongym/robot/`. Swerve chassis clip is holonomic (same as mecanum); module states are not solved.
 - DC motor: linear torque-speed, clip to `currentLimitA`. No infinite acceleration.
 - Encoders: Gaussian noise + slip; separate `ground_truth` pose for rewards/eval only.
 - AprilTag camera: pinhole FOV cone, max range, ray vs `isOccluder` elements (BIOBUZZ hive frame + CELL tag clusters).
@@ -562,8 +556,8 @@ BIOBUZZ is the only shipped season. A new season is data under `presets/seasons/
 
 ## Implementation notes for the first coding agent
 
-1. Implement `PhysicsBackend` and a stub `KinematicBackend` only for CI without Rust; production default is Rapier.
+1. Implement `PhysicsBackend` and `Planar2DBackend`. The Rapier crate is a stub until it meets the Phase 0 gate; production 2.5D default is `planar2d`.
 2. Compile scoring JSON to a contiguous struct-of-arrays DAG; evaluate in Rust or Cython-free Python first, profile, then move hot loops.
 3. Write `tests/presets/test_no_season_leak.py` and `tests/env/test_motif_not_leaked.py` before any PPO run.
 4. Pin `sb3-contrib` RecurrentPPO; flatten only the boxes SB3 cannot digest, keep Dict via `MultiInputLstmPolicy`. BIOBUZZ uses `AsymmetricLstmPolicy` so the critic may read `_privileged` while the actor cannot.
-5. SQLite schema: `presets`, `runs`, `evaluations`, `artifacts`, `replays` — WAL mode, files under `var/talongym.db`.
+5. SQLite schema: `presets`, `runs`, `evaluations`, `artifacts`, `replays`, `jobs` — WAL mode, files under `var/talongym.db`. Training is in-process threads; `jobs` is a status log.

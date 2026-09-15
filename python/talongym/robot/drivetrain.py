@@ -33,7 +33,7 @@ def max_twist(robot: dict[str, Any]) -> tuple[float, float, float]:
 
 
 def clip_twist(vx: float, vy: float, omega: float, robot: dict[str, Any]) -> tuple[float, float, float]:
-    """Clip chassis twist. Tank ignores vy. Mecanum/swerve keep holonomic vy."""
+    """Clip chassis twist. Tank zeros vy. Swerve uses the same holonomic clip as mecanum (no module IK)."""
     kind = str((robot.get("drivetrain") or {}).get("type") or "mecanum")
     mx, my, mw = max_twist(robot)
     if kind == "tank":

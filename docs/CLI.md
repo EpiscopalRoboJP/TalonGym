@@ -23,7 +23,7 @@ python -m talongym train
 python -m talongym train --easy
 python -m talongym train --training biobuzz_auto_workstation --steps 8192 --n-envs 16
 python -m talongym train --allow-scripted
-python -m talongym train --algo rllib_ppo --steps 2048
+python -m talongym train --algo rllib_ppo --steps 2048   # experimental toy, not a scale path
 ```
 
 | Option | Type | Default |
@@ -33,7 +33,7 @@ python -m talongym train --algo rllib_ppo --steps 2048
 | `--steps` | int | 8192, or the easy preset budget with `--easy` |
 | `--n-envs` | int | training preset `nEnvs` (easy: autodetected) |
 | `--allow-scripted` | flag | false |
-| `--algo` | `recurrent_ppo` \| `rllib_ppo` | from the training preset |
+| `--algo` | `recurrent_ppo` \| experimental `rllib_ppo` | from the training preset |
 
 Prints `compute=… nEnvs=… training=… steps=…` then `algo=… steps=… ckpt=…`. How-to: [TRAINING.md](TRAINING.md).
 
@@ -50,9 +50,10 @@ Prints CPU count, RAM, CUDA, the resolved `lightweight_cpu` / `workstation` / `c
 ```bash
 python -m talongym evaluate
 python -m talongym evaluate --trials 32
+python -m talongym evaluate --checkpoint var/ckpts/best.zip --trials 32
 ```
 
-Runs the **scripted** AUTO on held-out seeds starting at 10_000_000. Prints mean, 95% bootstrap CI, p10, n, and `bestLabelEligible` (true only for n ≥ 500). How-to: [EVALUATION.md](EVALUATION.md).
+Default is the **scripted** AUTO on held-out seeds starting at 10_000_000. `--checkpoint` loads a trained SB3 zip. Lab Compare can eval a trained-policy checkpoint from a run artifact. Prints mean, 95% bootstrap CI, p10, n, and `bestLabelEligible` (true only for n ≥ 500). How-to: [EVALUATION.md](EVALUATION.md).
 
 ## `replay`
 

@@ -179,6 +179,7 @@ class World:
             if a.get("valueType") == "sequence"
         }
         self.time_s = 0.0
+        # AUTO only: phase never advances, so TRANSITION/TELEOP scoring nodes do not run.
         self.phase = "AUTO"
         self.auto_s = 30.0
         for ph in self.scoring.get("phases") or []:
@@ -376,6 +377,7 @@ class World:
         self._episode_full_noise = bool(full_noise)
         self.apply_episode_randomization(full_noise=full_noise)
         self.time_s = 0.0
+        # AUTO only: phase never advances, so TRANSITION/TELEOP scoring nodes do not run.
         self.phase = "AUTO"
         self.true_score = 0.0
         self.explains = []
@@ -1554,6 +1556,7 @@ class World:
                 "chassis": dict(self.robot.get("chassis") or {}),
                 "intakes": list(self.intakes),
                 "launchers": list(self.launchers),
+                "sensors": list(self.robot.get("sensors") or []),
                 "rigidParts": list(self.robot.get("rigidParts") or []),
                 "joints": list(self.robot.get("joints") or []),
                 "actuators": list(self.robot.get("actuators") or []),

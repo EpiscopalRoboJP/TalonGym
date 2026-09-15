@@ -60,3 +60,12 @@ def objective_value(report: dict[str, Any], objective: str) -> float:
     if objective == "lcb_true_score":
         return float(report.get("lo") or 0.0)
     return float(report.get("mean") or 0.0)
+
+
+def resolved_action_tier(training: dict[str, Any] | None, robot: dict[str, Any] | None = None) -> str:
+    """Training `actionTier` wins; otherwise robot.defaultActionTier; else waypoint."""
+    if training and training.get("actionTier"):
+        return str(training["actionTier"])
+    if robot and robot.get("defaultActionTier"):
+        return str(robot["defaultActionTier"])
+    return "high_level_waypoint"

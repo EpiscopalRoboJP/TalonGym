@@ -159,6 +159,12 @@ def test_start_run_passes_training_id(monkeypatch):
     assert captured["bundle"].training["id"] == "biobuzz_auto_lightweight"
     assert captured["bundle"].field["id"] == "biobuzz_2026_field_v1"
     assert row["metrics"].get("replayId")
+    assert row.get("artifactIds")
+    arts = client.get(f"/api/v1/runs/{run_id}/artifacts")
+    assert arts.status_code == 200
+    kinds = {a["kind"] for a in arts.json()}
+    assert "checkpoint" in kinds
+    assert "roadrunner" in kinds
 
 
 def test_cancel_run(monkeypatch):
@@ -173,10 +179,13 @@ def test_cancel_run(monkeypatch):
     res = client.post("/api/v1/runs", json={"demo": True, "presets": {"trainingId": "biobuzz_auto_lightweight"}})
     assert res.status_code == 202
     run_id = res.json()["runId"]
-    _wait_run(client, run_id, {"running", "queued", "cancelled"})
+    _wait_run(client, run_id, {"running", "queued", "cancelling"})
     cancel = client.post(f"/api/v1/runs/{run_id}/cancel")
     assert cancel.status_code == 200
-    assert cancel.json()["state"] == "cancelled"
+    assert cancel.json()["state"] == "cancelling"
+    mid = client.get(f"/api/v1/runs/{run_id}")
+    assert mid.status_code == 200
+    assert mid.json()["state"] in {"cancelling", "cancelled"}
     row = _wait_run(client, run_id, {"cancelled", "failed", "succeeded"})
     assert row["state"] == "cancelled"
     time.sleep(0.3)
@@ -320,6 +329,86 @@ def test_ws_run_streams_live_metrics(monkeypatch):
                 break
     assert any(s >= 32 for s in steps), steps
     assert max(steps) >= 96
+
+
+def test_evaluations_return_200_and_store_objective(monkeypatch):
+    def fake_trials(n, policy, **kwargs):
+        scores = [3.0] * n
+        return {
+            "mean": 3.0,
+            "lo": 2.0,
+            "hi": 4.0,
+            "median": 3.0,
+            "p10": 2.0,
+            "p90": 4.0,
+            "min": 1.0,
+            "max": 5.0,
+            "nTrials": n,
+            "scores": scores,
+            "seeds": list(range(n)),
+            "collisionRate": 0.0,
+            "collisionTimeMean": 0.0,
+            "firstContactS": None,
+            "restrictedEntryRate": 0.0,
+            "bestScore": 3.0,
+            "bestFrames": [],
+            "bestLabelEligible": False,
+            "objective": kwargs.get("objective") or "mean_true_score",
+            "objectiveValue": 2.0 if kwargs.get("objective") == "p10_true_score" else 3.0,
+        }
+
+    import importlib
+
+    api_mod = importlib.import_module("talongym.api.app")
+    monkeypatch.setattr(api_mod, "run_trials", fake_trials)
+    client = TestClient(app)
+    res = client.post("/api/v1/evaluations", json={"nTrials": 8, "objective": "p10_true_score"})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["evaluationId"]
+    report = body["report"]
+    assert report["objective"] == "p10_true_score"
+    assert report["objectiveValue"] == 2.0
+
+
+def test_frozen_policy_missing_checkpoint_skips(monkeypatch):
+    captured: dict = {}
+
+    def fake_train(**kwargs):
+        captured["frozen"] = kwargs.get("frozen_policy")
+        return {"algo": "recurrent_ppo", "frames": [_frame()], "steps": 8, "metrics": {"envSteps": 8}}
+
+    monkeypatch.setattr("talongym.api.jobs.train_ppo", fake_train)
+    client = TestClient(app)
+    res = client.post(
+        "/api/v1/runs",
+        json={
+            "demo": True,
+            "presets": {"trainingId": "biobuzz_auto_lightweight", "opponentPolicy": "frozen_policy"},
+        },
+    )
+    assert res.status_code == 202
+    run_id = res.json()["runId"]
+    row = _wait_run(client, run_id, {"succeeded", "failed"})
+    assert row["state"] == "succeeded"
+    assert captured.get("frozen") is None
+    logs = client.get(f"/api/v1/runs/{run_id}").json().get("log") or ""
+    assert "frozen_policy" in logs
+    assert "skipping" in logs.lower()
+
+
+def test_onnx_export_is_501_without_distill(monkeypatch):
+    def fake_train(**kwargs):
+        return {"algo": "recurrent_ppo", "frames": [_frame()], "steps": 8, "checkpoint": "mem://ckpt"}
+
+    monkeypatch.setattr("talongym.api.jobs.train_ppo", fake_train)
+    client = TestClient(app)
+    res = client.post("/api/v1/runs", json={"demo": True, "presets": {"trainingId": "biobuzz_auto_lightweight"}})
+    run_id = res.json()["runId"]
+    _wait_run(client, run_id, {"succeeded", "failed"})
+    onnx = client.post(f"/api/v1/runs/{run_id}/export/onnx")
+    assert onnx.status_code == 501
+    assert onnx.json()["error"]["code"] == "ONNX_LSTM"
 
 
 def test_old_replay_does_not_invent_piece_cad():

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "id": "biobuzz_auto_cloud",
-  "displayName": "BIOBUZZ AUTO cloud (Ray)",
+  "displayName": "BIOBUZZ AUTO cloud",
   "presets": {
     "fieldId": "biobuzz_2026_field_v1",
     "robotId": "mecanum_biobuzz_4cap",
@@ -10,7 +10,7 @@
     "opponentPolicy": "static"
   },
   "algorithm": {
-    "name": "rllib_ppo",
+    "name": "bc_then_ppo",
     "learningRate": 0.0003,
     "gamma": 0.99,
     "gaeLambda": 0.95,

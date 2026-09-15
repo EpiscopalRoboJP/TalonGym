@@ -16,7 +16,7 @@ That extra set is the laptop/workstation path: tests (`dev`) plus RecurrentPPO (
 |-------|----------------|----------|
 | `dev` | Always for contributors | pytest |
 | `rl` | Training a policy | RecurrentPPO |
-| `scale` | Optional Ray trainer | `python -m talongym train --algo rllib_ppo` |
+| `scale` | Optional experimental Ray extra | one-shot `train --algo rllib_ppo` toy; not a production scale path |
 | `mujoco` | BIOBUZZ 3D mesh physics (and `validate-3d`) | `MujocoFieldBackend` |
 | `cad` | Official field/piece STEP *and* team robot CAD upload (STL/OBJ/GLB/STEP) | trimesh + cascadio + fast-simplification |
 | `postgres` | Shared DB | used if `TALONGYM_DATABASE_URL` starts with `postgres` |
@@ -53,7 +53,7 @@ Open http://127.0.0.1:5173. Details: [LAB.md](LAB.md).
 
 | Location | Contents |
 |----------|----------|
-| `var/talongym.db` | SQLite: presets, runs, evaluations, artifacts, replays (WAL) |
+| `var/talongym.db` | SQLite: presets, runs, evaluations, artifacts, replays, jobs (WAL). `jobs` is a status log; training runs in-process. |
 | `var/defaults.json` | Your active field/robot/scoring/training ids |
 | `var/ckpts/` | RecurrentPPO zips (`latest.zip`, `best.zip`, per-run folders) |
 | `var/last_replay.java` | CLI `replay` export |
@@ -66,9 +66,10 @@ Set `TALONGYM_DATABASE_URL` to a `postgres://…` URL and install `[postgres]` t
 
 ```bash
 python -m pytest
+cd web && npm test
 ```
 
-`[rl]` is required for PPO smoke tests that import sb3-contrib. MuJoCo tests skip unless `[mujoco]` is installed.
+`[rl]` is required for PPO smoke tests that import sb3-contrib. MuJoCo tests skip unless `[mujoco]` is installed. `npm test` runs the self-contained TypeScript files under `web/src`.
 
 ## Hardware modes
 
@@ -78,6 +79,6 @@ python -m pytest
 |---------|----------------|-------|
 | Lightweight / local | 8 | CPU laptop; still reports true score |
 | Workstation | 256 in the spec; autodetect scales with cores | Overnight desktop path |
-| Cloud | 1024 via Ray (`*_cloud` + `[scale]`) | Optional; easy/autodetect stays RecurrentPPO |
+| Cloud | 1024 RecurrentPPO envs (`*_cloud`) | Optional; same algorithm as workstation, larger `nEnvs`. `[scale]` RLlib is a toy extra. |
 
 The 2.5D engine is the production path. Health may report `planar2d` when the Rapier crate is a stub.

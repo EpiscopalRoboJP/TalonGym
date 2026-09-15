@@ -1,4 +1,4 @@
-"""Optional RLlib trainer. Laptop default remains RecurrentPPO."""
+"""One-shot Ray PPO toy. Not a production trainer; Lab/CLI default is RecurrentPPO."""
 
 from __future__ import annotations
 

@@ -1,13 +1,15 @@
+"""In-process training workers. SQLite `jobs` is a status log, not a work queue."""
+
 from __future__ import annotations
 
 import threading
+from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
 
 from talongym import paths
 from talongym.api import db
-from talongym.eval.harness import run_trials
 from talongym.api.cad_frames import ensure_background_asset
 from talongym.export.roadrunner import export_from_replay
 from talongym.presets.loader import load_bundle
@@ -108,6 +110,54 @@ def latest_messages(run_id: str) -> list[dict[str, Any]]:
     return list((_latest.get(run_id) or {}).values())
 
 
+def _checkpoint_exists(path: str | None) -> bool:
+    if not path:
+        return False
+    try:
+        return Path(str(path)).exists()
+    except OSError:
+        return False
+
+
+def resolve_frozen_opponent(
+    config: dict[str, Any],
+    bundle: Any,
+    log: Callable[[str], None],
+    run_id: str | None = None,
+) -> Any:
+    """Load a frozen opponent from a configured checkpoint. Never a hardcoded zip."""
+    presets = config.get("presets") if isinstance(config.get("presets"), dict) else {}
+    training_presets = ((bundle.training or {}).get("presets") if bundle is not None else None) or {}
+    wanted = presets.get("opponentPolicy") == "frozen_policy" or training_presets.get("opponentPolicy") == "frozen_policy"
+    if not wanted:
+        return None
+    path = config.get("frozenPolicyPath") or presets.get("frozenPolicyPath")
+    if not path and bundle is not None:
+        path = (bundle.training or {}).get("frozenPolicyPath")
+    source_run = config.get("frozenPolicyRunId") or presets.get("frozenPolicyRunId")
+    if not path and source_run:
+        arts = [a for a in db.list_artifacts(str(source_run)) if a.get("kind") == "checkpoint"]
+        if arts:
+            path = arts[-1].get("payload")
+    if not path and run_id:
+        arts = [a for a in db.list_artifacts(run_id) if a.get("kind") == "checkpoint"]
+        if arts:
+            path = arts[-1].get("payload")
+    if not path:
+        log("frozen_policy requested but no checkpoint path or run artifact was configured; skipping opponent")
+        return None
+    if not _checkpoint_exists(str(path)):
+        log(f"frozen_policy checkpoint missing at {path}; skipping opponent")
+        return None
+    from talongym.training.ppo import load_trained_policy
+
+    try:
+        return load_trained_policy(str(path))
+    except Exception as exc:
+        log(f"frozen_policy failed to load {path}: {exc}; skipping opponent")
+        return None
+
+
 def start_training(config: dict[str, Any] | None = None) -> str:
     config = config or {}
     run_id = db.new_id()
@@ -142,6 +192,11 @@ def _resolved_budget(config: dict[str, Any], training: dict[str, Any] | None) ->
 
 
 def _train_worker(run_id: str, config: dict[str, Any]) -> None:
+    if is_cancelled(run_id):
+        db.save_run(run_id, config, "cancelled", {"envSteps": 0})
+        emit(run_id, {"type": "status", "payload": {"state": "cancelled", "step": 0}})
+        clear_cancel(run_id)
+        return
     db.save_run(run_id, config, "running", {"envSteps": 0})
     emit(run_id, {"type": "status", "payload": {"state": "running", "step": 0}})
     presets = dict(config.get("presets") or {})
@@ -175,7 +230,8 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
 
     def metrics(m: dict) -> None:
         last_metrics.update(_jsonable(m) if isinstance(m, dict) else {})
-        db.save_run(run_id, config, "running", last_metrics, "\n".join(logs))
+        state = "cancelling" if is_cancelled(run_id) else "running"
+        db.save_run(run_id, config, state, last_metrics, "\n".join(logs))
         emit(run_id, {"type": "metrics", "payload": dict(last_metrics)})
 
     def rollout(frames: list[dict[str, Any]]) -> None:
@@ -187,15 +243,7 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
             f"training={(bundle.training or {}).get('id')} "
             f"requested={resolved.get('requestedComputeProfile')}"
         )
-        frozen = None
-        if (config.get("presets") or {}).get("opponentPolicy") == "frozen_policy" or (
-            (bundle.training or {}).get("presets") or {}
-        ).get("opponentPolicy") == "frozen_policy":
-            from talongym.training.ppo import load_trained_policy
-
-            ckpt = paths.VAR_DIR / "ckpts" / "recurrent_ppo.zip"
-            if ckpt.exists():
-                frozen = load_trained_policy(ckpt)
+        frozen = resolve_frozen_opponent(config, bundle, log, run_id=run_id)
         algo_name = str(
             ((config.get("algorithm") or {}).get("name") if config.get("algorithm") else None)
             or ((bundle.training or {}).get("algorithm") or {}).get("name")
@@ -220,6 +268,7 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
             try:
                 from talongym.training.rllib import train_rllib
 
+                log("rllib_ppo is a one-shot toy trainer; not a production scale path")
                 result = train_rllib(total_steps=total, log=log)
             except RuntimeError as exc:
                 log(f"{exc}; falling back to RecurrentPPO")
@@ -275,20 +324,3 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
         row = db.get_run(run_id)
         if row:
             db.enqueue_job(run_id, run_id, config, row.get("state") or "done")
-
-
-def start_evaluation(n_trials: int = 32, policy_name: str = "scripted") -> str:
-    eid_holder = {"id": db.new_id()}
-    threading.Thread(target=_eval_worker, args=(eid_holder, n_trials, policy_name), daemon=True).start()
-    return eid_holder["id"]
-
-
-def _eval_worker(holder: dict, n_trials: int, policy_name: str) -> None:
-    policy = scripted_auto
-    report = run_trials(n_trials, policy, seed0=10_000_000, record_best=True)
-    frames = report.pop("bestFrames", [])
-    replay_id = db.save_replay(frames, {"source": "eval", "trueScore": report.get("bestScore")}) if frames else None
-    report["replayId"] = replay_id
-    eid = db.save_evaluation(report)
-    holder["id"] = eid
-    db.save_artifact(eid, "eval_report", str(report.get("mean")))

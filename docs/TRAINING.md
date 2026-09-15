@@ -1,6 +1,6 @@
 # Train a policy
 
-TalonGym trains an LSTM policy on a 30-second AUTO episode. BIOBUZZ uses **`bc_then_ppo`**: clone `scripted_biobuzz`, then asymmetric-critic PPO (actor encoder-only, critic sees privileged 3D state). Optional **`grpo`** is a value-free group baseline for sparse HIVE TIP. The leaderboard uses **true score** only.
+TalonGym trains an LSTM policy on a 30-second AUTO episode. BIOBUZZ uses **`bc_then_ppo`**: clone `scripted_biobuzz`, then asymmetric-critic PPO (actor encoder-only, critic sees privileged 3D state). `grpo` in `python/talongym/training/grpo.py` is experimental unused code (no shipped preset). The leaderboard uses **true score** only.
 
 Algorithm and observation contract: [ARCHITECTURE.md](ARCHITECTURE.md) §4. This page is the operator path.
 
@@ -17,11 +17,11 @@ python -m talongym defaults
 
 Shipped training ids (four compute variants):
 
-| Family | lightweight | workstation | cloud (Ray) | easy (autodetect) |
+| Family | lightweight | workstation | cloud (nEnvs) | easy (autodetect) |
 |--------|-------------|-------------|-------------|-------------------|
 | BIOBUZZ V1 | `biobuzz_auto_lightweight` | `biobuzz_auto_workstation` | `biobuzz_auto_cloud` | `biobuzz_auto_easy` |
 
-BIOBUZZ lightweight/workstation/easy keep `bc_then_ppo`. Cloud presets set `rllib_ppo` (Lab/CLI fall back to RecurrentPPO if `[scale]` is missing).
+BIOBUZZ training presets keep `bc_then_ppo` / RecurrentPPO, including cloud (larger `nEnvs`). `rllib_ppo` is an experimental one-shot toy in `training/rllib.py`; Lab/CLI fall back to RecurrentPPO. Do not treat it as a production scale path.
 
 `computeProfile: "auto"` (the `*_easy` files) resolves at train time from CPU count, RAM, and CUDA. Override with `TALONGYM_COMPUTE_PROFILE=lightweight_cpu|workstation|cloud`. Print the detection:
 
@@ -47,7 +47,7 @@ python -m talongym train --steps 8192
 | `--training` | active default | Training-run id for this invocation |
 | `--steps` | 8192 (easy: preset budget) | Total env steps this invocation |
 | `--n-envs` | preset `nEnvs` (easy: detected) | Parallel `DummyVecEnv` workers |
-| `--algo` | from the training preset | `rllib_ppo` needs `pip install -e ".[scale]"` |
+| `--algo` | from the training preset | RecurrentPPO / `bc_then_ppo`. `rllib_ppo` is a toy one-shot (`[scale]`) |
 | `--allow-scripted` | off | If sb3 is missing, run the scripted AUTO instead of failing |
 
 The loop:
@@ -81,7 +81,7 @@ The dashboard shows:
 - **Held-out eval true score** — small eval on seeds from `evaluation.heldOutSeedStart`
 - **Shaping** — labeled not-leaderboard
 - Live downsampled rollout, curriculum stage, entropy, approx KL, FPS
-- Cancel — cooperative stop; partial checkpoint may still be on disk
+- Cancel — cooperative stop (`cancelling` until the worker acknowledges `cancelled`); partial checkpoint may still be on disk
 
 Runs persist in SQLite. Open a past run from the list to reconnect the WebSocket.
 
@@ -131,17 +131,17 @@ BIOBUZZ AUTO has no motif. `motif_known_at_t0` remains a generic unlock for a fu
 
 ## Action tier
 
-Shipped presets use `high_level_waypoint`: target pose (inches / rad), speed fraction, discrete mechanism. That maps onto Road Runner export — the only field path (paste into an AUTO OpMode; Control Hub runs it). `low_level_velocity` exists on the env (`vx, vy, ω`) for transfer work; do not use it if you need a pasteable AUTO.
+Shipped presets use `high_level_waypoint`: target pose (inches / rad), speed fraction, discrete mechanism. That maps onto Road Runner export — the only field path (paste into an AUTO OpMode; Control Hub runs it). If a training JSON omits `actionTier`, PPO uses `robot.defaultActionTier`. `physical_actuators` is a legal tier (Lab robot builder). `low_level_velocity` exists on the env (`vx, vy, ω`) for transfer work; do not use it if you need a pasteable AUTO.
 
 ## Scripted baseline
 
 [`python/talongym/training/policies.py`](../python/talongym/training/policies.py) is LEAVE + intake + one score, per season slug. Use it to confirm the env scores, not as “the auto.” Compare trained checkpoints against it on [EVALUATION.md](EVALUATION.md).
 
-## Optional RLlib
+## Experimental RLlib (not a scale path)
 
 ```bash
 python -m pip install -e ".[scale]"
 python -m talongym train --algo rllib_ppo --steps 2048
 ```
 
-Laptop default remains RecurrentPPO. RLlib is a scale extra, not the Lab path.
+That runs a **one-shot toy** `algo.train()` against a flattened env. Laptop/cloud product path remains RecurrentPPO. Lab Start run falls back to RecurrentPPO if RLlib is missing.

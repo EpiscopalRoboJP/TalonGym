@@ -27,7 +27,7 @@ def train(
     steps: int | None = typer.Option(None, "--steps", help="Total env steps. Default 8192, or the easy budget with --easy"),
     n_envs: int | None = typer.Option(None, "--n-envs"),
     allow_scripted: bool = False,
-    algo: str | None = typer.Option(None, "--algo", help="recurrent_ppo or rllib_ppo; default comes from the training preset"),
+    algo: str | None = typer.Option(None, "--algo", help="recurrent_ppo (default) or experimental rllib_ppo toy"),
     easy: bool = typer.Option(False, "--easy", help="Autodetect hardware and use the season's easy run config"),
     training: str | None = typer.Option(None, "--training", help="Training preset id for this invocation"),
 ) -> None:
@@ -59,6 +59,7 @@ def train(
     if algo_name == "rllib_ppo":
         from talongym.training.rllib import train_rllib
 
+        typer.echo("rllib_ppo is a one-shot toy trainer; not a production scale path")
         result = train_rllib(total_steps=total, log=typer.echo)
     else:
         result = train_ppo(
@@ -81,8 +82,16 @@ def detect() -> None:
 
 
 @app.command()
-def evaluate(trials: int = 32) -> None:
-    report = run_trials(trials, scripted_auto, record_best=False)
+def evaluate(
+    trials: int = 32,
+    checkpoint: Path | None = typer.Option(None, "--checkpoint", help="Optional SB3 zip; default is the scripted AUTO"),
+) -> None:
+    policy = scripted_auto
+    if checkpoint is not None:
+        from talongym.training.ppo import load_trained_policy
+
+        policy = load_trained_policy(str(checkpoint))
+    report = run_trials(trials, policy, record_best=False)
     typer.echo(
         f"mean={report['mean']:.2f} 95% CI [{report['lo']:.2f}, {report['hi']:.2f}] "
         f"p10={report['p10']:.2f} n={report['nTrials']} eligible={report['bestLabelEligible']}"

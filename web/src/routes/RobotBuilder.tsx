@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getJson, postJson, putJson, robotPresetLabel, uploadRobotModel, deleteRobotModel, type ActuatorSpec, type ActionTier, type DefaultsBundle, type IntakeSpec, type JointSpec, type LauncherSpec, type MechanismSensorKind, type MechanismSensorSpec, type PiecePathSpec, type PoseOnRobot, type PowerSystemSpec, type PresetMeta, type RigidPartSpec, type Transform3, type VisualOffset } from "../api";
+import { upsertCameraSensor } from "../labHonesty";
 import { RobotPreview, launchArcPoints } from "../scene/FieldScene";
 import { theme } from "../theme";
 
@@ -142,7 +143,7 @@ function muzzleWarning(doc: RobotDoc): string | null {
 }
 
 function cam(doc: RobotDoc) {
-  return doc.sensors?.find((s) => s.kind === "apriltag_camera") || doc.sensors?.[0];
+  return doc.sensors?.find((s) => s.kind === "apriltag_camera");
 }
 
 function nextId(prefix: string, used: string[]) {
@@ -634,7 +635,7 @@ export function RobotBuilderPage() {
   function setCamera(partial: { fovDeg?: number; rangeIn?: number }) {
     setDoc({
       ...robot,
-      sensors: (robot.sensors || []).map((s) => (s === camera || s.kind === "apriltag_camera" ? { ...s, ...partial } : s)),
+      sensors: upsertCameraSensor(robot.sensors || [], partial),
     });
   }
 
@@ -753,11 +754,13 @@ export function RobotBuilderPage() {
                   visualAsset: typeof doc.visualAsset === "string" ? doc.visualAsset : null,
                   visualOffset: doc.visualOffset,
                   collisionShape: doc.chassis.collisionShape,
+                  sensors: doc.sensors,
                   rigidParts: doc.rigidParts,
                   joints: doc.joints,
                   actuators: doc.actuators,
                   piecePath: doc.piecePath,
                 }}
+                showFov={Boolean(camera)}
                 showHull={doc.chassis.collisionShape === "mesh"}
                 launchPreview={{ flywheelFrac: previewFlywheel, hoodFrac: previewHood }}
               />
@@ -816,6 +819,9 @@ export function RobotBuilderPage() {
                   <option value="physical_actuators">physical_actuators</option>
                 </select>
               </div>
+              <p className="note">
+                Swerve is treated as holonomic (same velocity clip as mecanum). There is no per-module inverse kinematics.
+              </p>
             </div>
 
             <div className="card">
@@ -1198,6 +1204,11 @@ export function RobotBuilderPage() {
 
             <div className="card">
               <h3>Camera</h3>
+              <p className="note">
+                {camera
+                  ? "FOV and range write the AprilTag camera on this preset. Replay can draw the cone from robot pose."
+                  : "This preset has no camera yet. Moving FOV or range creates an AprilTag camera sensor (not a silent no-op)."}
+              </p>
               <Slider
                 id="fov"
                 label="FOV"

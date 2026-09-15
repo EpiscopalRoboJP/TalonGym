@@ -220,7 +220,18 @@ def get_run(run_id: str) -> dict[str, Any]:
     row = db.get_run(run_id)
     if not row:
         raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": run_id}})
+    artifacts = db.list_artifacts(run_id)
+    row["artifactIds"] = [a["id"] for a in artifacts]
+    row["artifacts"] = artifacts
     return row
+
+
+@app.get(f"{API}/runs/{{run_id}}/artifacts")
+def list_run_artifacts(run_id: str) -> list[dict[str, Any]]:
+    row = db.get_run(run_id)
+    if not row:
+        raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": run_id}})
+    return db.list_artifacts(run_id)
 
 
 @app.post(f"{API}/runs/{{run_id}}/cancel")
@@ -228,11 +239,15 @@ def cancel_run(run_id: str) -> dict[str, str]:
     row = db.get_run(run_id)
     if not row:
         raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": run_id}})
+    if row["state"] in {"succeeded", "failed", "cancelled"}:
+        return {"state": row["state"]}
     jobs.request_cancel(run_id)
+    row = db.get_run(run_id) or row
     if row["state"] in {"queued", "running", "cancelling"}:
-        db.save_run(run_id, row["config"], "cancelled", row.get("metrics") or {}, row.get("log"))
-        jobs.emit(run_id, {"type": "status", "payload": {"state": "cancelled"}})
-    return {"state": "cancelled"}
+        db.save_run(run_id, row["config"], "cancelling", row.get("metrics") or {}, row.get("log"))
+        jobs.emit(run_id, {"type": "status", "payload": {"state": "cancelling"}})
+        return {"state": "cancelling"}
+    return {"state": row["state"]}
 
 
 @app.post(f"{API}/runs/{{run_id}}/export/onnx")
@@ -245,6 +260,10 @@ def export_onnx(run_id: str, distill: bool = False) -> Any:
     from talongym.training.distill import distill_from_scripted
 
     result = distill_from_scripted()
+    result["message"] = (
+        "Distilled the scripted AUTO policy into a feed-forward ONNX demo; "
+        "this is not the selected run's checkpoint."
+    )
     db.save_artifact(run_id, "onnx_ff", result["path"])
     return JSONResponse(result, status_code=201)
 
@@ -301,7 +320,7 @@ def demo_replay() -> dict[str, str]:
     return {"replayId": rid}
 
 
-@app.post(f"{API}/evaluations", status_code=202)
+@app.post(f"{API}/evaluations", status_code=200)
 def start_eval(body: EvalBody) -> dict[str, Any]:
     n = max(8, min(int(body.nTrials), 500))
     policy = scripted_auto
@@ -335,12 +354,14 @@ def start_eval(body: EvalBody) -> dict[str, Any]:
         seed0=10_000_000,
         record_best=True,
         match_setup=body.matchSetup.model_dump() if body.matchSetup else None,
+        objective=body.objective,
     )
     frames = report.pop("bestFrames", [])
     replay_id = db.save_replay(frames, {"source": "eval", "trueScore": report.get("bestScore")}) if frames else None
     report["replayId"] = replay_id
     report["policy"] = body.policy
     report["runId"] = body.runId
+    report["objective"] = body.objective
     report["bestLabelEligible"] = bool(n >= 500)
     if n < 500:
         report["bestLabelEligible"] = False

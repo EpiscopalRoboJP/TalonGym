@@ -90,11 +90,12 @@ class RuleEngine:
                 max_fires = node.get("maxFires")
                 if max_fires is not None and ctx.fire_counts.get(key, 0) >= int(max_fires):
                     continue
-                pts = self._apply_actions(node, ctx, match)
+                pts, extra = self._apply_actions(node, ctx, match)
                 true_delta += pts
                 ctx.fire_counts[key] = ctx.fire_counts.get(key, 0) + 1
                 if node.get("explain"):
                     explains.append({"id": node["id"], "explain": node["explain"], "points": pts})
+                explains.extend(extra)
         return explains, true_delta
 
     def _scope_id(self, node: dict[str, Any], ctx: RuleContext, match: TickEvent) -> str:
@@ -195,8 +196,9 @@ class RuleEngine:
                 n += 1
         return n
 
-    def _apply_actions(self, node: dict[str, Any], ctx: RuleContext, match: TickEvent) -> float:
+    def _apply_actions(self, node: dict[str, Any], ctx: RuleContext, match: TickEvent) -> tuple[float, list[dict[str, Any]]]:
         gained = 0.0
+        extra: list[dict[str, Any]] = []
         per_index = any(c.get("op") == "sequencePrefix" for c in (node.get("conditions") or []))
         for action in node.get("actions") or []:
             kind = action.get("kind")
@@ -240,5 +242,13 @@ class RuleEngine:
                 if match.piece_id:
                     ctx.piece_ops.append(("despawn", match.piece_id, None))
             elif kind == "emitExplain":
-                pass
-        return gained
+                payload = {k: v for k, v in action.items() if k != "kind"}
+                extra.append(
+                    {
+                        "id": node["id"],
+                        "explain": str(payload.get("message") or payload.get("explain") or ""),
+                        "points": float(payload.get("points") or 0.0),
+                        **payload,
+                    }
+                )
+        return gained, extra

@@ -230,6 +230,10 @@ def list_replays() -> list[dict[str, Any]]:
 def save_run(run_id: str, config: dict, state: str, metrics: dict | None = None, log: str | None = None) -> None:
     with _LOCK:
         conn = _ensure()
+        if state == "running":
+            row = conn.execute("SELECT state FROM runs WHERE id=?", (run_id,)).fetchone()
+            if row and row["state"] == "cancelling":
+                state = "cancelling"
         conn.execute(
             "INSERT INTO runs(id, config, state, metrics, log) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state, metrics=excluded.metrics, log=excluded.log",
             (run_id, json.dumps(config), state, json.dumps(metrics or {}), log),
@@ -322,6 +326,7 @@ def list_artifacts(run_id: str) -> list[dict[str, Any]]:
 
 
 def enqueue_job(job_id: str, run_id: str, payload: dict[str, Any], state: str = "queued") -> None:
+    """Mirror run state into the jobs table. Not a queue: no consumer reads these rows."""
     with _LOCK:
         conn = _ensure()
         conn.execute(

@@ -6,6 +6,7 @@ import numpy as np
 
 from talongym.env.ftc_auto import FTCAutoEnv
 from talongym.presets.loader import LoadedPresets
+from talongym.training.curriculum import objective_value
 
 
 def bootstrap_ci(samples: list[float], confidence: float = 0.95, n_boot: int = 2000, rng: np.random.Generator | None = None) -> dict[str, float]:
@@ -71,6 +72,7 @@ def run_trials(
     record_best: bool = True,
     seeds: list[int] | None = None,
     match_setup: dict[str, Any] | None = None,
+    objective: str = "mean_true_score",
 ) -> dict[str, Any]:
     seed_list = list(seeds) if seeds is not None else [seed0 + i for i in range(n_trials)]
     scores: list[float] = []
@@ -107,7 +109,8 @@ def run_trials(
             "bestScore": best_score,
             "bestFrames": best_frames,
             "bestLabelEligible": len(seed_list) >= 500,
-            "objective": "mean_true_score",
+            "objective": objective,
+            "objectiveValue": objective_value(report, objective),
         }
     )
     return report

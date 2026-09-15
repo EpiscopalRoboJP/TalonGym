@@ -1,4 +1,4 @@
-"""PettingZoo parallel API around FTCAutoEnv / World."""
+"""Phase 4 unused PettingZoo parallel wrapper around FTCAutoEnv / World."""
 
 from __future__ import annotations
 

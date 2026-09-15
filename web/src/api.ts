@@ -354,6 +354,14 @@ export type LauncherSpec = {
   canLaunchWhileMoving?: boolean;
 };
 
+export type CameraSensorSpec = {
+  id: string;
+  kind: string;
+  fovDeg?: number;
+  rangeIn?: number;
+  poseOnRobot?: PoseOnRobot;
+};
+
 export type RobotDesign = {
   chassis?: { lengthIn?: number; widthIn?: number; heightIn?: number; massKg?: number; collisionShape?: string };
   intakes?: IntakeSpec[];
@@ -362,6 +370,7 @@ export type RobotDesign = {
   collisionAsset?: string | null;
   visualOffset?: VisualOffset;
   collisionShape?: string;
+  sensors?: CameraSensorSpec[];
   rigidParts?: RigidPartSpec[];
   joints?: JointSpec[];
   actuators?: ActuatorSpec[];

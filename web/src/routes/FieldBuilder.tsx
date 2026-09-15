@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getJson, postJson, putJson, type DefaultsBundle, type Frame, type GamePieceType, type PresetMeta } from "../api";
+import { parseJsonDocument } from "../labHonesty";
 import { FieldScene } from "../scene/FieldScene";
 import { theme } from "../theme";
 
@@ -40,6 +41,7 @@ export function FieldBuilderPage() {
   const [scoringId, setScoringId] = useState("");
   const [scoringDoc, setScoringDoc] = useState("");
   const [lint, setLint] = useState<string[]>([]);
+  const [jsonError, setJsonError] = useState("");
 
   useEffect(() => {
     getJson<PresetMeta[]>("/presets/field").then(setList);
@@ -174,26 +176,59 @@ export function FieldBuilderPage() {
   }
 
   async function saveField() {
-    const parsed = jsonOpen ? (JSON.parse(jsonText) as FieldDoc) : doc;
-    if (!parsed) return;
-    await putJson(`/presets/field/${parsed.id}`, parsed);
-    setMsg("Saved field via API (not browser storage).");
-    setDoc(parsed);
+    setJsonError("");
+    try {
+      let parsed: FieldDoc | null = doc;
+      if (jsonOpen) {
+        const result = parseJsonDocument<FieldDoc>(jsonText);
+        if (!result.ok) {
+          setJsonError(`Field JSON is invalid: ${result.error}`);
+          return;
+        }
+        parsed = result.value;
+      }
+      if (!parsed) return;
+      await putJson(`/presets/field/${parsed.id}`, parsed);
+      setMsg("Saved field via API (not browser storage).");
+      setDoc(parsed);
+    } catch (e) {
+      setJsonError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   async function saveScoring() {
-    const parsed = JSON.parse(scoringDoc);
-    await putJson(`/presets/scoring/${parsed.id}`, parsed);
-    setMsg("Saved scoring preset via API.");
+    setJsonError("");
+    const result = parseJsonDocument<{ id: string }>(scoringDoc);
+    if (!result.ok) {
+      setJsonError(`Scoring JSON is invalid: ${result.error}`);
+      setLint([]);
+      return;
+    }
+    try {
+      await putJson(`/presets/scoring/${result.value.id}`, result.value);
+      setMsg("Saved scoring preset via API.");
+    } catch (e) {
+      setJsonError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   async function validateScoring() {
-    const parsed = JSON.parse(scoringDoc);
-    const res = await postJson<{ ok: boolean; errors: string[] }>("/presets/validate", {
-      kind: "scoring",
-      document: parsed,
-    });
-    setLint(res.ok ? ["Valid."] : res.errors || ["Invalid."]);
+    setJsonError("");
+    const result = parseJsonDocument<Record<string, unknown>>(scoringDoc);
+    if (!result.ok) {
+      setJsonError(`Scoring JSON is invalid: ${result.error}`);
+      setLint([]);
+      return;
+    }
+    try {
+      const res = await postJson<{ ok: boolean; errors: string[] }>("/presets/validate", {
+        kind: "scoring",
+        document: result.value,
+      });
+      setLint(res.ok ? ["Valid."] : res.errors || ["Invalid."]);
+    } catch (e) {
+      setJsonError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   const gridTicks = useMemo(() => {
@@ -391,7 +426,10 @@ export function FieldBuilderPage() {
               <textarea
                 aria-label="Field JSON"
                 value={jsonText}
-                onChange={(e) => setJsonText(e.target.value)}
+                onChange={(e) => {
+                  setJsonText(e.target.value);
+                  setJsonError("");
+                }}
                 className="mono json-area"
               />
             </details>
@@ -418,7 +456,10 @@ export function FieldBuilderPage() {
             <textarea
               aria-label="Scoring JSON"
               value={scoringDoc}
-              onChange={(e) => setScoringDoc(e.target.value)}
+              onChange={(e) => {
+                setScoringDoc(e.target.value);
+                setJsonError("");
+              }}
               className="mono json-area"
             />
             <div className="row">
@@ -436,6 +477,7 @@ export function FieldBuilderPage() {
             </ul>
           </>
         )}
+        {jsonError && <div className="banner">{jsonError}</div>}
         <p className="note">{msg}</p>
       </div>
     </div>
