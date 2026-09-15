@@ -1,7 +1,8 @@
 """Deterministic official field STEP import: visual GLB, convex parts, manifest.
 
 Raw STEP stays under var/cad/ (gitignored). Derived GLB/STL/manifest live in
-assets/seasons/<slug>/ and are also gitignored; rebuild with import-field-cad.
+assets/seasons/<slug>/ and are committed for the shipped season; rebuild with
+import-field-cad after an official STEP change.
 Seasons that require mesh_field_collision fail if the
 verified STEP or derived collision parts are missing — they are never replaced
 with schematic AABB boxes.

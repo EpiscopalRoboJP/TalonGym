@@ -29,14 +29,6 @@ core.*
 *.STEP
 *.STP
 
-# Derived season tessellation — rebuild with `python -m talongym import-field-cad`
-assets/seasons/*/collision/
-assets/seasons/*/mechanisms/
-assets/seasons/*/pieces/
-assets/seasons/*/cad_manifest.json
-assets/seasons/*/field.glb
-assets/seasons/*/field_mjcf.xml
-
 # Secrets
 .env
 .env.*

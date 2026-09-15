@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from dataclasses import dataclass, field
 import math
 from typing import Any
@@ -118,6 +119,8 @@ class World:
         self.piece_types = {p["typeId"]: p for p in self.field.get("gamePieces") or []}
         self._cad_source_sha256 = str((self.field.get("provenance") or {}).get("contentSha256") or "") or None
         self._cad_asset_version = self._cad_source_sha256
+        self._committed_mechanism_ids: list[str] = []
+        self._apply_committed_cad_version()
         self.tags = list(self.field.get("aprilTags") or [])
         self.constraints = self.robot.get("constraints") or {}
         self.max_vel = float(self.constraints.get("maxVelInPerS", 30))
@@ -147,6 +150,8 @@ class World:
             str(key): float(value)
             for key, value in (cad_stats.get("fieldMechanismTargets") or {}).items()
         }
+        if not self.field_mechanism_tip_angles and self._committed_mechanism_ids:
+            self.field_mechanism_tip_angles = {key: 0.0 for key in self._committed_mechanism_ids}
         self.field_mechanisms = {key: 0.0 for key in self.field_mechanism_tip_angles}
         if getattr(self.backend, "name", "") == "mujoco_field":
             self.obstacles = []
@@ -203,6 +208,31 @@ class World:
         self.vision_hits: list[dict[str, Any]] = []
         self.last_events: list[TickEvent] = []
         self.pending_piece_ops: list[tuple[str, str | None, str | None]] = []
+
+    def _apply_committed_cad_version(self) -> None:
+        """Cache-bust Lab assets from the shipped manifest even when MuJoCo is not installed."""
+        rel = self.field.get("cadManifest")
+        if not rel:
+            return
+        from talongym.paths import ASSETS_DIR
+
+        path = ASSETS_DIR / str(rel)
+        if not path.is_file():
+            return
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, TypeError):
+            return
+        digest = str((doc.get("field") or {}).get("sha256") or "") or self._cad_source_sha256
+        gen = str(doc.get("generatorVersion") or "")
+        if digest:
+            self._cad_source_sha256 = digest
+        if digest and gen:
+            self._cad_asset_version = f"{digest}:{gen}"
+        mechs = (doc.get("field") or {}).get("mechanisms") or []
+        self._committed_mechanism_ids = [
+            str(row.get("id")) for row in mechs if isinstance(row, dict) and row.get("id")
+        ]
 
     def needs_mesh(self) -> bool:
         caps = self.field.get("requiredCapabilities") or []
