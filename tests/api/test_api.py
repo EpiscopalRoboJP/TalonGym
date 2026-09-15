@@ -56,6 +56,7 @@ def test_defaults_get_and_put():
     assert restore.json()["season"] == "biobuzz"
 
 
+@pytest.mark.require_mesh
 def test_demo_replay_and_export():
     client = TestClient(app)
     created = client.post("/api/v1/replays/demo")
@@ -222,6 +223,7 @@ def test_easy_run_uses_autodetect_training_id(monkeypatch):
     assert captured["n_envs"] >= 1
 
 
+@pytest.mark.require_cad
 def test_field_asset_glb_served():
     client = TestClient(app)
     res = client.get("/api/v1/field-assets/seasons/biobuzz_2026/field.glb")

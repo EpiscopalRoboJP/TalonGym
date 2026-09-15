@@ -9,6 +9,7 @@ from talongym.sim.mujoco_backend import available
 from talongym.sim.world import Piece, World
 
 
+@pytest.mark.require_cad
 def test_snapshot_includes_background_asset():
     field = load_preset("field", "biobuzz_2026_field_v1")
     assert field.get("backgroundAsset")

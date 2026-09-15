@@ -72,6 +72,7 @@ def test_four_piece_preload_is_physically_active_in_storage_slots():
         assert piece.z == pytest.approx(float(slot["z"]), abs=0.6)
 
 
+@pytest.mark.require_mesh
 def test_four_piece_preload_stays_held_through_idle_steps():
     world = _idle_world()
     rs = world.actor()
@@ -100,6 +101,7 @@ def test_required_preload_count_is_enforced():
         world.reset(seed=0, static_teammate=False)
 
 
+@pytest.mark.require_cad
 def test_mjcf_timestep_is_two_milliseconds():
     field = load_preset("field", "biobuzz_2026_field_v1")
     robot = load_preset("robot", "mecanum_biobuzz_4cap")
@@ -109,6 +111,7 @@ def test_mjcf_timestep_is_two_milliseconds():
     assert 'timestep="0.002"' in committed
 
 
+@pytest.mark.require_cad
 def test_mjcf_emits_articulated_robot_bodies_and_joints():
     field = load_preset("field", "biobuzz_2026_field_v1")
     robot = load_preset("robot", "mecanum_biobuzz_4cap")

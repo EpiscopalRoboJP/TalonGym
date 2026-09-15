@@ -91,15 +91,19 @@ def test_cli_import_field_cad_accepts_step():
     from talongym.cli import app
     from typer.testing import CliRunner
 
-    result = CliRunner().invoke(app, ["import-field-cad", "--help"])
+    env = {"COLUMNS": "120", "TERM": "dumb"}
+    result = CliRunner().invoke(app, ["import-field-cad", "--help"], env=env)
     assert result.exit_code == 0
-    assert "--step" in result.stdout
-    assert "--url" in result.stdout
-    assert "--verify" in result.stdout
-    assert "--skip-pieces" in result.stdout
-    piece_help = CliRunner().invoke(app, ["import-piece-cad", "--help"])
+    help_text = (result.stdout or "") + (result.output or "")
+    help_text = help_text.replace("\n", " ")
+    assert "--step" in help_text
+    assert "--url" in help_text
+    assert "--verify" in help_text
+    assert "--skip-pieces" in help_text
+    piece_help = CliRunner().invoke(app, ["import-piece-cad", "--help"], env=env)
     assert piece_help.exit_code == 0
-    assert "--type" in piece_help.stdout
+    piece_text = ((piece_help.stdout or "") + (piece_help.output or "")).replace("\n", " ")
+    assert "--type" in piece_text
 
 
 def test_as_trimesh_bakes_scene_transform():

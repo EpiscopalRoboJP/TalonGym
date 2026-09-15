@@ -125,6 +125,7 @@ def test_empty_magazine_cannot_score():
     assert not any(p.in_flight for p in world.pieces.values() if p.type_id == "pollen")
 
 
+@pytest.mark.require_mesh
 def test_below_speed_does_not_open_gate_or_fsm_launch():
     world = _world()
     pose = _park_away_from_hive(world)
@@ -147,6 +148,7 @@ def test_below_speed_does_not_open_gate_or_fsm_launch():
     assert gate.state.command < 0.0
 
 
+@pytest.mark.require_mesh
 def test_blocked_gate_keeps_preload_in_envelope_until_flywheel_is_up():
     world = _world()
     pose = _park_away_from_hive(world)

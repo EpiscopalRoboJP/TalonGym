@@ -6,6 +6,7 @@ from talongym.presets.loader import load_bundle
 from talongym.sim.world import World
 
 
+@pytest.mark.require_mesh
 def test_two_reds_move_and_contact():
     pytest.importorskip("pettingzoo")
     env = FTCAutoParallelEnv(opponent_mode="none")

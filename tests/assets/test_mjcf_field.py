@@ -116,6 +116,7 @@ def test_cad_mjcf_uses_meshes_not_aabb_hive():
     assert isinstance(hits, list)
 
 
+@pytest.mark.require_cad
 def test_committed_collision_asset_is_cad_assembled():
     from talongym.assets.mjcf_field import CAD_MJCF_MARKER
 

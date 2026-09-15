@@ -64,5 +64,6 @@ talongym = ["py.typed"]
 testpaths = ["tests"]
 pythonpath = ["python"]
 markers = [
-  "require_mesh: do not planar-fallback a mesh field",
+  "require_mesh: do not planar-fallback a mesh field; skip without mujoco+CAD",
+  "require_cad: skip unless derived season CAD files exist",
 ]

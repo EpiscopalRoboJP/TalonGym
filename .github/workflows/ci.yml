@@ -16,6 +16,8 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Pytest
         run: pytest
+        # Derived CAD (field.glb, cad_manifest.json, MJCF) is gitignored.
+        # Tests marked require_cad / require_mesh skip on a clean clone.
 
   web:
     runs-on: ubuntu-latest

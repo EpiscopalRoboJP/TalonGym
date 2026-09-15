@@ -3,6 +3,25 @@ import time
 import pytest
 
 
+def cad_assets_present() -> bool:
+    from talongym.paths import ASSETS_DIR
+
+    return (ASSETS_DIR / "seasons/biobuzz_2026/cad_manifest.json").is_file()
+
+
+def mesh_runtime_available() -> bool:
+    from talongym.sim.mujoco_backend import available
+
+    return available() and cad_assets_present()
+
+
+def pytest_runtest_setup(item):
+    if item.get_closest_marker("require_cad") and not cad_assets_present():
+        pytest.skip("derived CAD assets not generated")
+    if item.get_closest_marker("require_mesh") and not mesh_runtime_available():
+        pytest.skip("BIOBUZZ mesh runtime needs mujoco and derived CAD")
+
+
 @pytest.fixture(autouse=True)
 def _isolate_var_dir(tmp_path, monkeypatch):
     monkeypatch.setattr("talongym.paths.VAR_DIR", tmp_path / "var")

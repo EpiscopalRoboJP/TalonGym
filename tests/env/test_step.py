@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 
 from talongym.env.ftc_auto import FTCAutoEnv
@@ -37,6 +38,7 @@ def test_scripted_episode_runs():
     env.close()
 
 
+@pytest.mark.require_mesh
 def test_scripted_auto_scores_leave():
     env = FTCAutoEnv(record=False)
     obs, info = env.reset(seed=4)
