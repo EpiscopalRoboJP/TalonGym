@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from talongym.presets.loader import load_preset
-from talongym.training.curriculum import ballistic_launch, curriculum_unlocks, scripted_launch
+from talongym.training.curriculum import curriculum_unlocks
 from talongym.training.distill import collect_full_actions
 
 
@@ -14,10 +14,11 @@ def test_biobuzz_curriculum_has_launch_stages():
     early = curriculum_unlocks(training, 0.0)
     mid = curriculum_unlocks(training, 0.5)
     late = curriculum_unlocks(training, 0.99)
-    assert "scripted_launch" in early
+    assert "scripted_launch" not in early
+    assert "ballistic_launch" not in early
     assert "motif_known_at_t0" not in early
-    assert scripted_launch(training, 0.0) is True
-    assert ballistic_launch(training, 0.5) is True
+    assert "scripted_launch" not in mid
+    assert "ballistic_launch" not in mid
     assert "full_noise" in late
 
 

@@ -20,7 +20,7 @@ export function App() {
         if (cancelled) return;
         setOk(Boolean(h.ok));
         const profile = h.computeProfile ? ` · ${h.computeProfile}` : "";
-        setHealth(`${h.engine}${h.db ? " · " + h.db : ""}${profile} · ok`);
+        setHealth(`${h.fieldEngine || h.engine}${h.db ? " · " + h.db : ""}${profile} · ok`);
       } catch {
         if (cancelled) return;
         setOk(false);

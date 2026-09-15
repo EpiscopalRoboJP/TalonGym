@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -9,6 +10,7 @@ import numpy as np
 from gymnasium import spaces
 
 from talongym import paths
+from talongym.assets.cad_common import mesh_required
 from talongym.env.ftc_auto import (
     BoxActionDictObsEnv,
     EncoderOnlyObsAssertWrapper,
@@ -17,8 +19,8 @@ from talongym.env.ftc_auto import (
 )
 from talongym.eval.harness import bootstrap_ci
 from talongym.presets.loader import LoadedPresets, load_bundle
+from talongym.robot.contract import RobotContractError, compile_robot_preset
 from talongym.training.curriculum import (
-    ballistic_launch,
     full_noise,
     motif_known_at_t0,
     objective_value,
@@ -29,10 +31,15 @@ from talongym.training.curriculum import (
 from talongym.training.policies import scripted_auto
 
 
-def record_policy_episode(policy, bundle: LoadedPresets | None = None, seed: int = 0) -> list[dict[str, Any]]:
+def record_policy_episode(
+    policy,
+    bundle: LoadedPresets | None = None,
+    seed: int = 0,
+    match_setup: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     if hasattr(policy, "reset_lstm"):
         policy.reset_lstm()
-    env = FTCAutoEnv(bundle=bundle or load_bundle(), record=True)
+    env = FTCAutoEnv(bundle=bundle or load_bundle(), record=True, match_setup=match_setup)
     obs, info = env.reset(seed=seed)
     term = trunc = False
     while not term and not trunc:
@@ -67,7 +74,6 @@ class CurriculumEnv(gym.Wrapper):
         opts["teammate_policy"] = teammate_for(self._training, frac)
         opts["opponent_policy"] = opponent_for(self._training, frac)
         opts["full_noise"] = full_noise(self._training, frac)
-        opts["ballistic_launch"] = ballistic_launch(self._training, frac)
         kwargs["options"] = opts
         return super().reset(**kwargs)
 
@@ -77,12 +83,17 @@ def _eval_true_scores(
     bundle: LoadedPresets,
     seeds: list[int],
     record_first: bool = False,
+    match_setup: dict[str, Any] | None = None,
 ) -> tuple[list[float], list[dict[str, Any]]]:
     scores: list[float] = []
     frames: list[dict[str, Any]] = []
     for i, seed in enumerate(seeds):
         adapter.reset_lstm()
-        env = FTCAutoEnv(bundle=bundle, record=record_first and i == 0)
+        env = FTCAutoEnv(
+            bundle=bundle,
+            record=record_first and i == 0,
+            match_setup=match_setup,
+        )
         obs, info = env.reset(seed=int(seed))
         term = trunc = False
         while not term and not trunc:
@@ -108,10 +119,16 @@ def train_ppo(
     resume: bool = False,
     demo: bool = False,
     eval_episodes: int | None = None,
+    match_setup: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Train RecurrentPPO with Dict observations and a live curriculum."""
     emit = log or (lambda m: None)
     bundle = bundle or load_bundle()
+    compiled_robot = compile_robot_preset(
+        bundle.robot,
+        competitive=mesh_required(bundle.field) or bool(bundle.field.get("collisionAsset")),
+    )
+    interface_stamp = compiled_robot.compatibility_stamp
     algo_cfg = (bundle.training or {}).get("algorithm") or {}
     algo_name = str(algo_cfg.get("name") or "recurrent_ppo")
     if algo_name == "grpo":
@@ -125,6 +142,7 @@ def train_ppo(
             on_rollout=on_rollout,
             save_dir=save_dir,
             should_stop=should_stop,
+            match_setup=match_setup,
         )
     total_steps = max(1, int(total_steps))
     progress = _Progress(total_steps)
@@ -151,6 +169,7 @@ def train_ppo(
                 opponent_policy=opponent_for(training, progress.frac),
                 action_tier=action_tier,
                 frozen_policy=frozen_policy,
+                match_setup=match_setup,
             )
             wrapped = EncoderOnlyObsAssertWrapper(env)
             from talongym.training.privileged import PrivilegedObsWrapper
@@ -168,7 +187,12 @@ def train_ppo(
     except ImportError as exc:
         if allow_scripted:
             emit("stable-baselines3 not installed; using scripted AUTO baseline")
-            frames = record_policy_episode(scripted_auto, bundle=bundle, seed=1)
+            frames = record_policy_episode(
+                scripted_auto,
+                bundle=bundle,
+                seed=1,
+                match_setup=match_setup,
+            )
             metrics = {
                 "envSteps": 0,
                 "trueScoreMean": float(frames[-1].get("trueScore") or 0) if frames else None,
@@ -186,7 +210,8 @@ def train_ppo(
                 on_rollout(frames)
             return {"algo": "scripted", "frames": frames, "steps": 0, "metrics": metrics}
         raise RuntimeError(
-            "RecurrentPPO requires pip install -e '.[rl]' (torch, stable-baselines3, sb3-contrib)"
+            "RecurrentPPO requires `.venv/bin/python -m pip install -e '.[rl]'` "
+            f"(torch, stable-baselines3, sb3-contrib) in {sys.executable}: {exc}"
         ) from exc
 
     venv = DummyVecEnv([make_env() for _ in range(n_envs)])
@@ -216,8 +241,16 @@ def train_ppo(
     if resume and latest.exists():
         try:
             model = RecurrentPPO.load(str(latest), env=venv)
+            saved_stamp = getattr(model, "talongym_robot_interface", None)
+            if saved_stamp != interface_stamp:
+                raise RobotContractError(
+                    f"checkpoint robot interface {saved_stamp!r} != {interface_stamp!r}"
+                )
             loaded = True
             emit(f"Resumed RecurrentPPO from {latest}")
+        except RobotContractError:
+            venv.close()
+            raise
         except Exception as exc:
             emit(f"Resume failed ({exc}); starting fresh")
 
@@ -236,6 +269,7 @@ def train_ppo(
             ent_coef=float(algo_cfg.get("entCoef") or 0.01),
             policy_kwargs=policy_kwargs,
         )
+        model.talongym_robot_interface = interface_stamp
         bc_steps = int(algo_cfg.get("bcWarmupSteps") or 0)
         if algo_name == "bc_then_ppo" and bc_steps <= 0:
             bc_steps = 1024
@@ -362,7 +396,13 @@ def train_ppo(
             if eval_n > 0:
                 adapter = RecurrentPolicyAdapter(model)
                 seeds = [held0 + i + done for i in range(eval_n)]
-                scores, eval_frames = _eval_true_scores(adapter, bundle, seeds, record_first=True)
+                scores, eval_frames = _eval_true_scores(
+                    adapter,
+                    bundle,
+                    seeds,
+                    record_first=True,
+                    match_setup=match_setup,
+                )
                 report = bootstrap_ci(scores, n_boot=min(400, max(40, 20 * len(scores))))
                 metrics["evalTrueScoreMean"] = report["mean"]
                 metrics["evalTrueScoreLo"] = report["lo"]
@@ -387,7 +427,12 @@ def train_ppo(
             frames_out = eval_frames
             if not frames_out:
                 try:
-                    frames_out = record_policy_episode(RecurrentPolicyAdapter(model), bundle=bundle, seed=int(held0 + done))
+                    frames_out = record_policy_episode(
+                        RecurrentPolicyAdapter(model),
+                        bundle=bundle,
+                        seed=int(held0 + done),
+                        match_setup=match_setup,
+                    )
                 except Exception:
                     frames_out = []
             if frames_out:
@@ -424,7 +469,7 @@ def train_ppo(
         adapter.model = RecurrentPPO.load(str(ckpt))
     except Exception:
         pass
-    frames = record_policy_episode(adapter, bundle=bundle, seed=7)
+    frames = record_policy_episode(adapter, bundle=bundle, seed=7, match_setup=match_setup)
     venv.close()
     return {
         "algo": algo_name,

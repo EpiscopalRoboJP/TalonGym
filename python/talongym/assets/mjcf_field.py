@@ -8,6 +8,7 @@ Non-CAD seasons keep the schematic AABB generator.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -18,7 +19,7 @@ from talongym.paths import ASSETS_DIR
 
 IN_G = 386.0886  # 9.80665 m/s^2 in inches/s^2
 CAD_MJCF_MARKER = "talongym_cad_field"
-CAD_MJCF_VERSION = "1.1.0"
+CAD_MJCF_VERSION = "1.2.0"
 
 # Geom groups used for contact classification (not name substrings).
 GEOM_GROUP_FIELD = 0
@@ -69,6 +70,68 @@ def _yup(x: float, y: float, z: float) -> tuple[float, float, float]:
 
 def _size(hx: float, hy: float, hz: float) -> str:
     return f"{hx:.4f} {hy:.4f} {hz:.4f}"
+
+
+def _robot_pos(pose: dict[str, Any] | None) -> str:
+    row = pose or {}
+    x, y, z = _yup(
+        float(row.get("x") or 0.0),
+        float(row.get("y") or 0.0),
+        float(row.get("z") or 0.0),
+    )
+    return f"{x:.5f} {y:.5f} {z:.5f}"
+
+
+def _robot_axis(axis: list[Any] | None) -> str:
+    row = list(axis or [0.0, 0.0, 1.0])
+    x, y, z = _yup(float(row[0]), float(row[1]), float(row[2]))
+    return f"{x:.6f} {y:.6f} {z:.6f}"
+
+
+def _robot_quat(pose: dict[str, Any] | None) -> str:
+    """Map FTC Z-up roll/pitch/yaw Euler angles to a MuJoCo Y-up quaternion."""
+    row = pose or {}
+    roll = math.radians(float(row.get("rollDeg") or 0.0))
+    pitch = math.radians(float(row.get("pitchDeg") or 0.0))
+    yaw = math.radians(float(row.get("yawDeg") or 0.0))
+    cr, sr = math.cos(roll), math.sin(roll)
+    cp, sp = math.cos(pitch), math.sin(pitch)
+    cy, sy = math.cos(yaw), math.sin(yaw)
+    # FTC Rz(yaw) * Ry(pitch) * Rx(roll).
+    rf = (
+        (cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr),
+        (sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr),
+        (-sp, cp * sr, cp * cr),
+    )
+    p = ((1.0, 0.0, 0.0), (0.0, 0.0, 1.0), (0.0, -1.0, 0.0))
+    temp = tuple(
+        tuple(sum(p[i][k] * rf[k][j] for k in range(3)) for j in range(3))
+        for i in range(3)
+    )
+    rm = tuple(
+        tuple(sum(temp[i][k] * p[j][k] for k in range(3)) for j in range(3))
+        for i in range(3)
+    )
+    trace = rm[0][0] + rm[1][1] + rm[2][2]
+    if trace > 0:
+        scale = math.sqrt(trace + 1.0) * 2.0
+        qw = 0.25 * scale
+        qx = (rm[2][1] - rm[1][2]) / scale
+        qy = (rm[0][2] - rm[2][0]) / scale
+        qz = (rm[1][0] - rm[0][1]) / scale
+    else:
+        diagonal = [rm[0][0], rm[1][1], rm[2][2]]
+        index = max(range(3), key=diagonal.__getitem__)
+        nxt = (index + 1) % 3
+        last = (index + 2) % 3
+        scale = math.sqrt(1.0 + rm[index][index] - rm[nxt][nxt] - rm[last][last]) * 2.0
+        quat = [0.0, 0.0, 0.0]
+        quat[index] = 0.25 * scale
+        qw = (rm[last][nxt] - rm[nxt][last]) / scale
+        quat[nxt] = (rm[nxt][index] + rm[index][nxt]) / scale
+        quat[last] = (rm[last][index] + rm[index][last]) / scale
+        qx, qy, qz = quat
+    return f"{qw:.8f} {qx:.8f} {qy:.8f} {qz:.8f}"
 
 
 def _xml_name(text: str, prefix: str = "", maxlen: int = 60) -> str:
@@ -299,6 +362,62 @@ def _mesh_file_attr(rel: str, *, mesh_root: Path | None = None) -> str:
     return escape(str(path.resolve()))
 
 
+def _perimeter_glass_proxy_geoms(parts: list[dict[str, Any]]) -> list[str]:
+    """Collapse coplanar CAD glass panels into four continuous collision boxes."""
+    groups: dict[tuple[str, int], list[tuple[list[float], list[float]]]] = {}
+    for part in parts:
+        name = str(part.get("id") or "").lower()
+        if "field_side_glass" not in name:
+            continue
+        mn = [float(v) for v in (part.get("minIn") or [])]
+        mx = [float(v) for v in (part.get("maxIn") or [])]
+        if len(mn) < 3 or len(mx) < 3:
+            continue
+        dx, dz = mx[0] - mn[0], mx[2] - mn[2]
+        axis = "x" if dx <= dz else "z"
+        center = 0.5 * ((mn[0] + mx[0]) if axis == "x" else (mn[2] + mx[2]))
+        groups.setdefault((axis, 1 if center >= 0 else -1), []).append((mn, mx))
+
+    geoms: list[str] = []
+    for (axis, sign), bounds in sorted(groups.items()):
+        if axis == "x":
+            axis_min = min(mn[0] for mn, _ in bounds)
+            axis_max = max(mx[0] for _, mx in bounds)
+            tangent_min = min(mn[2] for mn, _ in bounds)
+            tangent_max = max(mx[2] for _, mx in bounds)
+            pos = (
+                0.5 * (axis_min + axis_max),
+                0.5 * (min(mn[1] for mn, _ in bounds) + max(mx[1] for _, mx in bounds)),
+                0.5 * (tangent_min + tangent_max),
+            )
+            size = (
+                max(0.02, 0.5 * (axis_max - axis_min)),
+                max(0.02, 0.5 * (max(mx[1] for _, mx in bounds) - min(mn[1] for mn, _ in bounds))),
+                max(0.02, 0.5 * (tangent_max - tangent_min)),
+            )
+        else:
+            axis_min = min(mn[2] for mn, _ in bounds)
+            axis_max = max(mx[2] for _, mx in bounds)
+            tangent_min = min(mn[0] for mn, _ in bounds)
+            tangent_max = max(mx[0] for _, mx in bounds)
+            pos = (
+                0.5 * (tangent_min + tangent_max),
+                0.5 * (min(mn[1] for mn, _ in bounds) + max(mx[1] for _, mx in bounds)),
+                0.5 * (axis_min + axis_max),
+            )
+            size = (
+                max(0.02, 0.5 * (tangent_max - tangent_min)),
+                max(0.02, 0.5 * (max(mx[1] for _, mx in bounds) - min(mn[1] for mn, _ in bounds))),
+                max(0.02, 0.5 * (axis_max - axis_min)),
+            )
+        geoms.append(
+            f'    <geom name="perimeter_glass_{axis}_{"pos" if sign > 0 else "neg"}" '
+            f'class="field" type="box" size="{_size(*size)}" '
+            f'pos="{pos[0]:.4f} {pos[1]:.4f} {pos[2]:.4f}"/>'
+        )
+    return geoms
+
+
 def _aabb_element_geoms(field: dict[str, Any]) -> list[str]:
     skip_types = {"tape", "zone"}
     skip_tags = {
@@ -362,6 +481,57 @@ def _trigger_geoms(field: dict[str, Any]) -> list[str]:
     return geoms
 
 
+def _mechanism_cell_proxy_geoms(field: dict[str, Any], alliance: str) -> list[str]:
+    """Open-top CELL collision derived from its preset and staged NECTAR height."""
+    cell_id = f"{alliance}_cell_up"
+    cell = next((el for el in field.get("elements") or [] if el.get("id") == cell_id), None)
+    if cell is None:
+        return []
+    pose = cell.get("pose") or {}
+    shape = cell.get("shape") or {}
+    width = float(shape.get("width") or 20.0)
+    depth = float(shape.get("depth") or 14.0)
+    spec = next(
+        (row for row in field.get("gamePieces") or [] if row.get("typeId") == f"nectar_{alliance}"),
+        {},
+    )
+    radius = float((spec.get("shape") or {}).get("radius") or 1.8)
+    staged = next(
+        (
+            row
+            for row in field.get("spawns") or []
+            if row.get("initialVolumeId") == cell_id
+        ),
+        {},
+    )
+    centers = [float(row.get("z") or 0.0) for row in staged.get("poses") or []]
+    floor_y = min(centers) - radius if centers else float(pose.get("z") or 0.0) - 5.0
+    wall_height = 9.0
+    cx, _cy, cz = _yup(
+        float(pose.get("x") or 0.0),
+        float(pose.get("y") or 0.0),
+        float(pose.get("z") or 0.0),
+    )
+    wall_y = floor_y + wall_height / 2.0
+    common = 'class="field" type="box" density="0" contype="4" conaffinity="10"'
+    geoms = [
+        f'      <geom name="{cell_id}_floor" {common} size="{_size(width / 2, 0.25, depth / 2)}" pos="{cx:.3f} {floor_y - 0.25:.3f} {cz:.3f}"/>',
+        f'      <geom name="{cell_id}_left" {common} size="{_size(0.25, wall_height / 2, depth / 2)}" pos="{cx - width / 2:.3f} {wall_y:.3f} {cz:.3f}"/>',
+        f'      <geom name="{cell_id}_right" {common} size="{_size(0.25, wall_height / 2, depth / 2)}" pos="{cx + width / 2:.3f} {wall_y:.3f} {cz:.3f}"/>',
+    ]
+    # Leave the downhill edge open so a ±60° scored tip actually releases
+    # the physical contents. The opposite wall retains staged pieces at rest.
+    if alliance == "red":
+        geoms.append(
+            f'      <geom name="{cell_id}_back" {common} size="{_size(width / 2, wall_height / 2, 0.25)}" pos="{cx:.3f} {wall_y:.3f} {cz + depth / 2:.3f}"/>'
+        )
+    else:
+        geoms.append(
+            f'      <geom name="{cell_id}_front" {common} size="{_size(width / 2, wall_height / 2, 0.25)}" pos="{cx:.3f} {wall_y:.3f} {cz - depth / 2:.3f}"/>'
+        )
+    return geoms
+
+
 def _robot_bodies(
     n_robots: int,
     robot_hx: float,
@@ -370,10 +540,146 @@ def _robot_bodies(
     *,
     mesh_file: str | None,
     body_y: float,
-) -> list[str]:
+    robot: dict[str, Any] | None = None,
+) -> tuple[list[str], list[str]]:
     robot_ids = ["red_0", "red_1", "blue_0", "blue_1"][: max(1, n_robots)]
     bodies: list[str] = []
+    assets: list[str] = []
+    parts = {
+        str(row["id"]): row
+        for row in ((robot or {}).get("rigidParts") or [])
+        if row.get("id")
+    }
+    joints_by_child = {
+        str(row["childPartId"]): row
+        for row in ((robot or {}).get("joints") or [])
+        if row.get("childPartId")
+    }
+    children: dict[str, list[str]] = {}
+    for part_id, row in parts.items():
+        parent = row.get("parentId")
+        if parent is not None:
+            children.setdefault(str(parent), []).append(part_id)
+
+    mesh_names: dict[str, str] = {}
+    if parts:
+        from talongym.assets.import_robot_cad import resolve_robot_asset
+
+        for part_id, part in parts.items():
+            for collision_index, collision in enumerate(part.get("collision") or []):
+                if collision.get("kind") != "convex_mesh":
+                    continue
+                rel = str(collision["asset"])
+                mesh_name = _xml_name(f"robot_part_{part_id}_{collision_index}")
+                mesh_names[f"{part_id}:{collision_index}"] = mesh_name
+                path = resolve_robot_asset(rel)
+                if not path.is_file():
+                    raise FileNotFoundError(f"robot collision asset missing: {path}")
+                assets.append(
+                    f'    <mesh name="{mesh_name}" file="{escape(str(path.resolve()))}"/>'
+                )
+
+    def collision_geoms(rid: str, part_id: str, part: dict[str, Any]) -> list[str]:
+        rows: list[str] = []
+        collisions = list(part.get("collision") or [])
+        mass_each = float(part.get("massKg") or 0.1) / max(1, len(collisions))
+        for index, collision in enumerate(collisions):
+            kind = str(collision.get("kind") or "box")
+            attrs = [
+                f'name="{rid}_part_{_xml_name(part_id)}_geom_{index}"',
+                'class="robot"',
+                f'mass="{mass_each:.6f}"',
+                f'pos="{_robot_pos(collision.get("pose"))}"',
+                f'quat="{_robot_quat(collision.get("pose"))}"',
+            ]
+            friction = float(collision.get("friction") or 0.8)
+            attrs.append(f'friction="{friction:.4f} 0.05 0.01"')
+            if kind == "box":
+                size = list(collision.get("sizeIn") or [1.0, 1.0, 1.0])
+                attrs.extend(
+                    [
+                        'type="box"',
+                        f'size="{0.5 * float(size[0]):.5f} {0.5 * float(size[2]):.5f} {0.5 * float(size[1]):.5f}"',
+                    ]
+                )
+            elif kind in {"sphere", "cylinder", "capsule"}:
+                attrs.append(f'type="{kind}"')
+                radius = float(collision.get("radiusIn") or 0.5)
+                if kind == "sphere":
+                    attrs.append(f'size="{radius:.5f}"')
+                else:
+                    half_length = 0.5 * float(collision.get("lengthIn") or 0.0)
+                    attrs.append(f'size="{radius:.5f} {half_length:.5f}"')
+            elif kind == "convex_mesh":
+                attrs.extend(
+                    [
+                        'type="mesh"',
+                        f'mesh="{mesh_names[f"{part_id}:{index}"]}"',
+                    ]
+                )
+            rows.append("        <geom " + " ".join(attrs) + "/>")
+        return rows
+
+    def part_body(rid: str, part_id: str, indent: str) -> list[str]:
+        part = parts[part_id]
+        joint = joints_by_child.get(part_id)
+        body_attrs = (
+            f'name="{rid}_part_{_xml_name(part_id)}" '
+            f'pos="{_robot_pos(part.get("pose"))}" '
+            f'quat="{_robot_quat(part.get("pose"))}"'
+        )
+        rows = [f"{indent}<body {body_attrs}>"]
+        if joint is not None and joint.get("type") != "fixed":
+            joint_type = str(joint["type"])
+            anchor = joint.get("anchorIn") or {}
+            part_pose = part.get("pose") or {}
+            local_anchor = {
+                key: float(anchor.get(key) or 0.0) - float(part_pose.get(key) or 0.0)
+                for key in ("x", "y", "z")
+            }
+            limit = list(joint.get("limit") or [])
+            range_attr = ""
+            if len(limit) == 2:
+                lo, hi = float(limit[0]), float(limit[1])
+                if joint_type == "hinge":
+                    lo, hi = math.radians(lo), math.radians(hi)
+                range_attr = f' limited="true" range="{lo:.8f} {hi:.8f}"'
+            rows.append(
+                f'{indent}  <joint name="{rid}_joint_{_xml_name(str(joint["id"]))}" '
+                f'type="{joint_type}" pos="{_robot_pos(local_anchor)}" '
+                f'axis="{_robot_axis(joint.get("axis"))}" damping="{float(joint.get("damping") or 0):.6f}" '
+                f'frictionloss="{float(joint.get("frictionLoss") or 0):.6f}"{range_attr}/>'
+            )
+        rows.extend(
+            line.replace("        ", f"{indent}  ", 1)
+            for line in collision_geoms(rid, part_id, part)
+        )
+        for child in children.get(part_id, []):
+            rows.extend(part_body(rid, child, indent + "  "))
+        rows.append(f"{indent}</body>")
+        return rows
+
     for rid in robot_ids:
+        if parts:
+            root_id = next(
+                (part_id for part_id, row in parts.items() if row.get("parentId") is None),
+                "chassis",
+            )
+            root = parts[root_id]
+            root_geoms = collision_geoms(rid, root_id, root)
+            child_rows: list[str] = []
+            for child in children.get(root_id, []):
+                child_rows.extend(part_body(rid, child, "      "))
+            mechanism_xml = "\n".join(root_geoms + child_rows)
+            bodies.append(
+                f"""    <body name="{rid}" pos="0 {body_y:.3f} 0">
+      <joint name="{rid}_sx" type="slide" axis="1 0 0" damping="2"/>
+      <joint name="{rid}_sz" type="slide" axis="0 0 1" damping="2"/>
+      <joint name="{rid}_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
+{mechanism_xml}
+    </body>"""
+            )
+            continue
         if mesh_file:
             geom = (
                 f'<geom name="{rid}_geom" class="robot" type="mesh" mesh="robot_hull" mass="15" '
@@ -393,7 +699,7 @@ def _robot_bodies(
       {geom}
     </body>"""
         )
-    return bodies
+    return bodies, assets
 
 
 def _typed_piece_bodies(
@@ -474,7 +780,7 @@ def _wrap_mjcf(
     head = f"  <!-- {marker} -->\n" if marker else ""
     return f"""<mujoco model="talongym_field">
 {head}  {compiler}
-  <option gravity="0 {-IN_G:.4f} 0" timestep="0.01" integrator="Euler" cone="pyramidal"/>
+  <option gravity="0 {-IN_G:.4f} 0" timestep="0.002" integrator="implicitfast" cone="pyramidal"/>
   <default>
     <geom condim="3" solref="0.02 1" solimp="0.9 0.95 0.001"/>
     <default class="field">
@@ -502,6 +808,7 @@ def _build_cad_mjcf(
     field: dict[str, Any],
     manifest: dict[str, Any],
     *,
+    robot: dict[str, Any] | None,
     n_robots: int,
     n_pieces: int | None,
     robot_hx: float,
@@ -527,7 +834,10 @@ def _build_cad_mjcf(
         f'pos="0 {floor_y:.3f} 0" zaxis="0 1 0" rgba="0.1 0.3 0.2 1"/>',
     ]
     assets: list[str] = []
+    glass_parts = [part for part in kept if "field_side_glass" in str(part.get("id") or "").lower()]
     for i, part in enumerate(kept):
+        if part in glass_parts:
+            continue
         rel = part.get("asset")
         if not rel:
             raise CadImportError(f"collision part {part.get('id')!r} missing asset")
@@ -535,17 +845,36 @@ def _build_cad_mjcf(
         geom_name = f"cad_{i:04d}"
         assets.append(f'    <mesh name="{mesh_name}" file="{_mesh_file_attr(str(rel), mesh_root=mesh_root)}"/>')
         geoms.append(f'    <geom name="{geom_name}" class="field" type="mesh" mesh="{mesh_name}"/>')
+    perimeter_geoms = _perimeter_glass_proxy_geoms(glass_parts)
+    if glass_parts and len(perimeter_geoms) != 4:
+        raise CadImportError(
+            f"expected four continuous perimeter glass proxies, got {len(perimeter_geoms)}"
+        )
+    geoms.extend(perimeter_geoms)
     geoms.extend(_trigger_geoms(field))
     mechanism_ids: list[str] = []
     mechanism_bodies: list[str] = []
     for mechanism in field_block.get("mechanisms") or []:
         mechanism_id = _xml_name(str(mechanism.get("id") or "field_mechanism"))
+        alliance = str(mechanism.get("alliance") or mechanism_id.split("_", 1)[0])
         pivot = [float(v) for v in (mechanism.get("pivotIn") or [0.0, 0.0, 0.0])]
         axis = [float(v) for v in (mechanism.get("axis") or [1.0, 0.0, 0.0])]
         tip_angle = float(mechanism.get("tipAngleDeg") or 0.0) * 3.141592653589793 / 180.0
         low, high = (min(-0.05, tip_angle), max(0.05, tip_angle))
         body_geoms: list[str] = []
         for part_index, part in enumerate(mechanism.get("collisionParts") or []):
+            part_id = str(part.get("id") or "").lower()
+            if any(
+                token in part_id
+                for token in (
+                    "goal_rib",
+                    "hive_goal_top_skin",
+                    "hive_goal_back_skin",
+                    "hive_goal_bottom_skin",
+                    "goal_april_tag",
+                )
+            ):
+                continue
             rel = part.get("asset")
             if not rel:
                 continue
@@ -554,6 +883,7 @@ def _build_cad_mjcf(
             body_geoms.append(
                 f'      <geom name="{mesh_name}_geom" class="field" type="mesh" mesh="{mesh_name}" density="0" contype="4" conaffinity="10"/>'
             )
+        body_geoms.extend(_mechanism_cell_proxy_geoms(field, alliance))
         if not body_geoms:
             continue
         pivot_text = " ".join(f"{value:.4f}" for value in pivot)
@@ -580,7 +910,16 @@ def _build_cad_mjcf(
     )
     assets.extend(piece_assets)
     body_y = float(robot_hz) + 0.2 + floor_y
-    bodies = _robot_bodies(n_robots, robot_hx, robot_hy, robot_hz, mesh_file=mesh_file, body_y=body_y)
+    bodies, robot_assets = _robot_bodies(
+        n_robots,
+        robot_hx,
+        robot_hy,
+        robot_hz,
+        mesh_file=mesh_file,
+        body_y=body_y,
+        robot=robot,
+    )
+    assets.extend(robot_assets)
     bodies.extend(mechanism_bodies)
     bodies.extend(piece_bodies)
     marker = (
@@ -599,7 +938,7 @@ def _build_cad_mjcf(
         "cad": True,
         "filter": filter_stats.as_dict(),
         "slotPlan": dict(slot_plan),
-        "nFieldGeoms": len(kept) + 1,
+        "nFieldGeoms": len(kept) - len(glass_parts) + len(perimeter_geoms) + 1,
         "nPieceBodies": sum(slot_plan.values()),
         "fieldMechanisms": mechanism_ids,
         "fieldMechanismTargets": {
@@ -615,6 +954,7 @@ def _build_cad_mjcf(
 def _build_aabb_mjcf(
     field: dict[str, Any],
     *,
+    robot: dict[str, Any] | None,
     n_robots: int,
     n_pieces: int,
     robot_hx: float,
@@ -640,7 +980,16 @@ def _build_aabb_mjcf(
         if mesh_path.is_file():
             mesh_file = mesh_path.name
             assets.append(f'    <mesh name="robot_hull" file="{escape(str(mesh_path.resolve()))}"/>')
-    bodies = _robot_bodies(n_robots, robot_hx, robot_hy, robot_hz, mesh_file=mesh_file, body_y=robot_hz + 0.2)
+    bodies, robot_assets = _robot_bodies(
+        n_robots,
+        robot_hx,
+        robot_hy,
+        robot_hz,
+        mesh_file=mesh_file,
+        body_y=robot_hz + 0.2,
+        robot=robot,
+    )
+    assets.extend(robot_assets)
     bodies.extend(_legacy_sphere_bodies(n_pieces))
     xml = _wrap_mjcf(geoms=geoms, bodies=bodies, assets=assets, extra_defaults=[], marker=None)
     plan = {"": int(n_pieces)}
@@ -650,6 +999,7 @@ def _build_aabb_mjcf(
 def build_field_mjcf(
     field: dict[str, Any],
     *,
+    robot: dict[str, Any] | None = None,
     n_robots: int = 4,
     n_pieces: int = 80,
     robot_hx: float = 9.0,
@@ -670,6 +1020,7 @@ def build_field_mjcf(
         return _build_cad_mjcf(
             field,
             doc,
+            robot=robot,
             n_robots=n_robots,
             n_pieces=n_pieces,
             robot_hx=robot_hx,
@@ -684,6 +1035,7 @@ def build_field_mjcf(
         raise CadImportError("mesh_field_collision season refused AABB field collision; cadManifest required")
     return _build_aabb_mjcf(
         field,
+        robot=robot,
         n_robots=n_robots,
         n_pieces=n_pieces,
         robot_hx=robot_hx,
@@ -696,6 +1048,7 @@ def build_field_mjcf(
 def build_mjcf(
     field: dict[str, Any],
     *,
+    robot: dict[str, Any] | None = None,
     n_robots: int = 4,
     n_pieces: int = 80,
     robot_hx: float = 9.0,
@@ -705,6 +1058,7 @@ def build_mjcf(
 ) -> str:
     return build_field_mjcf(
         field,
+        robot=robot,
         n_robots=n_robots,
         n_pieces=n_pieces,
         robot_hx=robot_hx,

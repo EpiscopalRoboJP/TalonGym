@@ -1,8 +1,19 @@
 import { Component, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls, Grid, Line, useGLTF } from "@react-three/drei";
-import { DoubleSide, Mesh, Object3D } from "three";
-import type { Frame, FramePiece, IntakeSpec, LauncherSpec, RobotDesign } from "../api";
+import { Html, OrbitControls, Grid, Line, useGLTF } from "@react-three/drei";
+import { DoubleSide, FrontSide, Mesh, Object3D } from "three";
+import type {
+  ActuatorSpec,
+  Frame,
+  FramePiece,
+  FrameRobot,
+  IntakeSpec,
+  LauncherSpec,
+  PiecePathSpec,
+  RigidPartSpec,
+  RobotDesign,
+  RobotPartTransform,
+} from "../api";
 import { API } from "../api";
 import { theme } from "../theme";
 import {
@@ -11,6 +22,8 @@ import {
   explicitCadCacheToken,
   fetchCadManifest,
   fieldAssetUrl,
+  ftcToThreePosition,
+  hasYupQuaternion,
   pieceAssetUrl,
   pieceThreePose,
   resolveBackgroundAsset,
@@ -29,6 +42,55 @@ type El = Frame["elements"][number];
 
 function inch(n: number) {
   return n;
+}
+
+const GRAVITY_IN_S2 = 386.088;
+
+export function usesPhysicalStorage(frame: Pick<Frame, "physicalPieces" | "robots" | "pieces">): boolean {
+  if (frame.physicalPieces === true) return true;
+  if ((frame.robots || []).some((robot) => (robot.parts && robot.parts.length > 0) || robot.batteryVoltageV != null)) {
+    return true;
+  }
+  return (frame.pieces || []).some((piece) => Boolean(piece.heldBy) && typeof piece.storedSlot === "number");
+}
+
+export function launchArcPoints(
+  path: PiecePathSpec,
+  flywheelFrac: number,
+  hoodFrac: number,
+  actuators?: ActuatorSpec[],
+): [number, number, number][] {
+  const muzzle = path.muzzlePose || {};
+  const hood = actuators?.find((row) => row.id === path.hoodActuatorId);
+  const flywheel = actuators?.find((row) => row.id === path.flywheelActuatorId);
+  const travel = hood?.travelLimit || [25, 70];
+  const pitchDeg = muzzle.pitchDeg ?? travel[0] + hoodFrac * (travel[1] - travel[0]);
+  const yawDeg = muzzle.yawDeg ?? 0;
+  const rpm = (flywheel?.targetRpm || 0) * flywheelFrac;
+  const radius = path.wheelRadiusIn || 2;
+  const efficiency = path.launchEfficiency ?? 0.235;
+  const speed = Math.max(8, radius * (rpm * (2 * Math.PI) / 60) * efficiency);
+  const pitch = (pitchDeg * Math.PI) / 180;
+  const yaw = (yawDeg * Math.PI) / 180;
+  const vx = speed * Math.cos(pitch) * Math.cos(yaw);
+  const vy = speed * Math.cos(pitch) * Math.sin(yaw);
+  const vz = speed * Math.sin(pitch);
+  const x0 = muzzle.x || 0;
+  const y0 = muzzle.y || 0;
+  const z0 = muzzle.z || 12;
+  const points: [number, number, number][] = [];
+  for (let i = 0; i <= 24; i += 1) {
+    const t = i * 0.02;
+    const z = z0 + vz * t - 0.5 * GRAVITY_IN_S2 * t * t;
+    if (z < 0 && i > 0) break;
+    points.push([x0 + vx * t, z, -(y0 + vy * t)]);
+  }
+  return points.length >= 2 ? points : [[x0, z0, -y0], [x0 + 8, z0, -y0]];
+}
+
+function partQuaternion(part: RobotPartTransform): [number, number, number, number] | undefined {
+  if (!hasYupQuaternion(part)) return undefined;
+  return [part.qx as number, part.qy as number, part.qz as number, part.qw as number];
 }
 
 function prepareCadScene(scene: Object3D) {
@@ -65,8 +127,13 @@ function prepareFieldCadScene(scene: Object3D) {
       else if (name.includes("field_side_glass")) {
         mat.color.set("#b9d7df");
         mat.transparent = true;
-        mat.opacity = 0.24;
-        mat.depthWrite = false;
+        mat.opacity = 0.2;
+        mat.side = FrontSide;
+        mat.forceSinglePass = true;
+        mat.depthWrite = true;
+        mat.polygonOffset = true;
+        mat.polygonOffsetFactor = -1;
+        mat.polygonOffsetUnits = -1;
       } else mat.color.set("#a9adb0");
     }
   });
@@ -311,6 +378,133 @@ function LauncherGizmo({ launcher, chassisHeight }: { launcher: LauncherSpec; ch
   );
 }
 
+function CollisionPrimitive({ part }: { part: RigidPartSpec }) {
+  const pose = part.pose || {};
+  const collision = part.collision[0];
+  if (!collision) return null;
+  const roll = ((collision.pose?.rollDeg || pose.rollDeg || 0) * Math.PI) / 180;
+  const pitch = ((collision.pose?.pitchDeg || pose.pitchDeg || 0) * Math.PI) / 180;
+  const yaw = ((collision.pose?.yawDeg || pose.yawDeg || 0) * Math.PI) / 180;
+  const color = part.id === "chassis" ? theme.chassis : part.id.includes("fly") ? theme.gold : theme.intake;
+  if (collision.kind === "box") {
+    return (
+      <mesh rotation={[pitch, yaw, roll]}>
+        <boxGeometry args={collision.sizeIn} />
+        <meshStandardMaterial color={color} transparent opacity={0.72} />
+      </mesh>
+    );
+  }
+  if (collision.kind === "sphere") {
+    return (
+      <mesh>
+        <sphereGeometry args={[collision.radiusIn, 16, 16]} />
+        <meshStandardMaterial color={color} transparent opacity={0.72} />
+      </mesh>
+    );
+  }
+  if (collision.kind === "convex_mesh") {
+    return (
+      <mesh>
+        <boxGeometry args={[4, 2, 4]} />
+        <meshStandardMaterial color={color} transparent opacity={0.55} />
+      </mesh>
+    );
+  }
+  const length = collision.lengthIn || collision.radiusIn * 2;
+  return (
+    <mesh rotation={[pitch + (collision.kind === "cylinder" ? Math.PI / 2 : 0), yaw, roll]}>
+      <cylinderGeometry args={[collision.radiusIn, collision.radiusIn, length, 16]} />
+      <meshStandardMaterial color={color} transparent opacity={0.72} />
+    </mesh>
+  );
+}
+
+function RobotPartActor({
+  part,
+  design,
+}: {
+  part: RobotPartTransform;
+  design?: RobotDesign;
+}) {
+  const spec = (design?.rigidParts || []).find((row) => row.id === part.id);
+  const visualAsset = part.visualAsset || spec?.visualAsset;
+  const cadUrl = visualAsset ? `${API}/robot-assets/${visualAsset}` : null;
+  const [cadReady, setCadReady] = useState(false);
+  useEffect(() => {
+    setCadReady(false);
+    if (cadUrl) useGLTF.preload(cadUrl);
+  }, [cadUrl]);
+  const orient = partQuaternion(part);
+  return (
+    <group position={ftcToThreePosition(part.x, part.y, part.z)} quaternion={orient}>
+      {cadUrl && (
+        <CadErrorBoundary onError={() => setCadReady(false)}>
+          <Suspense fallback={null}>
+            <RobotCad url={cadUrl} onReady={() => setCadReady(true)} />
+          </Suspense>
+        </CadErrorBoundary>
+      )}
+      {(!cadUrl || !cadReady) && spec && <CollisionPrimitive part={spec} />}
+      {(!cadUrl || !cadReady) && !spec && (
+        <mesh>
+          <boxGeometry args={[3, 2, 3]} />
+          <meshStandardMaterial color={theme.chassis} transparent opacity={0.6} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+function RobotTelemetry({ robot, chassisHeight }: { robot: Pick<FrameRobot, "actuators" | "batteryVoltageV" | "batteryCurrentA">; chassisHeight: number }) {
+  const flywheel = robot.actuators?.flywheel || Object.values(robot.actuators || {})[0];
+  if (robot.batteryVoltageV == null && !flywheel) return null;
+  const rpm = flywheel?.rpm;
+  const current = flywheel?.currentA;
+  const bits = [
+    robot.batteryVoltageV != null ? `${robot.batteryVoltageV.toFixed(1)} V` : null,
+    robot.batteryCurrentA != null ? `${robot.batteryCurrentA.toFixed(1)} A` : null,
+    rpm != null ? `${rpm.toFixed(0)} rpm` : null,
+    current != null ? `${current.toFixed(1)} A motor` : null,
+  ].filter((row): row is string => Boolean(row));
+  if (bits.length === 0) return null;
+  return (
+    <Html position={[0, chassisHeight / 2 + 3, 0]} center style={{ pointerEvents: "none", color: theme.cream, fontSize: "11px", whiteSpace: "nowrap" }}>
+      {bits.join(" · ")}
+    </Html>
+  );
+}
+
+function LaunchPreviewArc({
+  path,
+  flywheelFrac,
+  hoodFrac,
+  actuators,
+}: {
+  path: PiecePathSpec;
+  flywheelFrac: number;
+  hoodFrac: number;
+  actuators?: ActuatorSpec[];
+}) {
+  const points = useMemo(
+    () => launchArcPoints(path, flywheelFrac, hoodFrac, actuators),
+    [path, flywheelFrac, hoodFrac, actuators],
+  );
+  return <Line points={points} color={theme.goldBright} lineWidth={2} />;
+}
+
+function StorageSlotMarkers({ path }: { path: PiecePathSpec }) {
+  return (
+    <>
+      {(path.storageSlots || []).map((slot, index) => (
+        <mesh key={`slot-${index}`} position={[slot.x || 0, slot.z || 4, -(slot.y || 0)]}>
+          <sphereGeometry args={[1.2, 12, 12]} />
+          <meshStandardMaterial color={theme.gold} transparent opacity={0.35} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
 export function RobotActor({
   x = 0,
   y = 0,
@@ -320,6 +514,9 @@ export function RobotActor({
   showFov = false,
   showHull = false,
   highlight = null,
+  hideBody = false,
+  telemetry,
+  launchPreview,
 }: {
   x?: number;
   y?: number;
@@ -329,6 +526,9 @@ export function RobotActor({
   showFov?: boolean;
   showHull?: boolean;
   highlight?: "foul" | "contact" | null;
+  hideBody?: boolean;
+  telemetry?: Pick<FrameRobot, "actuators" | "batteryVoltageV" | "batteryCurrentA">;
+  launchPreview?: { flywheelFrac: number; hoodFrac: number };
 }) {
   const length = design?.chassis?.lengthIn ?? 18;
   const width = design?.chassis?.widthIn ?? 18;
@@ -341,12 +541,13 @@ export function RobotActor({
     setCadReady(false);
     if (cadUrl) useGLTF.preload(cadUrl);
   }, [cadUrl]);
-  const showBox = !cadUrl || !cadReady || showHull || Boolean(highlight);
+  const showBox = !hideBody && (!cadUrl || !cadReady || showHull || Boolean(highlight));
   const chassisColor = highlight ? theme.restricted : dynamic ? theme.chassis : theme.chassisIdle;
   const emissiveIntensity = highlight === "foul" ? 0.55 : highlight === "contact" ? 0.35 : 0;
+  const previewParts = hideBody ? [] : design?.rigidParts || [];
   return (
     <group position={[inch(x), height / 2, inch(-y)]} rotation={[0, (headingDeg * Math.PI) / 180, 0]}>
-      {cadUrl && (
+      {cadUrl && !hideBody && (
         <group position={[offset.x || 0, (offset.z || 0) - height / 2, -(offset.y || 0)]} rotation={[0, (visualOffsetYawDeg(offset) * Math.PI) / 180, 0]}>
           <CadErrorBoundary onError={() => setCadReady(false)}>
             <Suspense fallback={null}>
@@ -361,8 +562,8 @@ export function RobotActor({
             <boxGeometry args={[length, height, width]} />
             <meshStandardMaterial
               color={chassisColor}
-              transparent={Boolean(cadUrl) || Boolean(highlight)}
-              opacity={highlight ? (cadUrl ? 0.45 : 0.92) : cadUrl ? 0.28 : 1}
+              transparent={Boolean(cadUrl) || Boolean(highlight) || previewParts.length > 0}
+              opacity={highlight ? (cadUrl ? 0.45 : 0.92) : cadUrl || previewParts.length > 0 ? 0.28 : 1}
               emissive={highlight ? theme.restricted : "#000000"}
               emissiveIntensity={emissiveIntensity}
             />
@@ -373,12 +574,30 @@ export function RobotActor({
           </mesh>
         </>
       )}
+      {!hideBody &&
+        previewParts.map((part) => (
+          <group key={part.id} position={[part.pose?.x || 0, (part.pose?.z || 0) - height / 2, -(part.pose?.y || 0)]}>
+            <CollisionPrimitive part={part} />
+          </group>
+        ))}
       {(design?.intakes || []).map((intake) => (
         <IntakeGizmo key={intake.id} intake={intake} chassisHeight={height} />
       ))}
       {(design?.launchers || []).map((launcher) => (
         <LauncherGizmo key={launcher.id} launcher={launcher} chassisHeight={height} />
       ))}
+      {design?.piecePath && launchPreview && (
+        <>
+          <StorageSlotMarkers path={design.piecePath} />
+          <LaunchPreviewArc
+            path={design.piecePath}
+            flywheelFrac={launchPreview.flywheelFrac}
+            hoodFrac={launchPreview.hoodFrac}
+            actuators={design.actuators}
+          />
+        </>
+      )}
+      {telemetry && <RobotTelemetry robot={telemetry} chassisHeight={height} />}
       {showFov && dynamic && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[20, 0.2, 0]}>
           <circleGeometry args={[40, 24, -0.6, 1.2]} />
@@ -389,7 +608,17 @@ export function RobotActor({
   );
 }
 
-export function RobotPreview({ design, showFov = false, showHull = false }: { design: RobotDesign; showFov?: boolean; showHull?: boolean }) {
+export function RobotPreview({
+  design,
+  showFov = false,
+  showHull = false,
+  launchPreview,
+}: {
+  design: RobotDesign;
+  showFov?: boolean;
+  showHull?: boolean;
+  launchPreview?: { flywheelFrac: number; hoodFrac: number };
+}) {
   const span = Math.max(design.chassis?.lengthIn || 18, design.chassis?.widthIn || 18, 24);
   return (
     <Canvas camera={{ position: [span * 0.9, span * 1.1, span * 0.9], fov: 40 }} style={{ width: "100%", height: "100%" }}>
@@ -397,7 +626,7 @@ export function RobotPreview({ design, showFov = false, showHull = false }: { de
       <ambientLight intensity={0.7} />
       <directionalLight position={[40, 80, 30]} intensity={1} />
       <Grid args={[span * 2, span * 2]} cellSize={6} sectionSize={18} cellColor={theme.grid} sectionColor={theme.gridSection} fadeDistance={120} />
-      <RobotActor design={design} showFov={showFov} showHull={showHull} />
+      <RobotActor design={design} showFov={showFov} showHull={showHull} launchPreview={launchPreview} />
       <OrbitControls makeDefault />
     </Canvas>
   );
@@ -516,6 +745,7 @@ function FieldMeshes({
     (frame.robots || []).some((r) => r.enteredRestricted) || Boolean(frame.collision?.enteredRestricted);
   const foulStep = (frame.stepExplains || []).some((e) => e.points < 0);
   const contact = Boolean(frame.collision?.wall || frame.collision?.robot);
+  const physicalStorage = usesPhysicalStorage(frame);
   useEffect(() => {
     setCadReady(false);
     if (cadUrl) useGLTF.preload(cadUrl);
@@ -605,7 +835,7 @@ function FieldMeshes({
         );
       })}
       {(frame.pieces || [])
-        .filter((p) => !p.scored && !p.heldBy)
+        .filter((p) => !p.scored && (physicalStorage || !p.heldBy))
         .map((p) => (
           <PieceActor
             key={p.id}
@@ -615,19 +845,58 @@ function FieldMeshes({
             cacheToken={token}
           />
         ))}
-      {(frame.robots || []).map((r) => (
-        <RobotActor
-          key={r.id}
-          x={r.x}
-          y={r.y}
-          headingDeg={r.headingDeg}
-          dynamic={r.dynamic}
-          design={frame.robotDesign}
-          showHull={frame.robotDesign?.collisionShape === "mesh" || frame.robotDesign?.chassis?.collisionShape === "mesh"}
-          showFov={showFov}
-          highlight={r.dynamic ? (foulStep || r.enteredRestricted ? "foul" : contact ? "contact" : null) : null}
-        />
-      ))}
+      {!physicalStorage &&
+        (frame.pieces || [])
+          .filter((piece) => !piece.scored && Boolean(piece.heldBy))
+          .map((piece) => {
+            const robot = (frame.robots || []).find((candidate) => candidate.id === piece.heldBy);
+            if (!robot) return null;
+            const held = (frame.pieces || []).filter(
+              (candidate) => candidate.heldBy === piece.heldBy && !candidate.scored,
+            );
+            const index = held.findIndex((candidate) => candidate.id === piece.id);
+            const radius = pieceThreePose(piece, catalog).radius;
+            const lateral = (index - (held.length - 1) / 2) * radius * 2.1;
+            const heading = (robot.headingDeg * Math.PI) / 180;
+            const stagedPiece: FramePiece = {
+              ...piece,
+              x: robot.x - Math.sin(heading) * lateral,
+              y: robot.y + Math.cos(heading) * lateral,
+              z: (frame.robotDesign?.chassis?.heightIn ?? 10) + radius,
+              heldBy: undefined,
+            };
+            return (
+              <PieceActor
+                key={`held-${piece.id}`}
+                piece={stagedPiece}
+                catalog={catalog}
+                backgroundAsset={cadPath}
+                cacheToken={token}
+              />
+            );
+          })}
+      {(frame.robots || []).map((r) => {
+        const parts = r.parts || [];
+        return (
+          <group key={r.id}>
+            {parts.map((part) => (
+              <RobotPartActor key={`${r.id}-${part.id}`} part={part} design={frame.robotDesign} />
+            ))}
+            <RobotActor
+              x={r.x}
+              y={r.y}
+              headingDeg={r.headingDeg}
+              dynamic={r.dynamic}
+              design={frame.robotDesign}
+              hideBody={parts.length > 0}
+              showHull={frame.robotDesign?.collisionShape === "mesh" || frame.robotDesign?.chassis?.collisionShape === "mesh"}
+              showFov={showFov}
+              highlight={r.dynamic ? (foulStep || r.enteredRestricted ? "foul" : contact ? "contact" : null) : null}
+              telemetry={r}
+            />
+          </group>
+        );
+      })}
       {path.length > 1 && (
         <Line
           points={path.map((p) => [inch(p.x), 0.5, inch(-p.y)] as [number, number, number])}
@@ -661,7 +930,15 @@ export function FieldScene({
         <color attach="background" args={[theme.scene]} />
         <ambientLight intensity={0.6} />
         <directionalLight position={[80, 200, 60]} intensity={1.1} />
-        <Grid args={[w, d]} cellSize={24} sectionSize={72} cellColor={theme.grid} sectionColor={theme.gridSection} fadeDistance={400} />
+        <Grid
+          args={[w, d]}
+          position={[0, -0.15, 0]}
+          cellSize={24}
+          sectionSize={72}
+          cellColor={theme.grid}
+          sectionColor={theme.gridSection}
+          fadeDistance={400}
+        />
         <CameraRig view={view} w={w} d={d} />
         {frame && <FieldMeshes frame={frame} showFov={showFov} path={path} cadFallback={cadAsset} />}
         <OrbitControls makeDefault />

@@ -265,3 +265,13 @@ def test_committed_cad_assets_verify():
     assert abs(float(visual.bounds[0][0])) <= 74.1
     assert abs(float(visual.bounds[1][0])) <= 74.1
     assert float(visual.bounds[0][1]) > -1.0
+    assert not any("hex_lock_nut" in name or "fender_washer" in name for name in names)
+    for mechanism in field_block["mechanisms"]:
+        scene = trimesh.load(str(ASSETS_DIR / mechanism["visualAsset"]), force="scene")
+        ribs = [
+            mesh
+            for name, mesh in scene.geometry.items()
+            if "goal_rib" in str(name).lower()
+        ]
+        assert ribs
+        assert all(float(mesh.area_faces.min()) > 1e-10 for mesh in ribs)

@@ -22,8 +22,10 @@ def test_zero_jitter_keeps_start_slot():
     world.reset(seed=0)
     slot = world._start_slot("red", 0)
     assert slot is not None
-    assert world.actor().body.x == float(slot["pose"]["x"])
-    assert world.actor().body.y == float(slot["pose"]["y"])
+    body = world.actor().body
+    assert body.y == float(slot["pose"]["y"])
+    assert world._start_pose_error(body.x, body.y, body.heading, "red") is None
+    assert abs(abs(body.x) - world.playable_half_w + world.robot_hx) < 0.2
 
 
 def test_pose_jitter_moves_spawn():
@@ -34,6 +36,10 @@ def test_pose_jitter_moves_spawn():
     dx = abs(world.actor().body.x - float(slot["pose"]["x"]))
     dy = abs(world.actor().body.y - float(slot["pose"]["y"]))
     assert dx + dy > 0.05
+    flower_spawn = next(spawn for spawn in bundle.field["spawns"] if spawn["id"] == "flower_1_pollen")
+    staged = next(piece for piece in world.pieces.values() if piece.type_id == "pollen" and not piece.held_by)
+    assert staged.x == float(flower_spawn["poses"][0]["x"])
+    assert staged.y == float(flower_spawn["poses"][0]["y"])
 
 
 def test_motor_strength_and_noise_scale():

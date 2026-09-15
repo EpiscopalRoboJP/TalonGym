@@ -12,7 +12,7 @@ from urllib.parse import unquote, urlparse
 
 from talongym.paths import VAR_DIR
 
-CAD_GENERATOR_VERSION = "1.1.0"
+CAD_GENERATOR_VERSION = "1.2.0"
 IN_PER_M = 39.37007874015748
 MM_PER_IN = 25.4
 FIELD_SPAN_IN = 144.0
@@ -675,6 +675,8 @@ def classify_field_visual_part(
             "sheet_metal_screw",
             "elevator_bolt",
             "wing_nut",
+            "hex_lock_nut",
+            "fender_washer",
             "nylon_spacer",
             "flanged_bearing",
             "quick_release_pin",
@@ -763,16 +765,48 @@ def export_visual_parts_glb(
     written_faces = 0
     for name, source in parts:
         mesh = source.copy()
+        try:
+            mesh.merge_vertices()
+            mesh.update_faces(mesh.area_faces > 1e-6)
+            if hasattr(mesh, "nondegenerate_faces"):
+                mesh.update_faces(mesh.nondegenerate_faces())
+            elif hasattr(mesh, "remove_degenerate_faces"):
+                mesh.remove_degenerate_faces()
+            mesh.remove_unreferenced_vertices()
+            mesh.fix_normals(multibody=True)
+        except (AttributeError, TypeError, ValueError):
+            # Some trimesh releases expose only a subset of the repair API.
+            # Export still proceeds; the generated-asset quality tests catch
+            # any remaining invalid triangles.
+            pass
         source_faces = len(getattr(mesh, "faces", []))
         budget = max(24, int(round(source_faces * ratio)))
-        if any(token in name.lower() for token in ("flower", "hive", "goal", "a-frame", "panel_sticker")):
-            budget = max(budget, min(source_faces, 512))
-        if source_faces > budget:
+        lowered = name.lower()
+        preserve_topology = any(
+            token in lowered
+            for token in (
+                "field_side_glass",
+                "gaffer_tape",
+                "panel_sticker",
+            )
+        )
+        quality_budget = 0
+        if any(token in lowered for token in ("goal_rib", "hive_goal_", "a-frame")):
+            quality_budget = 4096
+        elif "flower" in lowered:
+            quality_budget = 2048
+        elif "rail_with_rivet" in lowered:
+            quality_budget = 1024
+        if quality_budget:
+            budget = max(budget, min(source_faces, quality_budget))
+        if source_faces > budget and not preserve_topology:
             try:
                 color = getattr(mesh.visual, "main_color", None)
                 mesh = mesh.simplify_quadric_decimation(face_count=budget)
                 if color is not None:
                     mesh.visual = trimesh.visual.ColorVisuals(mesh=mesh, vertex_colors=color)
+                mesh.update_faces(mesh.area_faces > 1e-6)
+                mesh.remove_unreferenced_vertices()
                 decimated = True
             except Exception as exc:
                 raise CadImportError(

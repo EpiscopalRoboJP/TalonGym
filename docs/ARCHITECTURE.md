@@ -29,7 +29,7 @@ TalonGym is a **season-plugin, Gymnasium-first** FTC Autonomous trainer with a R
 ### What 2.5D means, precisely
 
 - **Simulated in Rapier2D:** chassis vs walls, chassis vs chassis, floor pieces vs floor pieces, floor pieces vs chassis (pushing). Gravity is off in-plane; friction and restitution are data.
-- **Not simulated as rigid-body flight by default:** a piece “in the goal” can be an FSM (`held → launched → in_goal_volume → scored`) with timers. BIOBUZZ uses ballistic launches against the mesh when `ballistic_launch` is unlocked; `retained_queue` remains an engine capability for seasons that need an ordered overflow buffer.
+- **Not simulated as rigid-body flight by default:** a piece “in the goal” can be an FSM (`held → launched → in_goal_volume → scored`) with timers. BIOBUZZ mesh seasons keep pieces as free rigid bodies with physical mechanism launch; `retained_queue` remains an engine capability for seasons that need an ordered overflow buffer.
 - **Visualizer:** extrudes `WorldState` (2D poses + FSM + queue) into meshes. It is a renderer.
 
 ---
@@ -179,7 +179,7 @@ BIOBUZZ physical geometry is built from official STEP, not schematic boxes.
 - Raw STEP stays in `var/cad/` (gitignored). Derived GLB/STL, `cad_manifest.json`, and `field_mjcf.xml` are also gitignored; rebuild with `python -m talongym import-field-cad`.
 - Official field binary endpoint: `https://ftc-resources.firstinspires.org/ftc/archive/2027/field/field-cad-step` (handles `Content-Disposition`). POLLEN / red NECTAR / blue NECTAR STEP files are the AndyMark exports pinned in `python/talongym/assets/cad_sources.py`.
 - Coordinates in derived assets: FTC inches, Y-up (`x = ftc.x`, `y = height`, `z = -ftc.y`). Piece GLBs are centered at the geometric origin for later free joints.
-- **Collision:** one convex hull per CAD solid under `collision/`. Never a single concave field mesh — MuJoCo convexifies it and would seal HIVE/CELL openings. Piece hulls are one convex STL per type. The red and blue HIVE basket assemblies are grouped into separate hinge bodies; their A-frame and pivots remain static.
+- **Collision:** one convex hull per CAD solid under `collision/`, plus four continuous STEP-bound glass proxies that close panel seams. Never a single concave field mesh — MuJoCo convexifies it and would seal HIVE/CELL openings. Piece hulls are one convex STL per type. The red and blue HIVE basket assemblies are grouped into separate hinge bodies; their A-frame and pivots remain static.
 - **Semantics stay in the preset:** zones, triggers, start poses, and scoring volumes are `field.json` data. CAD does not assign game-rule meaning.
 - A `mesh_field_collision` season fails closed if the pinned SHA-256 is missing or stale (`python -m talongym import-field-cad --verify`). Do not AABB-fallback.
 - Handoff: backend loads the local CAD `collisionAsset` MJCF assembled from `cadManifest` convex parts (not `field.glb`) and per-`typeId` piece hulls. HIVE hinge angles are reported in each replay frame, and the frontend applies them to matching pivot-centered mechanism GLBs. The frontend also instances piece `visualAsset` GLBs at simulated pose/orientation and cache-busts derived assets with source hash plus generator version.
@@ -198,7 +198,7 @@ CELL / FLOWER / GARDEN points are end-of-match only — model in the graph as `e
 
 RP thresholds (Table 10-3) are **match-wide**. AUTO-only training may optimize a **proxy** (LEAVE+PARK, tip count). The UI must never label that proxy “Ranking Points earned.”
 
-POLLEN is 2.8 in yellow; NECTAR is 3.6 in red/blue. Preload 4 POLLEN per ROBOT.
+POLLEN is 2.8 in yellow; NECTAR is 3.6 in red/blue. Four POLLEN are physically staged in each FLOWER and on each GARDEN line, three NECTAR are physical bodies in each upward CELL, and every enabled ROBOT must preload exactly four POLLEN. The five off-field NECTAR per alliance are not instantiated during AUTO; `World.spawn_nectar_in_garden` is the validated future TELEOP entry point.
 
 AprilTags are 36h11 clusters on CELL bottoms. Manual extract confirmed ids 0, 7, and 38–41; 1–3, 4–6, and 42–45 are inferred.
 
@@ -216,7 +216,7 @@ class FTCAutoEnv(gymnasium.Env):
     def step(self, action) -> tuple[ObsDict, float, bool, bool, InfoDict]: ...
 ```
 
-`options` may set `alliance`, `start_slot`, `opponent_mode`, `action_tier` override, `determinism_stream` (`"train"` | `"eval"`).
+`options` may set `match_setup` (enabled robots, official same-alliance `startSlotId`, and offsets inside that slot’s `legalRegion`). Runtime still enforces G304: own alliance half, touching the perimeter, and not in a LOADING ZONE or FLOWER. LEAVE is awarded only after the chassis leaves the wall. `opponent_mode`, `action_tier`, `full_noise`, and `ballistic_launch` are also legal `options`. Run/evaluation APIs use the camel-case `matchSetup` equivalent.
 
 **Control rate:** 25 Hz default (preset `episode.controlHz`; legal 20–50). Physics substeps: 2 (50 Hz Rapier) unless the Phase 0 bench says otherwise. Episode length: **30.0 s AUTO**, then truncation. TRANSITION (8 s official; 15 s at FIRST Championship) is **not** simulated in MVP; end-of-AUTO scoring uses the AUTO `phaseEnd` hook with a configurable `settle_time_s` (default 0.5 s) to stand in for “come to rest.”
 
@@ -283,7 +283,7 @@ Default shaping (coefficients in the training config, not the scoring preset):
 
 1. Seed NumPy + Rapier world from `seed`.
 2. Draw match variables (motif, etc.).
-3. Spawn pieces, robots (legal start slots), randomize build tolerance.
+3. Spawn pieces, robots (G304-legal start slots only; jitter is resampled inside the slot’s legal region), randomize build tolerance.
 4. Zero all sensors’ observed-match-var flags.
 5. Evaluate rule DAG `alwaysTick` once (should be no points).
 6. Return obs with sentinel on unread variables.
@@ -473,7 +473,7 @@ Do not treat the following as engine work. They are **preset sign-off** question
 | Intake capture | Volume + cycle timer + capacity |
 | Launch / score | Trigger path + optional ballistic mesh |
 | Vision / match vars | FOV, range, occluder rays, false-negative rate |
-| Launch ballistics | BIOBUZZ: 3D muzzle velocity vs mesh field when `ballistic_launch` is unlocked |
+| Launch ballistics | BIOBUZZ: 3D free-body flight vs mesh field; physical mechanism contact sets launch state |
 | Foam tile compliance | Optional friction DR, not FEM |
 | Battery sag | Optional; off in lightweight |
 
@@ -553,7 +553,7 @@ Dialect `rr05_trajectory_sequence` emits legacy `trajectorySequenceBuilder` for 
 | End-of-AUTO scoring | LEAVE, PARK, HIVE TIP |
 | Retained queue | no |
 | Alliance aggregate | SWARM RP (LEAVE+PARK) |
-| Mid-episode geometry | hive tip modeled as accumulator, not collider swap |
+| Mid-episode geometry | red/blue HIVE hinge bodies tip from physical CELL occupancy |
 | Climb / vertical FSM | no AUTO |
 
 BIOBUZZ is the only shipped season. A new season is data under `presets/seasons/` following the runbook; CI capability lint must pass with **zero files under `engine/` changed** unless a new primitive is required.

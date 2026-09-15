@@ -238,7 +238,7 @@ def _write_field_derived(
             centered_parts,
             mechanism_path,
             trimesh,
-            face_target=180_000,
+            face_target=400_000,
         )
         mechanism_collision = [
             part

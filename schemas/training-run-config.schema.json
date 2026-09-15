@@ -99,9 +99,7 @@
                     "motif_must_sense",
                     "scripted_teammate",
                     "scripted_opponent",
-                    "full_noise",
-                    "scripted_launch",
-                    "ballistic_launch"
+                    "full_noise"
                   ]
                 }
               }

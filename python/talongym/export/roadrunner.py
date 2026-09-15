@@ -10,6 +10,13 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from talongym.export.mechanism import (
+    DriveOnlyExportError,
+    export_mechanism_timeline,
+    mechanism_actions_required,
+    reject_drive_only_message,
+)
+
 
 def decimate(waypoints: list[list[float]], min_dist: float = 8.0) -> list[list[float]]:
     if not waypoints:
@@ -57,7 +64,12 @@ def to_roadrunner_java(
     return "\n".join(lines) + "\n"
 
 
-def export_from_replay(frames: list[dict[str, Any]], dialect: str = "rr1_actions") -> str:
+def export_from_replay(
+    frames: list[dict[str, Any]],
+    dialect: str = "rr1_actions",
+    *,
+    drive_only: bool = False,
+) -> str:
     wps: list[list[float]] = []
     for fr in frames:
         robots = fr.get("robots") or []
@@ -66,4 +78,12 @@ def export_from_replay(frames: list[dict[str, Any]], dialect: str = "rr1_actions
         r = robots[0]
         heading = math.radians(float(r.get("headingDeg", 0.0)))
         wps.append([float(r["x"]), float(r["y"]), heading])
-    return to_roadrunner_java(wps, dialect=dialect)
+    java = to_roadrunner_java(wps, dialect=dialect)
+    needs_mechanisms = mechanism_actions_required(frames)
+    if drive_only and needs_mechanisms:
+        raise DriveOnlyExportError(
+            "Drive-only Road Runner export cannot represent mechanism actions required by this replay."
+        )
+    if not needs_mechanisms:
+        return java
+    return reject_drive_only_message() + java + "\n" + export_mechanism_timeline(frames)

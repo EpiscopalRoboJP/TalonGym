@@ -9,9 +9,24 @@ from pathlib import Path
 import numpy as np
 
 from talongym.assets.mjcf_field import GEOM_GROUP_FIELD, GEOM_GROUP_PIECE, GEOM_GROUP_ROBOT
-from talongym.sim.physics import Body, ContactSet, WorldStep, _clip_chassis, _resolve_chassis
+from talongym.sim.physics import (
+    Body,
+    ContactSet,
+    NM_TO_INCH_TORQUE,
+    WorldStep,
+    _clip_chassis,
+    _resolve_chassis,
+    aerodynamic_wrench,
+    mechanism_piece_force,
+    relative_velocity_robot,
+    rotate_robot_to_world,
+    world_to_robot_xy,
+)
 
 _MJ_MODEL_CACHE: dict[str, Any] = {}
+# Conservative world-frame radius covering chassis, intake reach, and muzzle.
+_MECHANISM_FORCE_REACH_IN = 40.0
+_MECHANISM_FORCE_REACH2 = _MECHANISM_FORCE_REACH_IN * _MECHANISM_FORCE_REACH_IN
 
 
 class MujocoValidationBackend:
@@ -101,6 +116,10 @@ class MeshFieldRequiredError(RuntimeError):
     """Raised when a field requires mesh collision but MuJoCo is not installed."""
 
 
+class PhysicalSimulationFault(RuntimeError):
+    """The authoritative simulation reached a physically invalid state."""
+
+
 def ftc_to_mj(x: float, y: float, z: float) -> tuple[float, float, float]:
     return float(x), float(z), float(-y)
 
@@ -185,8 +204,21 @@ class MujocoFieldBackend:
         self._owned: set[str] = set()
         self._id_to_slot: dict[str, int] = {}
         self._robot_placed: set[str] = set()
+        self._robot_mechanism_placed: set[str] = set()
         self._field_mechanism_joints: dict[str, tuple[int, int]] = {}
+        self._robot_mechanism_joints: dict[tuple[str, str], tuple[int, int]] = {}
+        self._robot_part_body: dict[tuple[str, str], int] = {}
+        self._robot_body_id: dict[str, int] = {}
+        self._robot_dof: dict[str, int] = {}
+        self._body_name_by_id: list[str] = []
+        self._floor_geom_id = -1
+        self._robot_targets: dict[str, tuple[float, float, float, float, float, float]] = {}
         mujoco = self._mujoco
+        try:
+            enable = int(mujoco.mjtEnableBit.mjENBL_MULTICCD)
+            self._mj.opt.enableflags = int(self._mj.opt.enableflags) | enable
+        except Exception:
+            pass
         for bid in ("red_0", "red_1", "blue_0", "blue_1"):
             try:
                 jx = mujoco.mj_name2id(self._mj, mujoco.mjtObj.mjOBJ_JOINT, f"{bid}_sx")
@@ -201,16 +233,43 @@ class MujocoFieldBackend:
                 int(self._mj.jnt_qposadr[jz]),
                 int(self._mj.jnt_qposadr[jy]),
             )
+            self._robot_dof[bid] = int(self._mj.jnt_dofadr[jx])
         for joint_id in range(int(self._mj.njnt)):
             raw = mujoco.mj_id2name(self._mj, mujoco.mjtObj.mjOBJ_JOINT, joint_id)
             name = str(raw or "")
             if not name.startswith("field_mech_"):
+                for robot_id in ("red_0", "red_1", "blue_0", "blue_1"):
+                    prefix = f"{robot_id}_joint_"
+                    if name.startswith(prefix):
+                        self._robot_mechanism_joints[
+                            (robot_id, name[len(prefix) :])
+                        ] = (
+                            int(self._mj.jnt_qposadr[joint_id]),
+                            int(self._mj.jnt_dofadr[joint_id]),
+                        )
+                        break
+            else:
+                mechanism_id = name[len("field_mech_") :]
+                self._field_mechanism_joints[mechanism_id] = (
+                    int(self._mj.jnt_qposadr[joint_id]),
+                    int(self._mj.jnt_dofadr[joint_id]),
+                )
+        nbody = int(self._mj.nbody)
+        self._body_name_by_id = [""] * nbody
+        for body_id in range(nbody):
+            raw = mujoco.mj_id2name(self._mj, mujoco.mjtObj.mjOBJ_BODY, body_id)
+            name = str(raw or "")
+            chassis_name = name.split("_part_", 1)[0] if "_part_" in name else name
+            self._body_name_by_id[body_id] = chassis_name
+            if body_id == 0:
                 continue
-            mechanism_id = name[len("field_mech_") :]
-            self._field_mechanism_joints[mechanism_id] = (
-                int(self._mj.jnt_qposadr[joint_id]),
-                int(self._mj.jnt_dofadr[joint_id]),
-            )
+            if name in ("red_0", "red_1", "blue_0", "blue_1"):
+                self._robot_body_id[name] = int(body_id)
+            if "_part_" in name:
+                robot_id, part_id = name.split("_part_", 1)
+                self._robot_part_body[(robot_id, part_id)] = int(body_id)
+        floor = mujoco.mj_name2id(self._mj, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+        self._floor_geom_id = int(floor) if int(floor) >= 0 else -1
         type_ids = [tid for tid in (slot_plan or {}) if tid]
         self._index_piece_bodies(type_ids)
         self._park_all_pieces()
@@ -289,9 +348,8 @@ class MujocoFieldBackend:
         self._data.qpos[ax] = 220.0 + slot * 24.0
         self._data.qpos[az] = 220.0
         self._data.qpos[ay] = 0.0
-        jx = self._mujoco.mj_name2id(self._mj, self._mujoco.mjtObj.mjOBJ_JOINT, f"{bid}_sx")
-        if jx >= 0:
-            dof = int(self._mj.jnt_dofadr[jx])
+        dof = self._robot_dof.get(bid)
+        if dof is not None:
             self._data.qvel[dof : dof + 3] = 0.0
 
     def _park_unused_robots(self, live_ids: set[str]) -> None:
@@ -307,12 +365,60 @@ class MujocoFieldBackend:
         for i, bid in enumerate(self._robot_jnt):
             self._park_robot(bid, i)
         self._robot_placed.clear()
+        self._robot_mechanism_placed.clear()
 
     def field_mechanism_positions(self) -> dict[str, float]:
         return {
             mechanism_id: float(self._data.qpos[qpos])
             for mechanism_id, (qpos, _dof) in self._field_mechanism_joints.items()
         }
+
+    def robot_mechanism_transforms(self) -> dict[str, list[dict[str, Any]]]:
+        transforms: dict[str, list[dict[str, Any]]] = {}
+        for body_id in range(1, int(self._mj.nbody)):
+            raw = self._mujoco.mj_id2name(
+                self._mj,
+                self._mujoco.mjtObj.mjOBJ_BODY,
+                body_id,
+            )
+            name = str(raw or "")
+            if "_part_" not in name:
+                continue
+            robot_id, part_id = name.split("_part_", 1)
+            position = self._data.xpos[body_id]
+            x, y, z = mj_to_ftc(
+                float(position[0]),
+                float(position[1]),
+                float(position[2]),
+            )
+            quat = self._data.xquat[body_id]
+            cvel = self._data.cvel[body_id]
+            vx, vy, vz = mj_to_ftc(float(cvel[3]), float(cvel[4]), float(cvel[5]))
+            transforms.setdefault(robot_id, []).append(
+                {
+                    "id": part_id,
+                    "x": x,
+                    "y": y,
+                    "z": z,
+                    "qw": float(quat[0]),
+                    "qx": float(quat[1]),
+                    "qy": float(quat[2]),
+                    "qz": float(quat[3]),
+                    "vx": vx,
+                    "vy": vy,
+                    "vz": vz,
+                }
+            )
+        return transforms
+
+    def robot_mechanism_joint_states(self) -> dict[str, dict[str, dict[str, float]]]:
+        states: dict[str, dict[str, dict[str, float]]] = {}
+        for (robot_id, joint_id), (qpos, dof) in self._robot_mechanism_joints.items():
+            states.setdefault(robot_id, {})[joint_id] = {
+                "positionRad": float(self._data.qpos[qpos]),
+                "velocityRadS": float(self._data.qvel[dof]),
+            }
+        return states
 
     def _slot_for(self, pid: str, type_id: str = "") -> int | None:
         if pid in self._id_to_slot:
@@ -340,11 +446,14 @@ class MujocoFieldBackend:
             self._data.qpos[az] = mz
             self._data.qpos[ay] = body.heading
             self._robot_placed.add(body.id)
-        jx = self._mujoco.mj_name2id(self._mj, self._mujoco.mjtObj.mjOBJ_JOINT, f"{body.id}_sx")
-        dof = int(self._mj.jnt_dofadr[jx])
-        self._data.qvel[dof] = body.vx
-        self._data.qvel[dof + 1] = -body.vy
-        self._data.qvel[dof + 2] = body.omega
+        self._robot_targets[body.id] = (
+            float(body.vx),
+            -float(body.vy),
+            float(body.omega),
+            max(0.1, float(body.mass)),
+            max(0.1, float(body.hx)),
+            max(0.1, float(body.hy)),
+        )
 
     def _write_piece(self, body: Body) -> None:
         slot = self._slot_for(body.id, getattr(body, "type_id", "") or "")
@@ -356,8 +465,7 @@ class MujocoFieldBackend:
         nv = self._piece_nv[slot]
         z = float(getattr(body, "z", body.radius or 1.4) or 1.4)
         mx, my, mz = ftc_to_mj(body.x, body.y, z)
-        kick = bool(getattr(body, "kick", False))
-        if body.id not in self._owned or kick:
+        if body.id not in self._owned:
             self._data.qpos[adr : adr + 3] = [mx, my, mz]
             if nq >= 7:
                 qw = float(getattr(body, "qw", 1.0) or 1.0)
@@ -383,18 +491,19 @@ class MujocoFieldBackend:
         if addrs is None:
             return
         ax, az, ay = addrs
-        try:
-            bid = self._mujoco.mj_name2id(self._mj, self._mujoco.mjtObj.mjOBJ_BODY, body.id)
+        bid = self._robot_body_id.get(body.id)
+        if bid is not None:
             xpos = self._data.xpos[bid]
             x, y, _z = mj_to_ftc(float(xpos[0]), float(xpos[1]), float(xpos[2]))
             body.x, body.y = x, y
-        except Exception:
+        else:
             x, y, _z = mj_to_ftc(float(self._data.qpos[ax]), self.robot_hz, float(self._data.qpos[az]))
             body.x, body.y = x, y
         body.heading = float(self._data.qpos[ay])
         body.z = self.robot_hz
-        jx = self._mujoco.mj_name2id(self._mj, self._mujoco.mjtObj.mjOBJ_JOINT, f"{body.id}_sx")
-        dof = int(self._mj.jnt_dofadr[jx])
+        dof = self._robot_dof.get(body.id)
+        if dof is None:
+            return
         body.vx = float(self._data.qvel[dof])
         body.vy = -float(self._data.qvel[dof + 1])
         body.omega = float(self._data.qvel[dof + 2])
@@ -425,15 +534,13 @@ class MujocoFieldBackend:
             rot = np.asarray(self._data.xmat[bid], dtype=float).reshape(3, 3)
             world = rot @ local
             body.wx, body.wy, body.wz = mj_omega_to_ftc(float(world[0]), float(world[1]), float(world[2]))
-        # Safety net if a piece fell through the floor plane; do not sphere-clamp onto CAD rims.
+        # Competitive mesh simulation fails closed instead of teleporting a
+        # tunneled body back onto the field.
         min_z = self.floor_y - 4.0
         if body.z < min_z:
-            body.z = self.floor_y + float(body.radius or 1.4)
-            body.vz = 0.0
-            adr = self._piece_qpos[slot]
-            mx, my, mz = ftc_to_mj(body.x, body.y, body.z)
-            self._data.qpos[adr : adr + 3] = [mx, my, mz]
-            self._data.qvel[vel : vel + 3] = [body.vx, body.vz, -body.vy]
+            raise PhysicalSimulationFault(
+                f"piece {body.id} tunneled below the field floor: z={body.z:.4f}"
+            )
 
     def _geom_group(self, geom_id: int) -> int:
         if geom_id < 0:
@@ -444,8 +551,9 @@ class MujocoFieldBackend:
         if geom_id < 0:
             return ""
         bid = int(self._mj.geom_bodyid[geom_id])
-        raw = self._mujoco.mj_id2name(self._mj, self._mujoco.mjtObj.mjOBJ_BODY, bid)
-        return str(raw or "")
+        if 0 <= bid < len(self._body_name_by_id):
+            return self._body_name_by_id[bid]
+        return ""
 
     def _contact_flags(self, robot_ids: set[str], piece_ids: set[str]) -> ContactSet:
         flags = ContactSet()
@@ -454,6 +562,8 @@ class MujocoFieldBackend:
         for i in range(ncon):
             c = self._data.contact[i]
             g1, g2 = int(c.geom1), int(c.geom2)
+            if g1 == self._floor_geom_id or g2 == self._floor_geom_id:
+                continue
             grp1, grp2 = self._geom_group(g1), self._geom_group(g2)
             b1, b2 = self._body_name(g1), self._body_name(g2)
             names = {b1, b2}
@@ -467,6 +577,178 @@ class MujocoFieldBackend:
             if hits_piece and (hits_field or hits_live_robot):
                 flags.piece = True
         return flags
+
+    def _robot_pose_ftc(self, robot_id: str) -> tuple[float, float, float, float, float, float] | None:
+        addrs = self._robot_jnt.get(robot_id)
+        if addrs is None:
+            return None
+        ax, az, ay = addrs
+        x, y, _z = mj_to_ftc(float(self._data.qpos[ax]), self.robot_hz, float(self._data.qpos[az]))
+        heading = float(self._data.qpos[ay])
+        dof = self._robot_dof.get(robot_id)
+        if dof is None:
+            return x, y, heading, 0.0, 0.0, 0.0
+        return (
+            x,
+            y,
+            heading,
+            float(self._data.qvel[dof]),
+            -float(self._data.qvel[dof + 1]),
+            float(self._data.qvel[dof + 2]),
+        )
+
+    def _piece_spin_ftc(self, slot: int) -> tuple[float, float, float]:
+        if self._piece_nv[slot] < 6:
+            return 0.0, 0.0, 0.0
+        bid = self._piece_body[slot]
+        vel = self._piece_qvel[slot]
+        lx = float(self._data.qvel[vel + 3])
+        ly = float(self._data.qvel[vel + 4])
+        lz = float(self._data.qvel[vel + 5])
+        mat = self._data.xmat[bid]
+        wx = float(mat[0]) * lx + float(mat[1]) * ly + float(mat[2]) * lz
+        wy = float(mat[3]) * lx + float(mat[4]) * ly + float(mat[5]) * lz
+        wz = float(mat[6]) * lx + float(mat[7]) * ly + float(mat[8]) * lz
+        return mj_omega_to_ftc(wx, wy, wz)
+
+    def _aero_coefficients(self, state: WorldStep, owner_id: str | None) -> tuple[float, float]:
+        mechanism = None
+        if owner_id:
+            mechanism = state.robot_mechanism_states.get(owner_id)
+        if mechanism is None and state.robot_mechanism_states:
+            mechanism = next(iter(state.robot_mechanism_states.values()))
+        path = dict((mechanism or {}).get("piecePath") or {})
+        return (
+            float(path.get("dragCoefficient") or 0.47),
+            float(path.get("magnusCoefficient") or 0.12),
+        )
+
+    def _apply_piece_flow_forces(self, state: WorldStep) -> None:
+        robot_rows: list[tuple[str, dict[str, Any], tuple[float, float, float, float, float, float], float]] = []
+        for robot_id, mechanism in state.robot_mechanism_states.items():
+            pose = self._robot_pose_ftc(robot_id)
+            if pose is None:
+                continue
+            chassis = mechanism.get("chassis") or {}
+            height = float(chassis.get("heightIn") or 14.0)
+            robot_rows.append((robot_id, mechanism, pose, height))
+        flywheel_loads: dict[str, float] = {}
+        recoil: dict[str, tuple[float, float, float]] = {}
+        for piece in state.pieces:
+            slot = self._id_to_slot.get(piece.id)
+            if slot is None:
+                continue
+            bid = self._piece_body[slot]
+            xpos = self._data.xpos[bid]
+            px, py, pz = mj_to_ftc(float(xpos[0]), float(xpos[1]), float(xpos[2]))
+            vel = self._piece_qvel[slot]
+            vx = float(self._data.qvel[vel])
+            vz = float(self._data.qvel[vel + 1])
+            vy = -float(self._data.qvel[vel + 2])
+            mass = max(float(piece.mass), 1e-4)
+            radius = float(piece.radius or 1.4)
+            speed = math.sqrt(vx * vx + vy * vy + vz * vz)
+            airborne = pz > self.floor_y + radius + 0.75 or speed > 36.0
+            fx = fy = fz = tx = ty = tz = 0.0
+            owner_id = state.piece_owners.get(piece.id)
+
+            for robot_id, mechanism, pose, height in robot_rows:
+                rx, ry, heading, rvx, rvy, omega = pose
+                dx = px - rx
+                dy = py - ry
+                if owner_id != robot_id and dx * dx + dy * dy > _MECHANISM_FORCE_REACH2:
+                    continue
+                if airborne and pz > height + 2.0 and speed > 24.0:
+                    continue
+                lx, ly = world_to_robot_xy(px, py, rx, ry, heading)
+                lvx, lvy, lvz = relative_velocity_robot(
+                    vx, vy, vz, rvx, rvy, omega, heading, dx, dy
+                )
+                interaction = mechanism_piece_force(
+                    piece_local=(lx, ly, pz),
+                    piece_vel_local=(lvx, lvy, lvz),
+                    piece_radius=radius,
+                    piece_mass=mass,
+                    mechanism=mechanism,
+                    owned=owner_id == robot_id,
+                )
+                if (
+                    abs(interaction.fx)
+                    + abs(interaction.fy)
+                    + abs(interaction.fz)
+                    + abs(interaction.flywheel_load_inch)
+                    < 1e-9
+                ):
+                    continue
+                wfx, wfy = rotate_robot_to_world(interaction.fx, interaction.fy, heading)
+                fx += wfx
+                fy += wfy
+                fz += interaction.fz
+                wtx, wty = rotate_robot_to_world(interaction.tx, interaction.ty, heading)
+                tx += wtx
+                ty += wty
+                tz += interaction.tz
+                flywheel_loads[robot_id] = (
+                    flywheel_loads.get(robot_id, 0.0) + interaction.flywheel_load_inch
+                )
+                prev = recoil.get(robot_id, (0.0, 0.0, 0.0))
+                recoil[robot_id] = (
+                    prev[0] - wfx,
+                    prev[1] - wfy,
+                    prev[2] + dx * (-wfy) - dy * (-wfx),
+                )
+
+            if airborne:
+                wx, wy, wz = self._piece_spin_ftc(slot)
+                drag_c, magnus_c = self._aero_coefficients(state, owner_id)
+                ax, ay, az, atx, aty, atz = aerodynamic_wrench(
+                    vx,
+                    vy,
+                    vz,
+                    wx,
+                    wy,
+                    wz,
+                    radius,
+                    drag_coefficient=drag_c,
+                    magnus_coefficient=magnus_c,
+                )
+                fx += ax
+                fy += ay
+                fz += az
+                tx += atx
+                ty += aty
+                tz += atz
+
+            if abs(fx) + abs(fy) + abs(fz) + abs(tx) + abs(ty) + abs(tz) < 1e-12:
+                continue
+            mx, my, mz = ftc_to_mj(fx, fy, fz)
+            twx, twy, twz = ftc_to_mj(tx, ty, tz)
+            self._data.xfrc_applied[bid, 0] += mx
+            self._data.xfrc_applied[bid, 1] += my
+            self._data.xfrc_applied[bid, 2] += mz
+            self._data.xfrc_applied[bid, 3] += twx
+            self._data.xfrc_applied[bid, 4] += twy
+            self._data.xfrc_applied[bid, 5] += twz
+
+        for robot_id, load in flywheel_loads.items():
+            mechanism = state.robot_mechanism_states.get(robot_id) or {}
+            path = mechanism.get("piecePath") or {}
+            flywheel = (mechanism.get("actuators") or {}).get(str(path.get("flywheelActuatorId") or "")) or {}
+            joint_id = str(flywheel.get("jointId") or "")
+            binding = self._robot_mechanism_joints.get((robot_id, joint_id))
+            if binding is None:
+                continue
+            _qpos, dof = binding
+            self._data.qfrc_applied[dof] += load
+
+        for robot_id, (rfx, rfy, rtau) in recoil.items():
+            dof = self._robot_dof.get(robot_id)
+            if dof is None:
+                continue
+            mx, _my, mz = ftc_to_mj(rfx, rfy, 0.0)
+            self._data.qfrc_applied[dof] += mx
+            self._data.qfrc_applied[dof + 1] += mz
+            self._data.qfrc_applied[dof + 2] += rtau
 
     def step_batch(self, states: list[WorldStep], dt: float) -> list[ContactSet]:
         out: list[ContactSet] = []
@@ -490,15 +772,74 @@ class MujocoFieldBackend:
             self._write_robot(body)
         for piece in state.pieces:
             self._write_piece(piece)
+        for robot_id, mechanism in state.robot_mechanism_states.items():
+            if robot_id in self._robot_mechanism_placed:
+                continue
+            for actuator in (mechanism.get("actuators") or {}).values():
+                if actuator.get("kind") == "velocity_motor":
+                    continue
+                joint_id = str(actuator.get("jointId") or "")
+                binding = self._robot_mechanism_joints.get((robot_id, joint_id))
+                if binding is None:
+                    continue
+                qpos, dof = binding
+                self._data.qpos[qpos] = math.radians(
+                    float(actuator.get("position") or 0.0)
+                )
+                self._data.qvel[dof] = 0.0
+            self._robot_mechanism_placed.add(robot_id)
         self._mujoco.mj_forward(self._mj, self._data)
-        nsub = max(1, int(round(dt / max(float(self._mj.opt.timestep), 1e-4))))
+        timestep = max(float(self._mj.opt.timestep), 1e-6)
+        nsub = max(1, int(round(dt / max(timestep, 1e-4))))
+        drive_targets: list[tuple[int, tuple[float, float, float, float, float, float]]] = []
+        for robot_id, target in self._robot_targets.items():
+            dof = self._robot_dof.get(robot_id)
+            if dof is None:
+                continue
+            drive_targets.append((dof, target))
+        actuator_torques: list[tuple[int, float]] = []
+        for robot_id, mechanism in state.robot_mechanism_states.items():
+            for actuator in (mechanism.get("actuators") or {}).values():
+                joint_id = str(actuator.get("jointId") or "")
+                binding = self._robot_mechanism_joints.get((robot_id, joint_id))
+                if binding is None:
+                    continue
+                actuator_torques.append(
+                    (binding[1], float(actuator.get("torqueNm") or 0.0) * NM_TO_INCH_TORQUE)
+                )
+        max_accel = float(state.max_accel)
+        max_ang_accel = float(state.max_ang_accel)
         for _ in range(nsub):
+            self._data.qfrc_applied[:] = 0.0
+            self._data.xfrc_applied[:] = 0.0
+            for dof, target in drive_targets:
+                vx, vz, omega, mass, hx, hy = target
+                max_force = mass * max_accel
+                fx = mass * (vx - float(self._data.qvel[dof])) / timestep
+                fz_force = mass * (vz - float(self._data.qvel[dof + 1])) / timestep
+                self._data.qfrc_applied[dof] = max(-max_force, min(max_force, fx))
+                self._data.qfrc_applied[dof + 1] = max(-max_force, min(max_force, fz_force))
+                inertia = mass * (hx * hx + hy * hy) / 3.0
+                max_torque = inertia * max_ang_accel
+                tau = inertia * (omega - float(self._data.qvel[dof + 2])) / timestep
+                self._data.qfrc_applied[dof + 2] = max(-max_torque, min(max_torque, tau))
             for mechanism_id, (qpos, dof) in self._field_mechanism_joints.items():
                 target = float(state.field_mechanism_targets.get(mechanism_id, 0.0))
                 error = target - float(self._data.qpos[qpos])
                 velocity = float(self._data.qvel[dof])
-                self._data.qfrc_applied[dof] = float(np.clip(900.0 * error - 90.0 * velocity, -700.0, 700.0))
+                effort = 6000.0 * error - 1700.0 * velocity
+                self._data.qfrc_applied[dof] = max(-6000.0, min(6000.0, effort))
+            for dof, torque in actuator_torques:
+                self._data.qfrc_applied[dof] += torque
+            self._apply_piece_flow_forces(state)
             self._mujoco.mj_step(self._mj, self._data)
+            for mechanism_id, (qpos, dof) in self._field_mechanism_joints.items():
+                target = float(state.field_mechanism_targets.get(mechanism_id, 0.0))
+                if abs(target) < 1e-9:
+                    # The real HIVE is latched before a scored tip; staged
+                    # NECTAR must not sag the inactive basket under gravity.
+                    self._data.qpos[qpos] = 0.0
+                    self._data.qvel[dof] = 0.0
         for body in state.robots:
             self._read_robot(body)
         for piece in state.pieces:

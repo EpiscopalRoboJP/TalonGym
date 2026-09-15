@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol
+import math
+from typing import Any, Protocol
 
 import numpy as np
 
@@ -13,6 +14,12 @@ from talongym.sim.geometry import (
     world_polygon,
     wrap_angle,
 )
+
+INCHES_PER_METER = 39.37007874015748
+IN_G = 386.0886
+AIR_DENSITY_KG_PER_IN3 = 1.225 / (INCHES_PER_METER ** 3)
+NM_TO_INCH_TORQUE = INCHES_PER_METER ** 2
+RPM_TO_RAD_S = 2.0 * math.pi / 60.0
 
 
 @dataclass
@@ -74,6 +81,306 @@ class WorldStep:
     max_omega: float = 1.0
     max_ang_accel: float = 1.0
     field_mechanism_targets: dict[str, float] = field(default_factory=dict)
+    robot_mechanism_states: dict[str, dict[str, Any]] = field(default_factory=dict)
+    piece_owners: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class PieceInteraction:
+    """Robot-frame wrench on a game piece from configured mechanism state."""
+
+    fx: float = 0.0
+    fy: float = 0.0
+    fz: float = 0.0
+    tx: float = 0.0
+    ty: float = 0.0
+    tz: float = 0.0
+    flywheel_load_inch: float = 0.0
+
+
+def _smoothstep(value: float, lo: float, hi: float) -> float:
+    if value <= lo:
+        return 0.0
+    if value >= hi:
+        return 1.0
+    t = (value - lo) / (hi - lo)
+    return t * t * (3.0 - 2.0 * t)
+
+
+def _clip_force(fx: float, fy: float, fz: float, mass: float) -> tuple[float, float, float]:
+    max_accel = 2200.0
+    mag = math.sqrt(fx * fx + fy * fy + fz * fz)
+    limit = max(mass, 1e-4) * max_accel
+    if mag <= limit or mag < 1e-12:
+        return fx, fy, fz
+    scale = limit / mag
+    return fx * scale, fy * scale, fz * scale
+
+
+def world_to_robot_xy(px: float, py: float, rx: float, ry: float, heading: float) -> tuple[float, float]:
+    dx, dy = px - rx, py - ry
+    cos_h, sin_h = math.cos(heading), math.sin(heading)
+    return cos_h * dx + sin_h * dy, -sin_h * dx + cos_h * dy
+
+
+def rotate_robot_to_world(lx: float, ly: float, heading: float) -> tuple[float, float]:
+    cos_h, sin_h = math.cos(heading), math.sin(heading)
+    return cos_h * lx - sin_h * ly, sin_h * lx + cos_h * ly
+
+
+def rotate_world_vel_to_robot(vx: float, vy: float, heading: float) -> tuple[float, float]:
+    cos_h, sin_h = math.cos(heading), math.sin(heading)
+    return cos_h * vx + sin_h * vy, -sin_h * vx + cos_h * vy
+
+
+def relative_velocity_robot(
+    vx: float,
+    vy: float,
+    vz: float,
+    robot_vx: float,
+    robot_vy: float,
+    omega: float,
+    heading: float,
+    rel_world_x: float,
+    rel_world_y: float,
+) -> tuple[float, float, float]:
+    """Piece velocity relative to the chassis, expressed in the robot frame."""
+    rvx = robot_vx - omega * rel_world_y
+    rvy = robot_vy + omega * rel_world_x
+    return (
+        *rotate_world_vel_to_robot(vx - rvx, vy - rvy, heading),
+        vz,
+    )
+
+
+def aerodynamic_wrench(
+    vx: float,
+    vy: float,
+    vz: float,
+    wx: float,
+    wy: float,
+    wz: float,
+    radius_in: float,
+    *,
+    drag_coefficient: float,
+    magnus_coefficient: float,
+    air_density: float = AIR_DENSITY_KG_PER_IN3,
+) -> tuple[float, float, float, float, float, float]:
+    """Linear drag, Magnus lift, and spin damping in FTC inches.
+
+    Forces are kg*in/s^2; torques are kg*in^2/s^2.
+    """
+    speed = math.sqrt(vx * vx + vy * vy + vz * vz)
+    area = math.pi * radius_in * radius_in
+    fx = fy = fz = 0.0
+    if speed > 1e-6 and drag_coefficient > 0:
+        drag = 0.5 * drag_coefficient * air_density * area * speed
+        fx -= drag * vx
+        fy -= drag * vy
+        fz -= drag * vz
+    if magnus_coefficient > 0:
+        mx = wy * vz - wz * vy
+        my = wz * vx - wx * vz
+        mz = wx * vy - wy * vx
+        magnus = magnus_coefficient * air_density * area * radius_in
+        fx += magnus * mx
+        fy += magnus * my
+        fz += magnus * mz
+    spin = math.sqrt(wx * wx + wy * wy + wz * wz)
+    tx = ty = tz = 0.0
+    if spin > 1e-6 and drag_coefficient > 0:
+        ang_drag = 0.5 * drag_coefficient * air_density * math.pi * (radius_in ** 5) * spin
+        tx -= ang_drag * wx
+        ty -= ang_drag * wy
+        tz -= ang_drag * wz
+    return fx, fy, fz, tx, ty, tz
+
+
+def _actuator(mechanism: dict[str, Any], ident: Any) -> dict[str, Any]:
+    if not ident:
+        return {}
+    row = (mechanism.get("actuators") or {}).get(str(ident))
+    return row if isinstance(row, dict) else {}
+
+
+def gate_open_fraction(actuator: dict[str, Any]) -> float:
+    travel = actuator.get("travelLimit") or [0.0, 1.0]
+    if not isinstance(travel, (list, tuple)) or len(travel) != 2:
+        command = float(actuator.get("command") or -1.0)
+        return _smoothstep(0.5 * (command + 1.0), 0.0, 1.0)
+    lo, hi = float(travel[0]), float(travel[1])
+    position = float(actuator.get("position") or lo)
+    return max(0.0, min(1.0, (position - lo) / max(hi - lo, 1e-6)))
+
+
+def _launch_direction(path: dict[str, Any], actuators: dict[str, Any]) -> tuple[float, float, float, float]:
+    muzzle = dict(path.get("muzzlePose") or {})
+    pitch_deg = float(muzzle.get("pitchDeg") or 0.0)
+    yaw_deg = float(muzzle.get("yawDeg") or muzzle.get("headingDeg") or 0.0)
+    hood = _actuator({"actuators": actuators}, path.get("hoodActuatorId"))
+    if hood:
+        pitch_deg = float(hood.get("position") or pitch_deg)
+    turret = _actuator({"actuators": actuators}, path.get("turretActuatorId"))
+    if turret:
+        yaw_deg = float(turret.get("position") or yaw_deg)
+    pitch = math.radians(pitch_deg)
+    yaw = math.radians(yaw_deg)
+    cp, sp = math.cos(pitch), math.sin(pitch)
+    cy, sy = math.cos(yaw), math.sin(yaw)
+    return cp * cy, cp * sy, sp, pitch_deg
+
+
+def mechanism_piece_force(
+    *,
+    piece_local: tuple[float, float, float],
+    piece_vel_local: tuple[float, float, float],
+    piece_radius: float,
+    piece_mass: float,
+    mechanism: dict[str, Any],
+    owned: bool = False,
+) -> PieceInteraction:
+    """Contact-like spatial forces from intake, conveyor, gate, and flywheel state.
+
+    Never assigns a launch velocity. Gate fraction, wheel RPM, and hood/turret
+    pose scale and aim the force. A closed gate produces no muzzle force.
+    """
+    path = mechanism.get("piecePath") or {}
+    if not path:
+        return PieceInteraction()
+    chassis = mechanism.get("chassis") or {}
+    half_x = 0.5 * float(chassis.get("lengthIn") or 18.0)
+    half_y = 0.5 * float(chassis.get("widthIn") or 18.0)
+    height = float(chassis.get("heightIn") or 14.0)
+    px, py, pz = piece_local
+    vx, vy, vz = piece_vel_local
+    mass = max(float(piece_mass), 1e-4)
+    radius = max(float(piece_radius), 0.1)
+    if not owned and (
+        abs(px) > half_x + 9.0 + radius
+        or abs(py) > half_y + 8.0 + radius
+        or pz > height + radius + 4.0
+        or pz < -1.0
+    ):
+        return PieceInteraction()
+    fx = fy = fz = 0.0
+    tx = ty = tz = 0.0
+    flywheel_load = 0.0
+
+    intake = _actuator(mechanism, path.get("intakeActuatorId"))
+    conveyor = _actuator(mechanism, path.get("conveyorActuatorId"))
+    flywheel = _actuator(mechanism, path.get("flywheelActuatorId"))
+    gate = _actuator(mechanism, path.get("gateActuatorId"))
+    intake_rpm = abs(float(intake.get("rpm") or 0.0))
+    conveyor_rpm = abs(float(conveyor.get("rpm") or 0.0))
+    flywheel_rpm = float(flywheel.get("rpm") or 0.0)
+    flywheel_target = max(abs(float(flywheel.get("targetRpm") or 4500.0)), 1.0)
+    intake_target = max(abs(float(intake.get("targetRpm") or 300.0)), 1.0)
+    conveyor_target = max(abs(float(conveyor.get("targetRpm") or 250.0)), 1.0)
+    open_frac = gate_open_fraction(gate) if gate else 0.0
+    launch_scale = _smoothstep(open_frac, 0.35, 0.85)
+    rpm_frac = min(1.0, abs(flywheel_rpm) / flywheel_target)
+
+    intake_pose = dict(path.get("intakePose") or {"x": half_x, "y": 0.0, "z": 2.0})
+    ix = float(intake_pose.get("x") or half_x)
+    iy = float(intake_pose.get("y") or 0.0)
+    iz = float(intake_pose.get("z") or 2.0)
+    slots = list(path.get("storageSlots") or [])
+    if slots:
+        slot_xs = [float(slot.get("x") or 0.0) for slot in slots]
+        slot_z = float(slots[0].get("z") or 4.0)
+        magazine_x = sum(slot_xs) / len(slot_xs)
+    else:
+        magazine_x = 0.0
+        slot_z = 4.0
+
+    dx_in, dy_in, dz_in = px - ix, py - iy, pz - iz
+    intake_dist = math.sqrt(dx_in * dx_in + dy_in * dy_in + dz_in * dz_in)
+    intake_reach = 7.0 + radius
+    intake_on = intake_rpm > 8.0
+    if intake_on and intake_dist < intake_reach and pz < height + radius:
+        pull = (intake_rpm / intake_target) * _smoothstep(intake_reach - intake_dist, 0.0, intake_reach)
+        tau = 0.06
+        into_x = (ix - 2.5) - px
+        desired_vx = 28.0 * math.copysign(1.0, into_x if abs(into_x) > 0.2 else -1.0) * pull
+        desired_vy = -py * 8.0 * pull
+        desired_vz = (iz - pz) * 6.0 * pull
+        fx += mass * (desired_vx - vx) / tau
+        fy += mass * (desired_vy - vy) / tau
+        fz += mass * (desired_vz - vz) / tau
+
+    inside = (
+        abs(px) <= half_x + radius + 1.0
+        and abs(py) <= half_y + radius
+        and -0.5 <= pz <= height + radius
+    )
+    conveyor_on = conveyor_rpm > 8.0 or owned
+    feed_out = launch_scale > 0.2 and rpm_frac > 0.2
+    if (inside or owned) and (conveyor_on or feed_out):
+        tau = 0.08
+        belt = min(1.0, conveyor_rpm / conveyor_target) if conveyor_on else 0.35
+        if feed_out:
+            muzzle = dict(path.get("muzzlePose") or {})
+            target_x = float(muzzle.get("x") or ix) - 2.0
+            target_z = min(float(muzzle.get("z") or slot_z), slot_z + 3.0)
+            speed = 22.0 * max(belt, 0.45)
+            desired_vx = speed
+            desired_vz = (target_z - pz) * 10.0
+        else:
+            target_x = magazine_x
+            target_z = slot_z
+            speed = 18.0 * belt
+            desired_vx = (target_x - px) * 4.0
+            desired_vx = max(-speed, min(speed, desired_vx))
+            desired_vz = (target_z - pz) * 8.0 * belt
+        fy += mass * (-vy - py * 10.0) / tau * max(belt, 0.25)
+        fx += mass * (desired_vx - vx) / tau
+        fz += mass * (desired_vz - vz) / tau
+
+    dx_l, dy_l, dz_l, _pitch_deg = _launch_direction(path, mechanism.get("actuators") or {})
+    muzzle = dict(path.get("muzzlePose") or {})
+    mx = float(muzzle.get("x") or half_x)
+    my = float(muzzle.get("y") or 0.0)
+    mz = float(muzzle.get("z") or 10.0)
+    wheel_r = float(path.get("wheelRadiusIn") or 2.0)
+    compression = float(path.get("compressionIn") or 0.25)
+    efficiency = float(path.get("launchEfficiency") or 0.2)
+    flywheel_x = mx - dx_l * (wheel_r + 1.0)
+    flywheel_y = my - dy_l * (wheel_r + 1.0)
+    flywheel_z = mz - dz_l * (wheel_r + 1.0)
+    rel_x, rel_y, rel_z = px - flywheel_x, py - flywheel_y, pz - flywheel_z
+    contact_r = wheel_r + radius + compression + 1.5
+    dist = math.sqrt(rel_x * rel_x + rel_y * rel_y + rel_z * rel_z)
+    contact = _smoothstep(contact_r - dist, 0.0, contact_r)
+    surface = abs(flywheel_rpm) * RPM_TO_RAD_S * wheel_r
+    if contact > 0.0 and abs(flywheel_rpm) > 1.0:
+        if launch_scale > 0.0:
+            desired = efficiency * surface * math.copysign(1.0, flywheel_rpm if flywheel_rpm != 0 else 1.0)
+            v_along = vx * dx_l + vy * dy_l + vz * dz_l
+            tau = 0.05
+            gain = contact * launch_scale * rpm_frac
+            mag = mass * (desired - v_along) / tau * gain
+            fx += mag * dx_l
+            fy += mag * dy_l
+            fz += mag * dz_l
+            flywheel_load = -wheel_r * mag
+            spin = -math.copysign(surface / max(radius, 1e-3), desired)
+            ty += 0.04 * mass * radius * radius * spin * gain
+        elif dist < contact_r:
+            back = contact * (1.0 - launch_scale)
+            fx -= mass * 18.0 * back * dx_l
+            fy += mass * (-vy) / 0.08 * back
+            fz += mass * ((slot_z - pz) * 6.0 - vz) / 0.08 * back
+
+    fx, fy, fz = _clip_force(fx, fy, fz, mass)
+    return PieceInteraction(
+        fx=fx,
+        fy=fy,
+        fz=fz,
+        tx=tx,
+        ty=ty,
+        tz=tz,
+        flywheel_load_inch=flywheel_load,
+    )
 
 
 class PhysicsBackend(Protocol):
@@ -142,10 +449,7 @@ class KinematicBackend:
 
 
 class Planar2DBackend:
-    """Phase 0 production fallback: planar contacts for chassis, walls, and floor pieces.
-
-    Launch / classify remain FSM + time-of-flight, not rigid-body flight.
-    """
+    """Phase 0 production fallback: planar contacts for chassis, walls, and floor pieces."""
 
     name = "planar2d"
 

@@ -29,6 +29,14 @@ def test_biobuzz_auto_volumes():
     assert blue["pose"]["y"] > 60
     assert red["pose"]["x"] < 0
     assert blue["pose"]["x"] > 0
+    red_starts = [s for s in field["startSlots"] if s["alliance"] == "red"]
+    assert {s["id"] for s in red_starts} == {"red_0", "red_1"}
+    park = next(el for el in field["elements"] if el["id"] == "red_park")
+    park_y = float(park["pose"]["y"])
+    park_hy = float(park["shape"]["depth"]) / 2.0
+    for slot in red_starts:
+        assert float(slot["pose"]["x"]) < 0
+        assert abs(float(slot["pose"]["y"]) - park_y) > park_hy
     assert field.get("backgroundAsset")
     assert field.get("collisionAsset")
     assert "mesh_field_collision" in field["requiredCapabilities"]

@@ -40,7 +40,7 @@ def test_intake_misses_beside_mouth():
     assert piece_in_intake(piece.x, piece.y, piece.z, piece.radius, -50.0, -50.0, 0.0, intake)
     for _ in range(20):
         world._mechanisms(rs, "intake", 0.05, events)
-    assert piece.id in rs.held
+    assert piece.id not in rs.held
 
 
 def test_hood_muzzle_helper_matches_trig():

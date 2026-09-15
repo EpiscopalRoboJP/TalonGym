@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -40,6 +40,24 @@ class ValidateBody(BaseModel):
     document: dict[str, Any]
 
 
+class StartOffsetBody(BaseModel):
+    x: float = 0.0
+    y: float = 0.0
+    headingDeg: float = 0.0
+
+
+class MatchRobotBody(BaseModel):
+    id: str
+    enabled: bool = True
+    dynamic: bool | None = None
+    startSlotId: str | None = None
+    offset: StartOffsetBody = Field(default_factory=StartOffsetBody)
+
+
+class MatchSetupBody(BaseModel):
+    robots: list[MatchRobotBody] = Field(default_factory=list)
+
+
 class RunBody(BaseModel):
     presets: dict[str, str] = Field(default_factory=dict)
     budget: dict[str, int] | None = None
@@ -49,6 +67,7 @@ class RunBody(BaseModel):
     easy: bool = False
     computeProfile: str | None = None
     algorithm: dict[str, Any] | None = None
+    matchSetup: MatchSetupBody | None = None
 
 
 class EvalBody(BaseModel):
@@ -57,6 +76,7 @@ class EvalBody(BaseModel):
     policy: str = "scripted"
     runId: str | None = None
     checkpoint: str | None = None
+    matchSetup: MatchSetupBody | None = None
 
 
 class ExportBody(BaseModel):
@@ -78,12 +98,14 @@ class DefaultsBody(BaseModel):
 
 @app.get(f"{API}/health")
 def health() -> dict[str, Any]:
+    from talongym.sim.mujoco_backend import available as mujoco_available
     from talongym.training.compute import detect_compute_profile, recommended_n_envs
 
     engine = default_backend(72.0, 72.0)
     return {
         "ok": True,
         "engine": engine.name,
+        "fieldEngine": "mujoco_field" if mujoco_available() else engine.name,
         "db": db.backend_name(),
         "capabilityVersion": 1,
         "version": __version__,
@@ -306,7 +328,14 @@ def start_eval(body: EvalBody) -> dict[str, Any]:
         policy = load_trained_policy(path)
     if bundle is None:
         bundle = load_bundle()
-    report = run_trials(n, policy, bundle=bundle, seed0=10_000_000, record_best=True)
+    report = run_trials(
+        n,
+        policy,
+        bundle=bundle,
+        seed0=10_000_000,
+        record_best=True,
+        match_setup=body.matchSetup.model_dump() if body.matchSetup else None,
+    )
     frames = report.pop("bestFrames", [])
     replay_id = db.save_replay(frames, {"source": "eval", "trueScore": report.get("bestScore")}) if frames else None
     report["replayId"] = replay_id
@@ -451,6 +480,56 @@ async def upload_robot_model(preset_id: str, file: UploadFile = File(...)) -> di
         raise HTTPException(
             503 if extra else 422,
             {"error": {"code": "CAD_EXTRA" if extra else "CAD_IMPORT", "message": msg}},
+        ) from exc
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+@app.post(f"{API}/presets/robot/{{preset_id}}/parts/{{part_id}}/model")
+async def upload_robot_part_model(
+    preset_id: str,
+    part_id: str,
+    file: UploadFile = File(...),
+    parent_id: str | None = Form(default=None),
+    joint_transform_json: str = Form(default="{}"),
+) -> dict[str, Any]:
+    from talongym.assets.import_robot_cad import (
+        ALLOWED_SUFFIXES,
+        MAX_UPLOAD_BYTES,
+        ROBOT_ID_RE,
+        RobotCadError,
+        import_robot_part_cad,
+    )
+
+    if not ROBOT_ID_RE.match(preset_id) or not ROBOT_ID_RE.match(part_id):
+        raise HTTPException(400, {"error": {"code": "BAD_ID", "message": part_id}})
+    suffix = Path(file.filename or "part.stl").suffix.lower()
+    if suffix not in ALLOWED_SUFFIXES:
+        raise HTTPException(400, {"error": {"code": "BAD_FORMAT", "message": suffix}})
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, {"error": {"code": "TOO_LARGE", "message": "32 MB max"}})
+    try:
+        transform = json.loads(joint_transform_json)
+        if not isinstance(transform, dict):
+            raise ValueError("joint transform must be an object")
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(400, {"error": {"code": "BAD_TRANSFORM", "message": str(exc)}}) from exc
+    tmp_dir = Path(tempfile.mkdtemp(prefix="talongym-part-cad-"))
+    tmp = tmp_dir / f"upload{suffix}"
+    try:
+        tmp.write_bytes(data)
+        return import_robot_part_cad(
+            tmp,
+            preset_id,
+            part_id,
+            parent_id=parent_id,
+            joint_transform={str(key): float(value) for key, value in transform.items()},
+        )
+    except (RobotCadError, TypeError, ValueError) as exc:
+        raise HTTPException(
+            422,
+            {"error": {"code": "CAD_IMPORT", "message": str(exc)}},
         ) from exc
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)

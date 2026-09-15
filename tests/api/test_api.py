@@ -260,6 +260,7 @@ def test_robot_model_upload_and_delete(tmp_path):
 
 
 def test_biobuzz_frames_get_cad_background():
+    from talongym.assets.cad_common import CAD_GENERATOR_VERSION
     from talongym.api.cad_frames import ensure_background_asset
 
     frame = {
@@ -270,7 +271,7 @@ def test_biobuzz_frames_get_cad_background():
     assert stamped["backgroundAsset"] == "seasons/biobuzz_2026/field.glb"
     assert stamped["cadManifest"] == "seasons/biobuzz_2026/cad_manifest.json"
     assert stamped["cadSourceSha256"] == "05b35961c7df847741031f00fda73ddd068537f809e92a11b1cd59a94bcc8331"
-    assert stamped["cadAssetVersion"].endswith(":1.1.0")
+    assert stamped["cadAssetVersion"].endswith(f":{CAD_GENERATOR_VERSION}")
     kept = ensure_background_asset({**frame, "backgroundAsset": "custom.glb"})
     assert kept["backgroundAsset"] == "custom.glb"
     assert "cadManifest" not in kept

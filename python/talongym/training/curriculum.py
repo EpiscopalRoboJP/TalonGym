@@ -54,14 +54,6 @@ def full_noise(training: dict[str, Any] | None, frac: float) -> bool:
     return "full_noise" in curriculum_unlocks(training, frac)
 
 
-def scripted_launch(training: dict[str, Any] | None, frac: float) -> bool:
-    return "scripted_launch" in curriculum_unlocks(training, frac)
-
-
-def ballistic_launch(training: dict[str, Any] | None, frac: float) -> bool:
-    return "ballistic_launch" in curriculum_unlocks(training, frac)
-
-
 def objective_value(report: dict[str, Any], objective: str) -> float:
     if objective == "p10_true_score":
         return float(report.get("p10") or 0.0)

@@ -40,10 +40,15 @@ def test_snapshot_includes_background_asset():
     assert catalog["pollen"]["shape"]["radius"] == pytest.approx(1.4)
     assert catalog["nectar_red"]["shape"]["radius"] == pytest.approx(1.8)
     assert abs(piece["qw"] ** 2 + piece["qx"] ** 2 + piece["qy"] ** 2 + piece["qz"] ** 2 - 1.0) < 0.05
-    assert len(world.pieces) == 28  # 24 staged on-field + red_0's four preloads
+    assert len(world.pieces) == 34  # 24 staged POLLEN + 6 CELL NECTAR + 4 preloads
     assert len(world.actor().held) == 4
     assert all(world.pieces[pid].held_by == "red_0" for pid in world.actor().held)
     assert not any(p.held_by in {"red_1", "blue_0", "blue_1"} for p in world.pieces.values())
+    red_nectar = [p for p in world.pieces.values() if p.type_id == "nectar_red"]
+    blue_nectar = [p for p in world.pieces.values() if p.type_id == "nectar_blue"]
+    assert len(red_nectar) == len(blue_nectar) == 3
+    assert all(p.id in world.prev_occupancy["red_cell_up"] for p in red_nectar)
+    assert all(p.id in world.prev_occupancy["blue_cell_up"] for p in blue_nectar)
     flowers = [el["pose"] for el in field["elements"] if el["type"] == "flower"]
     assert any(abs(p["x"]) > 60 and abs(p["y"]) < 30 for p in flowers)
     assert any(abs(p["y"]) > 60 and abs(p["x"]) < 30 for p in flowers)
@@ -96,13 +101,53 @@ def test_cad_world_loads_convex_parts_not_glb():
 @pytest.mark.skipif(not available(), reason="mujoco extra not installed")
 def test_hive_tip_moves_articulated_cad_hinge():
     world = _cad_world(seed=0)
-    world.accumulators["tip_count"] = 1
+    staged_z = [p.z for p in world.pieces.values() if p.type_id == "nectar_red"]
+    world.accumulators["red_tip_count"] = 1
     target = np.array([world.actor().body.x, world.actor().body.y, world.actor().body.heading])
     for _ in range(40):
         world.step(target, 0.0, 0)
     angles = {row["id"]: row["angleRad"] for row in world.snapshot()["fieldMechanisms"]}
     assert angles["red_hive"] > 0.8
     assert angles["blue_hive"] == pytest.approx(0.0, abs=0.02)
+    tipped_z = [p.z for p in world.pieces.values() if p.type_id == "nectar_red"]
+    assert max(tipped_z) < min(staged_z) - 5.0
+
+
+@pytest.mark.skipif(not available(), reason="mujoco extra not installed")
+def test_configurable_start_and_future_garden_nectar():
+    world = _cad_world(seed=0)
+    world.reset(
+        seed=0,
+        static_teammate=False,
+        full_noise=False,
+        match_setup={
+            "robots": [
+                {
+                    "id": "red_0",
+                    "enabled": True,
+                    "dynamic": True,
+                    "startSlotId": "red_1",
+                    "offset": {"x": 0.0, "y": 2.0, "headingDeg": 0.0},
+                }
+            ]
+        },
+    )
+    assert world.actor().body.y == pytest.approx(2.0, abs=0.5)
+    piece_id = world.spawn_nectar_in_garden("red", -58.75, -69.1)
+    assert world.pieces[piece_id].type_id == "nectar_red"
+    with pytest.raises(ValueError, match="outside red_garden"):
+        world.spawn_nectar_in_garden("red", 0.0, 0.0)
+
+
+@pytest.mark.skipif(not available(), reason="mujoco extra not installed")
+def test_robot_cannot_cross_step_perimeter_at_speed():
+    world = _cad_world(seed=2)
+    target = np.array([-70.0, world.actor().body.y, world.actor().body.heading])
+    for _ in range(80):
+        world.step(target, 1.0, 0)
+    body = world.actor().body
+    assert body.x - world.robot_hx >= -world.playable_half_w - 0.1
+    assert world.wall_hit
 
 
 @pytest.mark.skipif(not available(), reason="mujoco extra not installed")
@@ -199,17 +244,24 @@ def test_contacts_use_geom_groups():
 @pytest.mark.skipif(not available(), reason="mujoco extra not installed")
 def test_ballistic_tip_still_once():
     bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
-    bundle.robot["launchers"] = []
     world = World(bundle, seed=1)
-    world.reset(seed=1, static_teammate=False, ballistic_launch=True)
+    world.reset(seed=1, static_teammate=False)
     rs = world.actor()
-    target = next(el["pose"] for el in world.elements if el["id"] == "red_cell_up")
-    rs.body.x, rs.body.y, rs.body.heading = target["x"], target["y"], 1.57
-    if hasattr(world.backend, "_robot_placed"):
-        world.backend._robot_placed.discard(rs.body.id)
-    assert len(rs.held) == 4
-    for _ in range(200):
-        world.step(np.array([target["x"], target["y"], 1.57]), 0.2, 2)
+    cell = next(el for el in world.elements if el["id"] == "red_cell_up")
+    cx, cy = float(cell["pose"]["x"]), float(cell["pose"]["y"])
+    cz = float(cell["pose"].get("z") or 8.0)
+    pollen = [p for p in world.pieces.values() if p.type_id == "pollen" and p.id in set(rs.held)][:4]
+    assert len(pollen) == 4
+    for piece in pollen:
+        rs.held.remove(piece.id)
+        piece.held_by = None
+        piece.scored = False
+        piece.in_flight = True
+        piece.x, piece.y, piece.z = cx, cy, cz
+        piece.vx = piece.vy = piece.vz = 0.0
+    pose = np.array([rs.body.x, rs.body.y, rs.body.heading], dtype=np.float64)
+    for _ in range(12):
+        world.step(pose, 0.2, 0)
         if int(world.accumulators.get("launched_count") or 0) >= 4:
             break
     assert int(world.accumulators.get("launched_count") or 0) >= 1

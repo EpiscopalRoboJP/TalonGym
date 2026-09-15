@@ -43,7 +43,7 @@ export function ReplayPage() {
   const [i, setI] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [showFov, setShowFov] = useState(true);
+  const [showFov, setShowFov] = useState(false);
   const [view, setView] = useState<SceneView>("threeQuarter");
   const [java, setJava] = useState("");
   const [tab, setTab] = useState<Tab>("score");

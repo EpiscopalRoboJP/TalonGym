@@ -55,7 +55,7 @@ The loop:
 1. Builds `FTCAutoEnv` with Dict observations and `AsymmetricLstmPolicy` (actor drops `_privileged`).
 2. Optional BC warmup (`algorithm.bcWarmupSteps`) from the scripted AUTO.
 3. Wraps with `EncoderOnlyObsAssertWrapper` so privileged motif/match vars cannot leak into the actor.
-4. Applies curriculum unlocks on each reset (`scripted_launch` / `ballistic_launch` / `full_noise`).
+4. Applies curriculum unlocks on each reset (`full_noise`; mesh seasons keep physical launch from episode one).
 5. Saves `var/ckpts/latest.zip` every chunk and `var/ckpts/best.zip` when the held-out **objective** improves.
 6. Prints `true=` (episode true-score mean) and `eval=` (held-out true-score mean). Use `eval`, not shaping.
 
@@ -66,6 +66,7 @@ A short run is a smoke test. Lightweight presets declare `budget.totalEnvSteps` 
 1. `python -m talongym lab` and open `/train` (see [LAB.md](LAB.md)).
 2. Choose field, robot, scoring, and training presets (or **Set as default**).
 3. Pick a budget, then **Start run**.
+4. To change AUTO start pose: open **Advanced presets**, check **Configure robot starts**, pick an official same-alliance slot, and slide along the wall. Off-wall, opponent-side, LOADING ZONE, and FLOWER poses are rejected.
 
 | Budget | Env steps | n_envs | Scripted fallback if `[rl]` missing |
 |--------|-----------|--------|-------------------------------------|
@@ -113,18 +114,18 @@ Unlocks come from the training preset, not engine code. BIOBUZZ lightweight:
 
 ```json
 "curriculum": [
-  { "untilFrac": 0.25, "unlock": ["scripted_launch"] },
-  { "untilFrac": 0.7, "unlock": ["ballistic_launch"] },
-  { "untilFrac": 1.0, "unlock": ["ballistic_launch", "full_noise"] }
+  { "untilFrac": 0.25, "unlock": [] },
+  { "untilFrac": 0.7, "unlock": [] },
+  { "untilFrac": 1.0, "unlock": ["full_noise"] }
 ]
 ```
 
 | Unlock | Effect |
 |--------|--------|
-| `scripted_launch` | Teleport / auto-aim into the CELL (early BC) |
-| `ballistic_launch` | 3D muzzle velocity vs the mesh field |
 | `full_noise` | Full domain randomization scales |
 | `scripted_teammate` / `scripted_opponent` | Override teammate/opponent policy for that stage |
+
+Mesh BIOBUZZ runs do not unlock `scripted_launch` or `ballistic_launch`. Physical flywheel/contact launch is required from episode one.
 
 BIOBUZZ AUTO has no motif. `motif_known_at_t0` remains a generic unlock for a future season that needs a match variable.
 

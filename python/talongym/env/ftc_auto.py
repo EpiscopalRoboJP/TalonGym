@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import math
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -9,6 +10,72 @@ import numpy as np
 from talongym.presets.loader import LoadedPresets, load_bundle
 from talongym.rules.engine import MECHANISM_VERBS
 from talongym.sim.world import World
+
+
+class MechanismSensorBank:
+    """Sample-rate / noise / latency / dropout model for configured mechanism sensors."""
+
+    def __init__(self, specs: list[dict[str, Any]]) -> None:
+        self.specs = [row for row in specs if isinstance(row, dict)]
+        self.last_emit: dict[str, float] = {}
+        self.held: dict[str, float] = {}
+        self.queues: dict[str, list[tuple[float, float]]] = {}
+        self.reset()
+
+    def reset(self) -> None:
+        self.last_emit = {self._ident(i, spec): -1e9 for i, spec in enumerate(self.specs)}
+        self.held = {self._ident(i, spec): 0.0 for i, spec in enumerate(self.specs)}
+        self.queues = {self._ident(i, spec): [] for i, spec in enumerate(self.specs)}
+
+    @staticmethod
+    def _ident(index: int, spec: dict[str, Any]) -> str:
+        return str(spec.get("id") or f"sensor_{index}")
+
+    @property
+    def size(self) -> int:
+        return max(1, len(self.specs))
+
+    def observe(self, now_s: float, truths: dict[str, float], rng: np.random.Generator) -> np.ndarray:
+        out = np.zeros(self.size, dtype=np.float32)
+        if not self.specs:
+            return out
+        for i, spec in enumerate(self.specs):
+            ident = self._ident(i, spec)
+            truth = float(truths.get(ident, 0.0))
+            rate = float(spec.get("sampleRateHz") or 50.0)
+            period = 1.0 / max(rate, 1e-6)
+            if now_s - self.last_emit[ident] >= period - 1e-9:
+                first = self.last_emit[ident] < 0
+                self.last_emit[ident] = now_s
+                dropout = float(spec.get("dropoutRate") or 0.0)
+                if (not first) and float(rng.random()) < dropout:
+                    sample = self.held[ident]
+                else:
+                    noise = float(spec.get("noiseStd") or 0.0)
+                    sample = truth + (float(rng.normal(0.0, noise)) if noise > 0 else 0.0)
+                    quant = float(spec.get("quantization") or 0.0)
+                    if quant > 0:
+                        sample = round(sample / quant) * quant
+                latency = 0.0 if first else 0.001 * float(spec.get("latencyMs") or 0.0)
+                self.queues[ident].append((now_s + latency, float(sample)))
+            queue = self.queues[ident]
+            while queue and queue[0][0] <= now_s + 1e-12:
+                _, self.held[ident] = queue.pop(0)
+            out[i] = np.float32(self.held[ident])
+        return out
+
+    def as_dict(self, values: np.ndarray) -> dict[str, float]:
+        if not self.specs:
+            return {}
+        return {self._ident(i, spec): float(values[i]) for i, spec in enumerate(self.specs)}
+
+
+def _actuator_ids(robot: dict[str, Any]) -> tuple[str, ...]:
+    return tuple(str(row["id"]) for row in (robot.get("actuators") or []) if isinstance(row, dict) and row.get("id"))
+
+
+def _sensor_specs(robot: dict[str, Any]) -> list[dict[str, Any]]:
+    return [row for row in (robot.get("mechanismSensors") or []) if isinstance(row, dict)]
 
 
 class FTCAutoEnv(gym.Env):
@@ -28,6 +95,7 @@ class FTCAutoEnv(gym.Env):
         learner_id: str = "red_0",
         fill_others: bool = True,
         shared_alliance_reward: bool = False,
+        match_setup: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         self.bundle = bundle or load_bundle()
@@ -44,6 +112,7 @@ class FTCAutoEnv(gym.Env):
         self.learner_id = learner_id
         self.fill_others = fill_others
         self.shared_alliance_reward = shared_alliance_reward or teammate_policy == "shared_reward"
+        self.match_setup = match_setup
         self.world = World(self.bundle, control_hz=self.control_hz, substeps=substeps)
         self.K = 6
         self.M = 6
@@ -58,6 +127,11 @@ class FTCAutoEnv(gym.Env):
         self.match_enums = enums or [["A", "B", "C"]]
         enum_w = max((len(e) for e in self.match_enums), default=3)
         n_vars = max(1, len(vars_spec))
+        cons = self.bundle.robot.get("constraints") or {}
+        self._max_vel = float(cons.get("maxVelInPerS") or 30.0)
+        self._max_omega = math.radians(float(cons.get("maxAngVelDegPerS") or 60.0))
+        self._actuator_ids = _actuator_ids(self.bundle.robot)
+        self._sensor_bank = MechanismSensorBank(_sensor_specs(self.bundle.robot))
         self.observation_space = spaces.Dict(
             {
                 "pose_noisy": spaces.Box(low=np.array([-fw, -fd, -np.pi], np.float32), high=np.array([fw, fd, np.pi], np.float32)),
@@ -71,13 +145,33 @@ class FTCAutoEnv(gym.Env):
                 "match_var_obs": spaces.Box(0, 1, shape=(n_vars, enum_w + 1), dtype=np.float32),
                 "teammate_pose_noisy": spaces.Box(-200, 200, shape=(3,), dtype=np.float32),
                 "collision": spaces.Box(0, 1, shape=(1,), dtype=np.float32),
+                "mechanism_sensors": spaces.Box(-1e4, 1e4, shape=(self._sensor_bank.size,), dtype=np.float32),
             }
         )
-        if action_tier == "low_level_velocity":
+        self._configure_action_space()
+        self.frames: list[dict[str, Any]] = []
+        self._last_potential = 0.0
+        self._waypoint_log: list[list[float]] = []
+        self._last_sensor_vec = np.zeros(self._sensor_bank.size, dtype=np.float32)
+
+    def _configure_action_space(self) -> None:
+        field = self.bundle.field
+        fw = float(field["fieldSizeIn"]["width"]) / 2.0
+        fd = float(field["fieldSizeIn"]["depth"]) / 2.0
+        n_mech = len(MECHANISM_VERBS)
+        if self.action_tier == "low_level_velocity":
             self.action_space = spaces.Dict(
                 {
                     "velocity": spaces.Box(-60, 60, shape=(3,), dtype=np.float32),
-                    "mechanism": spaces.Discrete(len(MECHANISM_VERBS)),
+                    "mechanism": spaces.Discrete(n_mech),
+                }
+            )
+        elif self.action_tier == "physical_actuators":
+            n_act = max(1, len(self._actuator_ids))
+            self.action_space = spaces.Dict(
+                {
+                    "drive": spaces.Box(-1.0, 1.0, shape=(3,), dtype=np.float32),
+                    "actuators": spaces.Box(-1.0, 1.0, shape=(n_act,), dtype=np.float32),
                 }
             )
         else:
@@ -85,12 +179,9 @@ class FTCAutoEnv(gym.Env):
                 {
                     "target_pose": spaces.Box(low=np.array([-fw, -fd, -np.pi], np.float32), high=np.array([fw, fd, np.pi], np.float32)),
                     "speed_frac": spaces.Box(0.2, 1.0, shape=(1,), dtype=np.float32),
-                    "mechanism": spaces.Discrete(len(MECHANISM_VERBS)),
+                    "mechanism": spaces.Discrete(n_mech),
                 }
             )
-        self.frames: list[dict[str, Any]] = []
-        self._last_potential = 0.0
-        self._waypoint_log: list[list[float]] = []
 
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[dict, dict]:
         super().reset(seed=seed)
@@ -117,17 +208,21 @@ class FTCAutoEnv(gym.Env):
             live_teammate=live or bool(opts.get("live_teammate")),
             full_noise=full_noise,
             ballistic_launch=None if ballistic is None else bool(ballistic),
+            match_setup=opts.get("match_setup", self.match_setup),
         )
         if opts.get("action_tier"):
-            self.action_tier = opts["action_tier"]
+            self.action_tier = str(opts["action_tier"])
+            self._configure_action_space()
+        self._sensor_bank.reset()
         self._match_revealed = bool(self.motif_known_at_t0 or opts.get("motif_known_at_t0"))
         if self._match_revealed:
             for key, val in self.world.match_vars.items():
                 self.world.observed_vars[key] = val
-        self.frames = [self.world.snapshot()] if self.record else []
+        obs = self._obs(self.learner_id, sample=True)
+        self.frames = [self._capture_frame()] if self.record else []
         self._waypoint_log = []
         self._last_potential = self._potential()
-        return self._obs(self.learner_id), self._info(0.0, 0.0)
+        return obs, self._info(0.0, 0.0)
 
     def step(self, action: dict[str, Any] | np.ndarray) -> tuple[dict, float, bool, bool, dict]:
         parsed = self._parse_action(action)
@@ -159,9 +254,10 @@ class FTCAutoEnv(gym.Env):
         self._last_potential = potential
         objective = true_delta + shaping
         truncated = self.world.time_s >= self.world.auto_s - 1e-9
+        obs = self._obs(self.learner_id, sample=True)
         if self.record:
-            self.frames.append(self.world.snapshot())
-        return self._obs(self.learner_id), float(objective), False, truncated, self._info(true_delta, shaping)
+            self.frames.append(self._capture_frame())
+        return obs, float(objective), False, truncated, self._info(true_delta, shaping)
 
     def _filled_others(self) -> dict[str, dict[str, Any]]:
         out: dict[str, dict[str, Any]] = {}
@@ -192,22 +288,96 @@ class FTCAutoEnv(gym.Env):
                 return self.frozen_policy
         return None
 
-    def _parse_action(self, action: dict[str, Any] | np.ndarray) -> dict[str, Any] | None:
-        if isinstance(action, dict):
-            if "velocity" in action or (self.action_tier == "low_level_velocity" and "target_pose" not in action):
-                vel = np.asarray(action.get("velocity", action.get("target_pose", [0, 0, 0])), dtype=np.float64).reshape(-1)
-                if vel.size < 3 or not np.all(np.isfinite(vel[:3])):
+    def _parse_actuators(self, action: dict[str, Any]) -> dict[str, float] | None:
+        raw = action.get("actuators")
+        if raw is None:
+            return None
+        commands: dict[str, float] = {}
+        if isinstance(raw, dict):
+            for ident, value in raw.items():
+                try:
+                    commands[str(ident)] = float(np.clip(float(value), -1.0, 1.0))
+                except (TypeError, ValueError):
                     return None
-                return {"velocity": vel[:3], "mechanism": int(action.get("mechanism", 0))}
+            return commands
+        vec = np.asarray(raw, dtype=np.float64).reshape(-1)
+        if not np.all(np.isfinite(vec)):
+            return None
+        ids = self._actuator_ids or tuple(f"actuator_{i}" for i in range(max(1, vec.size)))
+        for i, ident in enumerate(ids):
+            if i >= vec.size:
+                break
+            commands[ident] = float(np.clip(vec[i], -1.0, 1.0))
+        return commands
+
+    def _drive_velocity(self, drive: Any) -> np.ndarray | None:
+        arr = np.asarray(drive, dtype=np.float64).reshape(-1)
+        if arr.size < 3 or not np.all(np.isfinite(arr[:3])):
+            return None
+        return np.array(
+            [
+                float(np.clip(arr[0], -1.0, 1.0)) * self._max_vel,
+                float(np.clip(arr[1], -1.0, 1.0)) * self._max_vel,
+                float(np.clip(arr[2], -1.0, 1.0)) * self._max_omega,
+            ],
+            dtype=np.float64,
+        )
+
+    def _parse_action(self, action: dict[str, Any] | np.ndarray) -> dict[str, Any] | None:
+        if not isinstance(action, dict):
+            action = self._dict_from_array(np.asarray(action, dtype=np.float64))
+            if action is None:
+                return None
+        parsed: dict[str, Any] = {}
+        if "target_pose" in action:
             target = np.asarray(action["target_pose"], dtype=np.float64).reshape(3)
-            speed = float(np.asarray(action["speed_frac"]).reshape(-1)[0])
-            mech = int(action["mechanism"])
+            speed_raw = action.get("speed_frac", 0.8)
+            speed = float(np.asarray(speed_raw).reshape(-1)[0])
             if not np.all(np.isfinite(target)) or not np.isfinite(speed):
                 return None
-            return {"target_pose": target, "speed_frac": speed, "mechanism": mech}
-        arr = np.asarray(action, dtype=np.float64).reshape(-1)
+            parsed["target_pose"] = target
+            parsed["speed_frac"] = speed
+        if "velocity" in action:
+            vel = np.asarray(action.get("velocity"), dtype=np.float64).reshape(-1)
+            if vel.size < 3 or not np.all(np.isfinite(vel[:3])):
+                return None
+            parsed["velocity"] = vel[:3]
+        elif "drive" in action:
+            vel = self._drive_velocity(action.get("drive"))
+            if vel is None:
+                return None
+            parsed["velocity"] = vel
+        actuators = self._parse_actuators(action)
+        if actuators is not None:
+            parsed["actuators"] = actuators
+        if "mechanism" in action:
+            try:
+                parsed["mechanism"] = int(action.get("mechanism", 0))
+            except (TypeError, ValueError):
+                return None
+        else:
+            parsed["mechanism"] = 0
+        if "target_pose" not in parsed and "velocity" not in parsed:
+            if self.action_tier == "physical_actuators" and actuators is not None:
+                parsed["velocity"] = np.zeros(3, dtype=np.float64)
+            else:
+                return None
+        return parsed
+
+    def _dict_from_array(self, arr: np.ndarray) -> dict[str, Any] | None:
+        if not np.all(np.isfinite(arr)):
+            return None
+        if self.action_tier == "physical_actuators":
+            if arr.size < 3:
+                return None
+            n_act = max(1, len(self._actuator_ids))
+            return {
+                "drive": arr[:3],
+                "actuators": arr[3 : 3 + n_act],
+                "mechanism": 0,
+            }
         if self.action_tier == "low_level_velocity":
-            if arr.size < 3 or not np.all(np.isfinite(arr[:3])):
+            if arr.size < 3:
                 return None
             mech = int(np.clip(np.round(arr[3] if arr.size > 3 else 0), 0, len(MECHANISM_VERBS) - 1))
             return {"velocity": arr[:3], "mechanism": mech}
@@ -216,8 +386,6 @@ class FTCAutoEnv(gym.Env):
         target = arr[:3]
         speed = float(arr[3])
         mech = int(np.clip(np.round(arr[4]), 0, len(MECHANISM_VERBS) - 1))
-        if not np.all(np.isfinite(target)) or not np.isfinite(speed):
-            return None
         return {"target_pose": target, "speed_frac": speed, "mechanism": mech}
 
     def _potential(self) -> float:
@@ -237,7 +405,151 @@ class FTCAutoEnv(gym.Env):
             return -0.02 * math_hypot(rs.body.x - p.x, rs.body.y - p.y)
         return 0.0
 
-    def _obs(self, robot_id: str | None = None) -> dict[str, np.ndarray]:
+    def _mechanism_truths(self, robot_id: str) -> dict[str, float]:
+        rs = self.world.robots.get(robot_id) or self.world.actor()
+        mechanism = getattr(rs, "mechanism", None)
+        state = mechanism.state_dict() if mechanism is not None else {}
+        actuators = state.get("actuators") if isinstance(state.get("actuators"), dict) else {}
+        truths: dict[str, float] = {}
+        for i, spec in enumerate(self._sensor_bank.specs):
+            ident = self._sensor_bank._ident(i, spec)
+            kind = str(spec.get("kind") or "")
+            actuator_id = spec.get("actuatorId")
+            joint_id = spec.get("jointId")
+            row = actuators.get(str(actuator_id)) if actuator_id else None
+            if row is None and joint_id:
+                for candidate in actuators.values():
+                    if str(candidate.get("jointId") or "") == str(joint_id):
+                        row = candidate
+                        break
+            row = row if isinstance(row, dict) else {}
+            if kind == "rpm":
+                truths[ident] = float(row.get("rpm") or 0.0)
+            elif kind == "encoder":
+                truths[ident] = float(row.get("position") or 0.0)
+            elif kind == "joint_position":
+                truths[ident] = float(row.get("position") or 0.0)
+            elif kind == "motor_current":
+                truths[ident] = float(row.get("currentA") or 0.0)
+            elif kind == "battery_voltage":
+                truths[ident] = float(state.get("batteryVoltageV") or (self.bundle.robot.get("powerSystem") or {}).get("openCircuitVoltageV") or 12.0)
+            elif kind == "beam_break":
+                truths[ident] = self._beam_break_truth(rs, spec)
+            else:
+                truths[ident] = 0.0
+        return truths
+
+    def _beam_break_truth(self, rs: Any, spec: dict[str, Any]) -> float:
+        pose = spec.get("pose") or {}
+        lx = float(pose.get("x") or 0.0)
+        ly = float(pose.get("y") or 0.0)
+        lz = float(pose.get("z") or 0.0)
+        heading = float(rs.body.heading)
+        c, s = math.cos(heading), math.sin(heading)
+        wx = rs.body.x + c * lx - s * ly
+        wy = rs.body.y + s * lx + c * ly
+        for piece in self.world.pieces.values():
+            if piece.scored:
+                continue
+            dz = float(getattr(piece, "z", 0.0)) - lz
+            if (piece.x - wx) ** 2 + (piece.y - wy) ** 2 + dz ** 2 <= (float(piece.radius) + 1.0) ** 2:
+                return 1.0
+        return 0.0
+
+    def _fallback_parts(self, rs: Any) -> list[dict[str, Any]]:
+        parts = []
+        heading = float(rs.body.heading)
+        c, s = math.cos(heading), math.sin(heading)
+        qw = math.cos(heading / 2.0)
+        qz = math.sin(heading / 2.0)
+        for row in self.bundle.robot.get("rigidParts") or []:
+            if not isinstance(row, dict) or not row.get("id"):
+                continue
+            pose = row.get("pose") or {}
+            lx = float(pose.get("x") or 0.0)
+            ly = float(pose.get("y") or 0.0)
+            lz = float(pose.get("z") or 0.0)
+            parts.append(
+                {
+                    "id": str(row["id"]),
+                    "x": rs.body.x + c * lx - s * ly,
+                    "y": rs.body.y + s * lx + c * ly,
+                    "z": lz + float(getattr(rs.body, "z", 0.0) or 0.0),
+                    "qw": qw,
+                    "qx": 0.0,
+                    "qy": 0.0,
+                    "qz": qz,
+                    "visualAsset": row.get("visualAsset"),
+                }
+            )
+        return parts
+
+    def _robot_parts(self, robot_id: str) -> list[dict[str, Any]]:
+        read = getattr(self.world.backend, "robot_mechanism_transforms", None)
+        if callable(read):
+            found = read().get(robot_id) or []
+            if found:
+                return list(found)
+        rs = self.world.robots.get(robot_id)
+        if rs is None:
+            return []
+        return self._fallback_parts(rs)
+
+    def _enrich_snapshot(self, snap: dict[str, Any]) -> dict[str, Any]:
+        robot_preset = self.bundle.robot
+        design = dict(snap.get("robotDesign") or {})
+        if robot_preset.get("rigidParts"):
+            design["rigidParts"] = list(robot_preset.get("rigidParts") or [])
+        if robot_preset.get("joints"):
+            design["joints"] = list(robot_preset.get("joints") or [])
+        if robot_preset.get("actuators"):
+            design["actuators"] = list(robot_preset.get("actuators") or [])
+        if robot_preset.get("piecePath"):
+            design["piecePath"] = dict(robot_preset.get("piecePath") or {})
+        if robot_preset.get("powerSystem"):
+            design["powerSystem"] = dict(robot_preset.get("powerSystem") or {})
+        snap["robotDesign"] = design
+        physical = bool(robot_preset.get("actuators") or robot_preset.get("piecePath") or robot_preset.get("rigidParts"))
+        snap["physicalPieces"] = physical
+        learner_sensors = self._sensor_bank.as_dict(self._last_sensor_vec)
+        snap["mechanismSensors"] = learner_sensors
+        robots = []
+        for robot in snap.get("robots") or []:
+            row = dict(robot)
+            rid = str(row.get("id") or "")
+            rs = self.world.robots.get(rid)
+            mechanism = getattr(rs, "mechanism", None) if rs is not None else None
+            state = mechanism.state_dict() if mechanism is not None else {}
+            actuators = state.get("actuators") if isinstance(state.get("actuators"), dict) else {}
+            row["parts"] = robot.get("parts") or self._robot_parts(rid)
+            row["actuators"] = {
+                ident: {
+                    "rpm": float(payload.get("rpm") or 0.0),
+                    "currentA": float(payload.get("currentA") or 0.0),
+                    "command": float(payload.get("command") or 0.0),
+                    "position": float(payload.get("position") or 0.0),
+                }
+                for ident, payload in actuators.items()
+                if isinstance(payload, dict)
+            }
+            row["batteryVoltageV"] = float(state.get("batteryVoltageV") or (robot_preset.get("powerSystem") or {}).get("openCircuitVoltageV") or 12.0)
+            row["batteryCurrentA"] = float(state.get("batteryCurrentA") or 0.0)
+            row["lastVerb"] = str(getattr(rs, "last_verb", "idle") if rs is not None else "idle")
+            if rid == self.learner_id:
+                row["mechanismSensors"] = learner_sensors
+                snap["mechanismCommands"] = {
+                    ident: float(payload.get("command") or 0.0)
+                    for ident, payload in actuators.items()
+                    if isinstance(payload, dict)
+                }
+            robots.append(row)
+        snap["robots"] = robots
+        return snap
+
+    def _capture_frame(self) -> dict[str, Any]:
+        return self._enrich_snapshot(self.world.snapshot())
+
+    def _obs(self, robot_id: str | None = None, *, sample: bool = True) -> dict[str, np.ndarray]:
         rid = robot_id or self.learner_id
         rs = self.world.robots.get(rid) or self.world.actor()
         noisy = np.array(
@@ -298,6 +610,13 @@ class FTCAutoEnv(gym.Env):
             ],
             dtype=np.float32,
         )
+        if rid == self.learner_id and sample:
+            self._last_sensor_vec = self._sensor_bank.observe(
+                float(self.world.time_s),
+                self._mechanism_truths(rid),
+                self.world.rng,
+            )
+        sensors = self._last_sensor_vec if rid == self.learner_id else np.zeros(self._sensor_bank.size, dtype=np.float32)
         return {
             "pose_noisy": noisy,
             "vel_noisy": np.array([rs.body.vx, rs.body.vy, rs.body.omega], dtype=np.float32),
@@ -310,11 +629,15 @@ class FTCAutoEnv(gym.Env):
             "match_var_obs": match_obs,
             "teammate_pose_noisy": teammate,
             "collision": np.array([1.0 if self.world.wall_hit or self.world.robot_hit else 0.0], dtype=np.float32),
+            "mechanism_sensors": np.asarray(sensors, dtype=np.float32),
         }
 
     def _info(self, true_delta: float, shaping: float, robot_id: str | None = None) -> dict[str, Any]:
         rid = robot_id or self.learner_id
         rs = self.world.robots.get(rid) or self.world.actor()
+        mechanism = getattr(rs, "mechanism", None)
+        state = mechanism.state_dict() if mechanism is not None else {}
+        sensor_values = self._sensor_bank.as_dict(self._last_sensor_vec)
         return {
             "true_score": self.world.true_score,
             "true_score_delta": true_delta,
@@ -322,6 +645,7 @@ class FTCAutoEnv(gym.Env):
             "collision_time_s": rs.collision_time_s,
             "first_contact_s": rs.first_contact_s,
             "entered_restricted": rs.entered_restricted,
+            "mechanism_sensors": sensor_values,
             "privileged": {
                 "matchVars": dict(self.world.match_vars),
                 "pose": [rs.body.x, rs.body.y, rs.body.heading],
@@ -336,6 +660,11 @@ class FTCAutoEnv(gym.Env):
                     [p.x, p.y, p.z, 1.0 if p.scored else 0.0]
                     for p in list(self.world.pieces.values())[:12]
                 ],
+                "actuators": state.get("actuators") or {},
+                "batteryVoltageV": float(state.get("batteryVoltageV") or 12.0),
+                "batteryCurrentA": float(state.get("batteryCurrentA") or 0.0),
+                "parts": self._robot_parts(rid),
+                "mechanismTruth": self._mechanism_truths(rid),
             },
             "waypoint_log": list(self._waypoint_log),
         }
@@ -362,15 +691,7 @@ class FlatBoxEnv(gym.Env):
         self.env = env
         sample = flatten_obs(env.observation_space.sample())
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=sample.shape, dtype=np.float32)
-        if getattr(env, "action_tier", "high_level_waypoint") == "low_level_velocity":
-            self.action_space = spaces.Box(-60, 60, shape=(4,), dtype=np.float32)
-        else:
-            pose = env.action_space["target_pose"]
-            self.action_space = spaces.Box(
-                low=np.concatenate([pose.low, np.array([0.2, 0.0], np.float32)]),
-                high=np.concatenate([pose.high, np.array([1.0, float(len(MECHANISM_VERBS) - 1)], np.float32)]),
-                dtype=np.float32,
-            )
+        self.action_space = _box_action_space(env)
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
@@ -384,23 +705,29 @@ class FlatBoxEnv(gym.Env):
         self.env.close()
 
 
+def _box_action_space(env: gym.Env) -> spaces.Box:
+    base = env.unwrapped if hasattr(env, "unwrapped") else env
+    tier = getattr(base, "action_tier", "high_level_waypoint")
+    if tier == "low_level_velocity":
+        return spaces.Box(-60, 60, shape=(4,), dtype=np.float32)
+    if tier == "physical_actuators":
+        n_act = max(1, len(getattr(base, "_actuator_ids", ())))
+        return spaces.Box(-1.0, 1.0, shape=(3 + n_act,), dtype=np.float32)
+    pose = base.action_space["target_pose"]
+    return spaces.Box(
+        low=np.concatenate([pose.low, np.array([0.2, 0.0], np.float32)]),
+        high=np.concatenate([pose.high, np.array([1.0, float(len(MECHANISM_VERBS) - 1)], np.float32)]),
+        dtype=np.float32,
+    )
+
+
 class BoxActionDictObsEnv(gym.Wrapper):
     """Keep Dict observations for MultiInputLstmPolicy; flatten mixed actions for SB3."""
 
     def __init__(self, env: gym.Env) -> None:
         super().__init__(env)
-        base = env.unwrapped
-        self._tier = getattr(base, "action_tier", "high_level_waypoint")
-        if self._tier == "low_level_velocity":
-            self.action_space = spaces.Box(-60, 60, shape=(4,), dtype=np.float32)
-        else:
-            pose = base.action_space["target_pose"]
-            n_mech = float(len(MECHANISM_VERBS) - 1)
-            self.action_space = spaces.Box(
-                low=np.concatenate([pose.low, np.array([0.2, 0.0], np.float32)]),
-                high=np.concatenate([pose.high, np.array([1.0, n_mech], np.float32)]),
-                dtype=np.float32,
-            )
+        self._tier = getattr(env.unwrapped, "action_tier", "high_level_waypoint")
+        self.action_space = _box_action_space(env)
 
 
 class EncoderOnlyObsAssertWrapper(gym.Wrapper):
@@ -434,4 +761,3 @@ class EncoderOnlyObsAssertWrapper(gym.Wrapper):
             observed = row[-1] < 0.5
             if observed and role not in visible_roles:
                 raise AssertionError(f"match var {spec.get('id')} observed without visible tag role {role}")
-

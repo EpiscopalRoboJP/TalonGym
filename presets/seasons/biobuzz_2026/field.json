@@ -37,6 +37,11 @@
     "wallHeight": 12,
     "tileSize": 24
   },
+  "playableBoundaryIn": {
+    "halfWidth": 70.674,
+    "halfDepth": 70.674
+  },
+  "requiredPreloadCount": 4,
   "requiredCapabilities": [
     "planar_drive",
     "static_colliders",
@@ -329,60 +334,82 @@
       "id": "flower_1_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": 23.386, "y": -68.05, "z": 1.392, "headingDeg": 0 },
-        { "x": 23.406, "y": -68.065, "z": 4.302, "headingDeg": 0 },
-        { "x": 23.385, "y": -68.033, "z": 7.156, "headingDeg": 0 },
-        { "x": 23.407, "y": -68.038, "z": 10.105, "headingDeg": 0 }
+        { "x": 23.39, "y": -68.04, "z": 1.395, "headingDeg": 0 },
+        { "x": 23.39, "y": -68.04, "z": 4.285, "headingDeg": 0 },
+        { "x": 23.39, "y": -68.04, "z": 7.174, "headingDeg": 0 },
+        { "x": 23.39, "y": -68.04, "z": 10.065, "headingDeg": 0 }
       ]
     },
     {
       "id": "flower_2_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": 68.062, "y": 23.381, "z": 1.4, "headingDeg": 0 },
-        { "x": 68.05, "y": 23.413, "z": 4.279, "headingDeg": 0 },
-        { "x": 68.029, "y": 23.404, "z": 7.184, "headingDeg": 0 },
-        { "x": 68.038, "y": 23.398, "z": 10.067, "headingDeg": 0 }
+        { "x": 68.043, "y": 23.393, "z": 1.414, "headingDeg": 0 },
+        { "x": 68.043, "y": 23.393, "z": 4.304, "headingDeg": 0 },
+        { "x": 68.043, "y": 23.393, "z": 7.194, "headingDeg": 0 },
+        { "x": 68.045, "y": 23.393, "z": 10.07, "headingDeg": 0 }
       ]
     },
     {
       "id": "flower_3_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": -23.389, "y": 68.018, "z": 1.377, "headingDeg": 0 },
-        { "x": -23.398, "y": 68.029, "z": 4.281, "headingDeg": 0 },
-        { "x": -23.386, "y": 68.034, "z": 7.189, "headingDeg": 0 },
-        { "x": -23.36, "y": 68.061, "z": 10.049, "headingDeg": 0 }
+        { "x": -23.393, "y": 68.04, "z": 1.4, "headingDeg": 0 },
+        { "x": -23.393, "y": 68.04, "z": 4.29, "headingDeg": 0 },
+        { "x": -23.393, "y": 68.04, "z": 7.18, "headingDeg": 0 },
+        { "x": -23.393, "y": 68.04, "z": 10.07, "headingDeg": 0 }
       ]
     },
     {
       "id": "flower_4_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": -68.025, "y": -23.391, "z": 1.409, "headingDeg": 0 },
-        { "x": -68.008, "y": -23.392, "z": 4.3, "headingDeg": 0 },
-        { "x": -68.062, "y": -23.397, "z": 7.186, "headingDeg": 0 },
-        { "x": -68.016, "y": -23.399, "z": 10.089, "headingDeg": 0 }
+        { "x": -68.043, "y": -23.393, "z": 1.414, "headingDeg": 0 },
+        { "x": -68.043, "y": -23.393, "z": 4.304, "headingDeg": 0 },
+        { "x": -68.043, "y": -23.393, "z": 7.194, "headingDeg": 0 },
+        { "x": -68.045, "y": -23.393, "z": 10.07, "headingDeg": 0 }
       ]
     },
     {
       "id": "red_garden_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": -69.274, "y": -69.257, "z": 1.379, "headingDeg": 0 },
-        { "x": -66.391, "y": -69.256, "z": 1.376, "headingDeg": 0 },
-        { "x": -63.507, "y": -69.276, "z": 1.413, "headingDeg": 0 },
-        { "x": -60.594, "y": -69.26, "z": 1.406, "headingDeg": 0 }
+        { "x": -69.272, "y": -69.274, "z": 1.411, "headingDeg": 0 },
+        { "x": -66.382, "y": -69.274, "z": 1.411, "headingDeg": 0 },
+        { "x": -63.492, "y": -69.274, "z": 1.411, "headingDeg": 0 },
+        { "x": -60.602, "y": -69.274, "z": 1.411, "headingDeg": 0 }
       ]
     },
     {
       "id": "blue_garden_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": 60.572, "y": 69.257, "z": 1.384, "headingDeg": 0 },
-        { "x": 63.511, "y": 69.276, "z": 1.399, "headingDeg": 0 },
-        { "x": 66.379, "y": 69.278, "z": 1.403, "headingDeg": 0 },
-        { "x": 69.299, "y": 69.281, "z": 1.413, "headingDeg": 0 }
+        { "x": 60.602, "y": 69.274, "z": 1.411, "headingDeg": 0 },
+        { "x": 63.492, "y": 69.274, "z": 1.411, "headingDeg": 0 },
+        { "x": 66.382, "y": 69.274, "z": 1.411, "headingDeg": 0 },
+        { "x": 69.272, "y": 69.274, "z": 1.411, "headingDeg": 0 }
+      ]
+    },
+    {
+      "id": "red_cell_nectar",
+      "pieceTypeId": "nectar_red",
+      "initialVolumeId": "red_cell_up",
+      "containedByMechanismId": "red_hive",
+      "poses": [
+        { "x": -21.03, "y": -9.505, "z": 49.923, "headingDeg": 0 },
+        { "x": -17.41, "y": -9.505, "z": 49.923, "headingDeg": 0 },
+        { "x": -13.79, "y": -9.505, "z": 49.923, "headingDeg": 0 }
+      ]
+    },
+    {
+      "id": "blue_cell_nectar",
+      "pieceTypeId": "nectar_blue",
+      "initialVolumeId": "blue_cell_up",
+      "containedByMechanismId": "blue_hive",
+      "poses": [
+        { "x": 13.775, "y": 9.505, "z": 49.958, "headingDeg": 0 },
+        { "x": 17.395, "y": 9.505, "z": 49.958, "headingDeg": 0 },
+        { "x": 21.015, "y": 9.505, "z": 49.958, "headingDeg": 0 }
       ]
     },
     {
@@ -439,25 +466,29 @@
       "id": "red_0",
       "alliance": "red",
       "slot": 0,
-      "pose": { "x": -63, "y": -24, "headingDeg": 0 }
+      "pose": { "x": -61.6, "y": -48, "headingDeg": 0 },
+      "legalRegion": { "kind": "aabb", "width": 0.148, "depth": 24 }
     },
     {
       "id": "red_1",
       "alliance": "red",
       "slot": 1,
-      "pose": { "x": -63, "y": 24, "headingDeg": 0 }
+      "pose": { "x": -61.6, "y": 0, "headingDeg": 0 },
+      "legalRegion": { "kind": "aabb", "width": 0.148, "depth": 16 }
     },
     {
       "id": "blue_0",
       "alliance": "blue",
       "slot": 0,
-      "pose": { "x": 63, "y": 24, "headingDeg": 180 }
+      "pose": { "x": 61.6, "y": 48, "headingDeg": 180 },
+      "legalRegion": { "kind": "aabb", "width": 0.148, "depth": 24 }
     },
     {
       "id": "blue_1",
       "alliance": "blue",
       "slot": 1,
-      "pose": { "x": 63, "y": -24, "headingDeg": 180 }
+      "pose": { "x": 61.6, "y": 0, "headingDeg": 180 },
+      "legalRegion": { "kind": "aabb", "width": 0.148, "depth": 16 }
     }
   ],
   "aprilTags": [

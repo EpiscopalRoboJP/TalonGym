@@ -18,7 +18,7 @@
     "defaultActionTier"
   ],
   "properties": {
-    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "schemaVersion": { "type": "string", "enum": ["1.0.0", "1.1.0"] },
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_\\-.]{1,63}$" },
     "displayName": { "type": "string" },
     "drivetrain": {
@@ -113,7 +113,7 @@
     },
     "launchers": {
       "type": "array",
-      "description": "Muzzle pose, aim, and speed. Empty or omitted keeps curriculum auto-aim / teleport scoring.",
+      "description": "Legacy launcher metadata. Physical presets bind launch behavior through piecePath and actuators.",
       "items": { "$ref": "#/$defs/launcher" }
     },
     "mechanisms": {
@@ -133,7 +133,7 @@
     },
     "defaultActionTier": {
       "type": "string",
-      "enum": ["high_level_waypoint", "low_level_velocity"]
+      "enum": ["high_level_waypoint", "low_level_velocity", "physical_actuators"]
     },
     "visualAsset": {
       "type": "string",
@@ -154,8 +154,52 @@
         "yawDeg": { "type": "number", "default": 0 },
         "scale": { "type": "number", "exclusiveMinimum": 0, "default": 1 }
       }
+    },
+    "policyInterfaceVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Version of normalized actuator actions and sensor observations used by checkpoints."
+    },
+    "rigidParts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/rigidPart" }
+    },
+    "joints": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/joint" }
+    },
+    "actuators": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/actuator" }
+    },
+    "powerSystem": { "$ref": "#/$defs/powerSystem" },
+    "piecePath": { "$ref": "#/$defs/piecePath" },
+    "mechanismSensors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/mechanismSensor" }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "schemaVersion": { "const": "1.1.0" } },
+        "required": ["schemaVersion"]
+      },
+      "then": {
+        "required": [
+          "policyInterfaceVersion",
+          "rigidParts",
+          "joints",
+          "actuators",
+          "powerSystem",
+          "piecePath",
+          "mechanismSensors"
+        ]
+      }
+    }
+  ],
   "$defs": {
     "poseOnRobot": {
       "type": "object",
@@ -166,6 +210,253 @@
         "z": { "type": "number", "description": "Inches above tile" },
         "headingDeg": { "type": "number" },
         "pitchDeg": { "type": "number" }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number", "default": 0 },
+        "y": { "type": "number", "default": 0 },
+        "z": { "type": "number", "default": 0 },
+        "rollDeg": { "type": "number", "default": 0 },
+        "pitchDeg": { "type": "number", "default": 0 },
+        "yawDeg": { "type": "number", "default": 0 }
+      }
+    },
+    "collisionShape": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "sizeIn"],
+          "properties": {
+            "kind": { "const": "box" },
+            "sizeIn": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": { "type": "number", "exclusiveMinimum": 0 }
+            },
+            "pose": { "$ref": "#/$defs/transform" },
+            "friction": { "type": "number", "minimum": 0 },
+            "restitution": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "radiusIn"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["sphere", "cylinder", "capsule"] },
+            "radiusIn": { "type": "number", "exclusiveMinimum": 0 },
+            "lengthIn": { "type": "number", "minimum": 0 },
+            "pose": { "$ref": "#/$defs/transform" },
+            "friction": { "type": "number", "minimum": 0 },
+            "restitution": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "asset"],
+          "properties": {
+            "kind": { "const": "convex_mesh" },
+            "asset": { "type": "string" },
+            "pose": { "$ref": "#/$defs/transform" },
+            "friction": { "type": "number", "minimum": 0 },
+            "restitution": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      ]
+    },
+    "rigidPart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "massKg", "collision"],
+      "properties": {
+        "id": { "type": "string" },
+        "parentId": { "type": ["string", "null"] },
+        "pose": { "$ref": "#/$defs/transform" },
+        "massKg": { "type": "number", "exclusiveMinimum": 0 },
+        "centerOfMassIn": { "$ref": "#/$defs/transform" },
+        "inertiaKgM2": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "type": "number", "exclusiveMinimum": 0 }
+        },
+        "collision": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/collisionShape" }
+        },
+        "visualAsset": { "type": "string" },
+        "visualPose": { "$ref": "#/$defs/transform" }
+      }
+    },
+    "joint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "parentPartId", "childPartId"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["fixed", "hinge", "slide"] },
+        "parentPartId": { "type": "string" },
+        "childPartId": { "type": "string" },
+        "anchorIn": { "$ref": "#/$defs/transform" },
+        "axis": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "type": "number" }
+        },
+        "limit": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "number" }
+        },
+        "damping": { "type": "number", "minimum": 0 },
+        "frictionLoss": { "type": "number", "minimum": 0 },
+        "backlash": { "type": "number", "minimum": 0 }
+      }
+    },
+    "motorCurve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nominalVoltageV", "freeSpeedRpm", "stallTorqueNm", "stallCurrentA", "freeCurrentA"],
+      "properties": {
+        "nominalVoltageV": { "type": "number", "exclusiveMinimum": 0 },
+        "freeSpeedRpm": { "type": "number", "exclusiveMinimum": 0 },
+        "stallTorqueNm": { "type": "number", "exclusiveMinimum": 0 },
+        "stallCurrentA": { "type": "number", "exclusiveMinimum": 0 },
+        "freeCurrentA": { "type": "number", "minimum": 0 }
+      }
+    },
+    "actuator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "motor",
+        "gearRatio",
+        "efficiency",
+        "rotorInertiaKgM2",
+        "loadInertiaKgM2",
+        "currentLimitA",
+        "controllerLatencyMs"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["velocity_motor", "position_motor", "servo"] },
+        "jointId": { "type": ["string", "null"] },
+        "motor": { "$ref": "#/$defs/motorCurve" },
+        "gearRatio": { "type": "number", "exclusiveMinimum": 0 },
+        "efficiency": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "rotorInertiaKgM2": { "type": "number", "minimum": 0 },
+        "loadInertiaKgM2": { "type": "number", "exclusiveMinimum": 0 },
+        "viscousFrictionNmPerRadS": { "type": "number", "minimum": 0 },
+        "coulombFrictionNm": { "type": "number", "minimum": 0 },
+        "currentLimitA": { "type": "number", "exclusiveMinimum": 0 },
+        "controllerLatencyMs": { "type": "number", "minimum": 0 },
+        "commandRatePerS": { "type": "number", "exclusiveMinimum": 0 },
+        "travelLimit": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "number" }
+        },
+        "targetRpm": { "type": "number", "minimum": 0 },
+        "kp": { "type": "number", "minimum": 0 },
+        "kd": { "type": "number", "minimum": 0 },
+        "thermal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ambientC", "shutdownC", "thermalResistanceCPerW", "thermalMassJPerC"],
+          "properties": {
+            "ambientC": { "type": "number" },
+            "shutdownC": { "type": "number" },
+            "thermalResistanceCPerW": { "type": "number", "exclusiveMinimum": 0 },
+            "thermalMassJPerC": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        }
+      }
+    },
+    "powerSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "openCircuitVoltageV",
+        "internalResistanceOhm",
+        "capacityAh",
+        "initialStateOfCharge",
+        "brownoutVoltageV"
+      ],
+      "properties": {
+        "openCircuitVoltageV": { "type": "number", "exclusiveMinimum": 0 },
+        "internalResistanceOhm": { "type": "number", "minimum": 0 },
+        "capacityAh": { "type": "number", "exclusiveMinimum": 0 },
+        "initialStateOfCharge": { "type": "number", "minimum": 0, "maximum": 1 },
+        "brownoutVoltageV": { "type": "number", "exclusiveMinimum": 0 },
+        "maxCurrentA": { "type": "number", "exclusiveMinimum": 0 },
+        "voltageNoiseStdV": { "type": "number", "minimum": 0 },
+        "currentNoiseStdA": { "type": "number", "minimum": 0 }
+      }
+    },
+    "piecePath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intakeActuatorId",
+        "conveyorActuatorId",
+        "flywheelActuatorId",
+        "gateActuatorId",
+        "storageSlots",
+        "muzzlePose"
+      ],
+      "properties": {
+        "intakeActuatorId": { "type": "string" },
+        "conveyorActuatorId": { "type": "string" },
+        "flywheelActuatorId": { "type": "string" },
+        "hoodActuatorId": { "type": ["string", "null"] },
+        "turretActuatorId": { "type": ["string", "null"] },
+        "gateActuatorId": { "type": "string" },
+        "storageSlots": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/transform" }
+        },
+        "intakePose": { "$ref": "#/$defs/transform" },
+        "muzzlePose": { "$ref": "#/$defs/transform" },
+        "muzzleClearanceIn": { "type": "number", "minimum": 0 },
+        "wheelRadiusIn": { "type": "number", "exclusiveMinimum": 0 },
+        "launchEfficiency": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "compressionIn": { "type": "number", "minimum": 0 },
+        "dragCoefficient": { "type": "number", "minimum": 0 },
+        "magnusCoefficient": { "type": "number", "minimum": 0 },
+        "coefficientVariation": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "mechanismSensor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "sampleRateHz"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": ["encoder", "rpm", "beam_break", "joint_position", "motor_current", "battery_voltage"]
+        },
+        "actuatorId": { "type": "string" },
+        "jointId": { "type": "string" },
+        "pose": { "$ref": "#/$defs/transform" },
+        "sampleRateHz": { "type": "number", "exclusiveMinimum": 0 },
+        "quantization": { "type": "number", "minimum": 0 },
+        "noiseStd": { "type": "number", "minimum": 0 },
+        "dropoutRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "latencyMs": { "type": "number", "minimum": 0 }
       }
     },
     "intake": {

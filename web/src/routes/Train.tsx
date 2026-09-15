@@ -3,9 +3,61 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { FieldScene } from "../scene/FieldScene";
 import { Sparkline } from "../Sparkline";
 import { theme } from "../theme";
-import { getJson, loadReplayFrames, postJson, putJson, robotPresetLabel, type ComputeInfo, type DefaultsBundle, type Frame, type PresetMeta, type RunRow } from "../api";
+import {
+  getJson,
+  loadReplayFrames,
+  postJson,
+  putJson,
+  robotPresetLabel,
+  type ComputeInfo,
+  type DefaultsBundle,
+  type Frame,
+  type MatchRobotSetup,
+  type PresetMeta,
+  type RunRow,
+  type StartSlot,
+} from "../api";
 
 type Profile = "demo" | "short" | "easy" | "preset";
+type FieldSetupPreset = { startSlots?: StartSlot[] };
+
+const ROBOT_IDS = ["red_0", "red_1", "blue_0", "blue_1"] as const;
+
+function defaultRobotSetup(id: (typeof ROBOT_IDS)[number]): MatchRobotSetup {
+  return {
+    id,
+    enabled: id === "red_0",
+    dynamic: id === "red_0",
+    startSlotId: id,
+    offset: { x: 0, y: 0, headingDeg: 0 },
+  };
+}
+
+function legalOffsetBounds(slot: StartSlot | undefined) {
+  const legal = slot?.legalRegion;
+  if (!legal) return { x: 0, y: 0 };
+  if (legal.kind === "aabb") {
+    return { x: (legal.width || 0) / 2, y: (legal.depth || 0) / 2 };
+  }
+  if (legal.kind === "circle") {
+    const radius = legal.radius || 0;
+    return { x: radius, y: radius };
+  }
+  return { x: 0, y: 0 };
+}
+
+function clampStartOffset(
+  slot: StartSlot | undefined,
+  offset: MatchRobotSetup["offset"],
+): MatchRobotSetup["offset"] {
+  const bounds = legalOffsetBounds(slot);
+  const heading = Number.isFinite(offset.headingDeg) ? offset.headingDeg : 0;
+  return {
+    x: Math.max(-bounds.x, Math.min(bounds.x, Number.isFinite(offset.x) ? offset.x : 0)),
+    y: Math.max(-bounds.y, Math.min(bounds.y, Number.isFinite(offset.y) ? offset.y : 0)),
+    headingDeg: Math.max(-180, Math.min(180, heading)),
+  };
+}
 
 type Metrics = {
   envSteps?: number;
@@ -40,6 +92,11 @@ export function TrainPage() {
   const [trainingId, setTrainingId] = useState("biobuzz_auto_lightweight");
   const [defaultSeason, setDefaultSeason] = useState("");
   const [profile, setProfile] = useState<Profile>("demo");
+  const [customStarts, setCustomStarts] = useState(false);
+  const [startSlots, setStartSlots] = useState<StartSlot[]>([]);
+  const [robotSetup, setRobotSetup] = useState<MatchRobotSetup[]>(
+    ROBOT_IDS.map(defaultRobotSetup),
+  );
   const [compute, setCompute] = useState<ComputeInfo | null>(null);
   const [trueSeries, setTrueSeries] = useState<number[]>([]);
   const [evalSeries, setEvalSeries] = useState<number[]>([]);
@@ -73,6 +130,24 @@ export function TrainPage() {
       .catch(() => undefined);
     refreshList();
   }, []);
+
+  useEffect(() => {
+    getJson<FieldSetupPreset>(`/presets/field/${fieldId}`)
+      .then((field) => {
+        const slots = field.startSlots || [];
+        setStartSlots(slots);
+        setRobotSetup((current) =>
+          current.map((robot) => {
+            const startSlotId = slots.some((slot) => slot.id === robot.startSlotId)
+              ? robot.startSlotId
+              : slots.find((slot) => slot.alliance === robot.id.split("_")[0])?.id || robot.id;
+            const slot = slots.find((row) => row.id === startSlotId);
+            return { ...robot, startSlotId, offset: clampStartOffset(slot, robot.offset) };
+          }),
+        );
+      })
+      .catch(() => setStartSlots([]));
+  }, [fieldId]);
 
   useEffect(() => {
     if (runId) openRun(runId);
@@ -221,6 +296,37 @@ export function TrainPage() {
     }
   }
 
+  function updateRobotSetup(id: string, update: Partial<MatchRobotSetup>) {
+    setRobotSetup((current) =>
+      current.map((robot) => {
+        if (robot.id !== id) return robot;
+        const next = { ...robot, ...update };
+        const slot = startSlots.find((row) => row.id === next.startSlotId);
+        return { ...next, offset: clampStartOffset(slot, next.offset) };
+      }),
+    );
+  }
+
+  function updateRobotOffset(
+    id: string,
+    key: keyof MatchRobotSetup["offset"],
+    value: number,
+  ) {
+    setRobotSetup((current) =>
+      current.map((robot) => {
+        if (robot.id !== id) return robot;
+        const slot = startSlots.find((row) => row.id === robot.startSlotId);
+        return {
+          ...robot,
+          offset: clampStartOffset(slot, {
+            ...robot.offset,
+            [key]: Number.isFinite(value) ? value : 0,
+          }),
+        };
+      }),
+    );
+  }
+
   async function start() {
     setLog("Queueing training…");
     const body: Record<string, unknown> = {
@@ -228,6 +334,14 @@ export function TrainPage() {
       easy: profile === "easy",
       presets: { fieldId, robotId, scoringId, trainingId: profile === "easy" ? familyTrainingId(trainingId, "easy") : trainingId },
     };
+    if (customStarts) {
+      body.matchSetup = {
+        robots: robotSetup.map((robot) => {
+          const slot = startSlots.find((row) => row.id === robot.startSlotId);
+          return { ...robot, offset: clampStartOffset(slot, robot.offset) };
+        }),
+      };
+    }
     if (profile === "demo") {
       body.nEnvs = 2;
       body.budget = { totalEnvSteps: 4096 };
@@ -385,6 +499,113 @@ export function TrainPage() {
               </option>
             ))}
           </select>
+          <label className="row">
+            <input
+              type="checkbox"
+              checked={customStarts}
+              onChange={(event) => setCustomStarts(event.target.checked)}
+            />
+            Configure robot starts
+          </label>
+          {customStarts && (
+            <>
+              <p className="note">
+                G304 starts only: own alliance half, touching the perimeter wall, not in a
+                LOADING ZONE or FLOWER. Offsets are clamped to each slot&apos;s legal region so
+                AUTO cannot begin already LEAVE- or PARK-qualified.
+              </p>
+              {robotSetup.map((robot) => {
+              const alliance = robot.id.startsWith("red") ? "red" : "blue";
+              const slot = startSlots.find((row) => row.id === robot.startSlotId);
+              const bounds = legalOffsetBounds(slot);
+              const slotTaken = robotSetup.some(
+                (other) =>
+                  other.id !== robot.id &&
+                  other.enabled &&
+                  robot.enabled &&
+                  other.startSlotId === robot.startSlotId,
+              );
+              return (
+                <div className="card" key={robot.id}>
+                  <div className="row">
+                    <strong>{robot.id}</strong>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={robot.enabled}
+                        disabled={robot.id === "red_0"}
+                        onChange={(event) =>
+                          updateRobotSetup(robot.id, { enabled: event.target.checked })
+                        }
+                      />
+                      enabled
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(robot.dynamic)}
+                        onChange={(event) =>
+                          updateRobotSetup(robot.id, { dynamic: event.target.checked })
+                        }
+                      />
+                      dynamic
+                    </label>
+                  </div>
+                  <label htmlFor={`start-slot-${robot.id}`}>Official slot</label>
+                  <select
+                    id={`start-slot-${robot.id}`}
+                    value={robot.startSlotId}
+                    onChange={(event) =>
+                      updateRobotSetup(robot.id, { startSlotId: event.target.value })
+                    }
+                  >
+                    {startSlots
+                      .filter((row) => row.alliance === alliance)
+                      .map((row) => (
+                        <option key={row.id} value={row.id}>
+                          {row.id} ({row.pose.x}, {row.pose.y}, {row.pose.headingDeg}°)
+                        </option>
+                      ))}
+                  </select>
+                  {slotTaken ? (
+                    <p className="foul-note">Two robots share this slot; they must not overlap.</p>
+                  ) : null}
+                  <div className="row">
+                    {(["x", "y", "headingDeg"] as const).map((key) => {
+                      const alongWall = key === "y";
+                      const label =
+                        key === "headingDeg"
+                          ? "heading offset"
+                          : alongWall
+                            ? "along-wall offset"
+                            : "off-wall offset";
+                      const max =
+                        key === "headingDeg" ? 180 : key === "x" ? bounds.x : bounds.y;
+                      return (
+                        <label key={key}>
+                          {label}
+                          <input
+                            type="number"
+                            step={key === "headingDeg" ? 1 : 0.05}
+                            min={-max}
+                            max={max}
+                            value={robot.offset[key]}
+                            onChange={(event) =>
+                              updateRobotOffset(robot.id, key, Number(event.target.value))
+                            }
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="note">
+                    Legal slide ±{bounds.y.toFixed(2)} in along the wall; off-wall ±{bounds.x.toFixed(3)} in.
+                  </p>
+                </div>
+              );
+              })}
+            </>
+          )}
           <div className="row">
             <button type="button" onClick={() => applyDefaults({ trainingId })}>
               Set as default

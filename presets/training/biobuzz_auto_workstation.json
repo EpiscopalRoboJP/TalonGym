@@ -43,20 +43,15 @@
     "curriculum": [
       {
         "untilFrac": 0.25,
-        "unlock": [
-          "scripted_launch"
-        ]
+        "unlock": []
       },
       {
         "untilFrac": 0.7,
-        "unlock": [
-          "ballistic_launch"
-        ]
+        "unlock": []
       },
       {
         "untilFrac": 1.0,
         "unlock": [
-          "ballistic_launch",
           "full_noise"
         ]
       }

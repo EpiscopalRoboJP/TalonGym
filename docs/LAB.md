@@ -48,6 +48,7 @@ Training and evaluation jobs also store replays; pick them from the dropdown (id
 See [TRAINING.md](TRAINING.md)#3-train-from-the-lab.
 
 - Demo / Short / Easy / Preset budgets. Easy autodetects laptop vs workstation vs cloud (`GET /compute`) and loads `*_easy`.
+- **Configure robot starts** (under Advanced presets) to pick official `startSlotId` values and legal along-wall offsets. Illegal G304 poses never reach training.
 - Live rollout of the current run (downsampled WebSocket frames).
 - **Set as default** writes the training preset bundle; **Use current selection** writes the three ids without requiring a training preset.
 - Cancel requests `POST /runs/{id}/cancel`.

@@ -38,9 +38,9 @@
     "sensorNoiseScale": 1.0,
     "fieldBuildToleranceIn": 1.0,
     "curriculum": [
-      { "untilFrac": 0.25, "unlock": ["scripted_launch"] },
-      { "untilFrac": 0.7, "unlock": ["ballistic_launch"] },
-      { "untilFrac": 1.0, "unlock": ["ballistic_launch", "full_noise"] }
+      { "untilFrac": 0.25, "unlock": [] },
+      { "untilFrac": 0.7, "unlock": [] },
+      { "untilFrac": 1.0, "unlock": ["full_noise"] }
     ]
   },
   "budget": {

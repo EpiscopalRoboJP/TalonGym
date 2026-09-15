@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any, Callable
 
@@ -49,6 +50,7 @@ def train_grpo(
     eval_cfg = (bundle.training or {}).get("evaluation") or {}
     held0 = int(eval_cfg.get("heldOutSeedStart") or 10_000_000)
     action_tier = str((bundle.training or {}).get("actionTier") or "high_level_waypoint")
+    match_setup = _kwargs.get("match_setup")
 
     try:
         import torch
@@ -58,11 +60,19 @@ def train_grpo(
         from talongym.training.asymmetric import AsymmetricLstmPolicy
         from talongym.training.privileged import PrivilegedObsWrapper
     except ImportError as exc:
-        raise RuntimeError("GRPO requires pip install -e '.[rl]'") from exc
+        raise RuntimeError(
+            "GRPO requires `.venv/bin/python -m pip install -e '.[rl]'` "
+            f"in {sys.executable}: {exc}"
+        ) from exc
 
     def make_env():
         def _init():
-            env = FTCAutoEnv(bundle=bundle, record=False, action_tier=action_tier)
+            env = FTCAutoEnv(
+                bundle=bundle,
+                record=False,
+                action_tier=action_tier,
+                match_setup=match_setup,
+            )
             return BoxActionDictObsEnv(PrivilegedObsWrapper(EncoderOnlyObsAssertWrapper(env)))
 
         return _init
@@ -86,7 +96,12 @@ def train_grpo(
     latest = save_dir / "latest.zip"
     best_path = save_dir / "best.zip"
     adapter = RecurrentPolicyAdapter(model)
-    env = FTCAutoEnv(bundle=bundle, record=False, action_tier=action_tier)
+    env = FTCAutoEnv(
+        bundle=bundle,
+        record=False,
+        action_tier=action_tier,
+        match_setup=match_setup,
+    )
     boxed = BoxActionDictObsEnv(PrivilegedObsWrapper(EncoderOnlyObsAssertWrapper(env)))
 
     opt = torch.optim.Adam(model.policy.parameters(), lr=float(algo_cfg.get("learningRate") or 3e-4))

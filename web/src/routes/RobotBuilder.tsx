@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getJson, postJson, putJson, robotPresetLabel, uploadRobotModel, deleteRobotModel, type DefaultsBundle, type IntakeSpec, type LauncherSpec, type PoseOnRobot, type PresetMeta, type VisualOffset } from "../api";
-import { RobotPreview } from "../scene/FieldScene";
+import { getJson, postJson, putJson, robotPresetLabel, uploadRobotModel, deleteRobotModel, type ActuatorSpec, type ActionTier, type DefaultsBundle, type IntakeSpec, type JointSpec, type LauncherSpec, type MechanismSensorKind, type MechanismSensorSpec, type PiecePathSpec, type PoseOnRobot, type PowerSystemSpec, type PresetMeta, type RigidPartSpec, type Transform3, type VisualOffset } from "../api";
+import { RobotPreview, launchArcPoints } from "../scene/FieldScene";
 import { theme } from "../theme";
 
 type RobotDoc = {
@@ -42,14 +42,104 @@ type RobotDoc = {
   intakes?: IntakeSpec[];
   launchers?: LauncherSpec[];
   sensors: { id: string; kind: string; fovDeg?: number; rangeIn?: number; poseOnRobot?: PoseOnRobot }[];
-  defaultActionTier: string;
+  defaultActionTier?: ActionTier;
+  policyInterfaceVersion?: string;
   visualAsset?: string | null;
   collisionAsset?: string | null;
   visualOffset?: VisualOffset;
-  [k: string]: unknown;
+  rigidParts?: RigidPartSpec[];
+  joints?: JointSpec[];
+  actuators?: ActuatorSpec[];
+  powerSystem?: PowerSystemSpec;
+  piecePath?: PiecePathSpec;
+  mechanismSensors?: MechanismSensorSpec[];
 };
 
-type Sel = { kind: "chassis" } | { kind: "intake"; id: string } | { kind: "launcher"; id: string };
+type Sel =
+  | { kind: "chassis" }
+  | { kind: "intake"; id: string }
+  | { kind: "launcher"; id: string }
+  | { kind: "part"; id: string }
+  | { kind: "joint"; id: string }
+  | { kind: "actuator"; id: string }
+  | { kind: "mechSensor"; id: string };
+
+const DEFAULT_MOTOR = {
+  nominalVoltageV: 12,
+  freeSpeedRpm: 312,
+  stallTorqueNm: 2.1,
+  stallCurrentA: 9.2,
+  freeCurrentA: 0.25,
+};
+
+function defaultPower(): PowerSystemSpec {
+  return {
+    openCircuitVoltageV: 13,
+    internalResistanceOhm: 0.018,
+    capacityAh: 3,
+    initialStateOfCharge: 1,
+    brownoutVoltageV: 9,
+    maxCurrentA: 120,
+  };
+}
+
+function defaultPiecePath(capacity: number): PiecePathSpec {
+  const slots: Transform3[] = [];
+  for (let i = 0; i < Math.max(1, capacity); i += 1) {
+    slots.push({ x: -4.5 + i * 3, y: 0, z: 4 });
+  }
+  return {
+    intakeActuatorId: "intake",
+    conveyorActuatorId: "conveyor",
+    flywheelActuatorId: "flywheel",
+    hoodActuatorId: "hood",
+    turretActuatorId: null,
+    gateActuatorId: "gate",
+    storageSlots: slots,
+    intakePose: { x: 8.5, y: 0, z: 2 },
+    muzzlePose: { x: 10.25, y: 0, z: 12, pitchDeg: 52 },
+    muzzleClearanceIn: 0.25,
+    wheelRadiusIn: 2,
+    launchEfficiency: 0.235,
+  };
+}
+
+function defaultActuator(id: string, kind: ActuatorSpec["kind"], jointId: string | null): ActuatorSpec {
+  return {
+    id,
+    kind,
+    jointId,
+    motor: { ...DEFAULT_MOTOR },
+    gearRatio: 1,
+    efficiency: 0.8,
+    rotorInertiaKgM2: 0.00008,
+    loadInertiaKgM2: 0.00035,
+    currentLimitA: 8,
+    controllerLatencyMs: 35,
+    commandRatePerS: 8,
+    ...(kind === "velocity_motor" ? { targetRpm: 300 } : { travelLimit: [0, 90], kp: 0.18, kd: 0.02 }),
+  };
+}
+
+function muzzleWarning(doc: RobotDoc): string | null {
+  const path = doc.piecePath;
+  if (!path) return null;
+  const chassis = doc.chassis;
+  const halfL = 0.5 * (chassis.lengthIn || 0);
+  const halfW = 0.5 * (chassis.widthIn || 0);
+  const height = chassis.heightIn || 0;
+  const muzzle = path.muzzlePose || {};
+  const clearance = path.muzzleClearanceIn || 0;
+  const outside =
+    Math.abs(muzzle.x || 0) >= halfL + clearance ||
+    Math.abs(muzzle.y || 0) >= halfW + clearance ||
+    (muzzle.z || 0) >= height + clearance;
+  if (!outside) return "Muzzle plus clearance still intersects the chassis envelope.";
+  if ((path.storageSlots || []).length < doc.mechanisms.capacity) {
+    return `Piece path has ${(path.storageSlots || []).length} slots for capacity ${doc.mechanisms.capacity}.`;
+  }
+  return null;
+}
 
 function cam(doc: RobotDoc) {
   return doc.sensors?.find((s) => s.kind === "apriltag_camera") || doc.sensors?.[0];
@@ -138,6 +228,8 @@ export function RobotBuilderPage() {
   const [saveAsId, setSaveAsId] = useState("");
   const [uploading, setUploading] = useState(false);
   const [lastBbox, setLastBbox] = useState<{ lengthIn: number; widthIn: number; heightIn: number } | null>(null);
+  const [previewFlywheel, setPreviewFlywheel] = useState(1);
+  const [previewHood, setPreviewHood] = useState(0.6);
   const drag = useRef<{ kind: "intake" | "launcher"; id: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -164,12 +256,24 @@ export function RobotBuilderPage() {
 
   const intakes = doc?.intakes || [];
   const launchers = doc?.launchers || [];
+  const rigidParts = doc?.rigidParts || [];
+  const joints = doc?.joints || [];
+  const actuators = doc?.actuators || [];
+  const mechanismSensors = doc?.mechanismSensors || [];
   const length = doc?.chassis.lengthIn || 18;
   const width = doc?.chassis.widthIn || 18;
   const span = Math.max(length, width) / 2 + 14;
 
   const selectedIntake = sel.kind === "intake" ? intakes.find((i) => i.id === sel.id) : undefined;
   const selectedLauncher = sel.kind === "launcher" ? launchers.find((l) => l.id === sel.id) : undefined;
+  const selectedPart = sel.kind === "part" ? rigidParts.find((p) => p.id === sel.id) : undefined;
+  const selectedJoint = sel.kind === "joint" ? joints.find((j) => j.id === sel.id) : undefined;
+  const selectedActuator = sel.kind === "actuator" ? actuators.find((a) => a.id === sel.id) : undefined;
+  const selectedMechSensor = sel.kind === "mechSensor" ? mechanismSensors.find((s) => s.id === sel.id) : undefined;
+  const launchSvg = useMemo(() => {
+    if (!doc?.piecePath) return [];
+    return launchArcPoints(doc.piecePath, previewFlywheel, previewHood, doc.actuators);
+  }, [doc?.piecePath, doc?.actuators, previewFlywheel, previewHood]);
 
   const ticks = useMemo(() => {
     const out: number[] = [];
@@ -312,6 +416,134 @@ export function RobotBuilderPage() {
       setDoc({ ...doc, launchers: launchers.filter((l) => l.id !== sel.id) });
       setSel({ kind: "chassis" });
     }
+    if (sel.kind === "part") {
+      setDoc({ ...doc, rigidParts: rigidParts.filter((p) => p.id !== sel.id) });
+      setSel({ kind: "chassis" });
+    }
+    if (sel.kind === "joint") {
+      setDoc({ ...doc, joints: joints.filter((j) => j.id !== sel.id) });
+      setSel({ kind: "chassis" });
+    }
+    if (sel.kind === "actuator") {
+      setDoc({ ...doc, actuators: actuators.filter((a) => a.id !== sel.id) });
+      setSel({ kind: "chassis" });
+    }
+    if (sel.kind === "mechSensor") {
+      setDoc({ ...doc, mechanismSensors: mechanismSensors.filter((s) => s.id !== sel.id) });
+      setSel({ kind: "chassis" });
+    }
+  }
+
+  function enablePhysical() {
+    if (!doc) return;
+    const chassisPart: RigidPartSpec = doc.rigidParts?.find((p) => p.id === "chassis") || {
+      id: "chassis",
+      parentId: null,
+      pose: { x: 0, y: 0, z: 0 },
+      massKg: doc.chassis.massKg,
+      collision: [{ kind: "box", sizeIn: [doc.chassis.lengthIn, doc.chassis.widthIn, doc.chassis.heightIn ?? 10] }],
+    };
+    const parts = doc.rigidParts?.length ? doc.rigidParts : [chassisPart];
+    setDoc({
+      ...doc,
+      schemaVersion: "1.1.0",
+      policyInterfaceVersion: doc.policyInterfaceVersion || "1.0.0",
+      rigidParts: parts,
+      joints: doc.joints || [],
+      actuators: doc.actuators || [],
+      powerSystem: doc.powerSystem || defaultPower(),
+      piecePath: doc.piecePath || defaultPiecePath(doc.mechanisms.capacity),
+      mechanismSensors: doc.mechanismSensors || [
+        { id: "battery_voltage", kind: "battery_voltage", sampleRateHz: 50, quantization: 0.01, noiseStd: 0.025, latencyMs: 20 },
+      ],
+    });
+    setSel({ kind: "part", id: "chassis" });
+  }
+
+  function addPart() {
+    if (!doc) return;
+    const nid = nextId("part", rigidParts.map((p) => p.id));
+    const item: RigidPartSpec = {
+      id: nid,
+      parentId: "chassis",
+      pose: { x: 4, y: 0, z: 2 },
+      massKg: 0.4,
+      collision: [{ kind: "box", sizeIn: [4, 3, 2] }],
+    };
+    setDoc({ ...doc, rigidParts: [...rigidParts, item] });
+    setSel({ kind: "part", id: nid });
+  }
+
+  function addJoint() {
+    if (!doc) return;
+    const nid = nextId("joint", joints.map((j) => j.id));
+    const parent = rigidParts[0]?.id || "chassis";
+    const child = rigidParts.find((p) => p.id !== parent)?.id || parent;
+    const item: JointSpec = {
+      id: nid,
+      type: "hinge",
+      parentPartId: parent,
+      childPartId: child,
+      anchorIn: { x: 0, y: 0, z: 0 },
+      axis: [0, 1, 0],
+      limit: [0, 90],
+    };
+    setDoc({ ...doc, joints: [...joints, item] });
+    setSel({ kind: "joint", id: nid });
+  }
+
+  function addActuator() {
+    if (!doc) return;
+    const nid = nextId("actuator", actuators.map((a) => a.id));
+    const item = defaultActuator(nid, "velocity_motor", joints[0]?.id || null);
+    setDoc({ ...doc, actuators: [...actuators, item] });
+    setSel({ kind: "actuator", id: nid });
+  }
+
+  function addMechSensor() {
+    if (!doc) return;
+    const nid = nextId("sensor", mechanismSensors.map((s) => s.id));
+    const item: MechanismSensorSpec = {
+      id: nid,
+      kind: "rpm",
+      actuatorId: actuators[0]?.id,
+      sampleRateHz: 50,
+      quantization: 1,
+      noiseStd: 1,
+      latencyMs: 20,
+    };
+    setDoc({ ...doc, mechanismSensors: [...mechanismSensors, item] });
+    setSel({ kind: "mechSensor", id: nid });
+  }
+
+  function patchPart(id: string, partial: Partial<RigidPartSpec>) {
+    if (!doc) return;
+    setDoc({ ...doc, rigidParts: rigidParts.map((p) => (p.id === id ? { ...p, ...partial } : p)) });
+  }
+
+  function patchJoint(id: string, partial: Partial<JointSpec>) {
+    if (!doc) return;
+    setDoc({ ...doc, joints: joints.map((j) => (j.id === id ? { ...j, ...partial } : j)) });
+  }
+
+  function patchActuator(id: string, partial: Partial<ActuatorSpec>) {
+    if (!doc) return;
+    setDoc({ ...doc, actuators: actuators.map((a) => (a.id === id ? { ...a, ...partial } : a)) });
+  }
+
+  function patchSensor(id: string, partial: Partial<MechanismSensorSpec>) {
+    if (!doc) return;
+    setDoc({ ...doc, mechanismSensors: mechanismSensors.map((s) => (s.id === id ? { ...s, ...partial } : s)) });
+  }
+
+  function patchPath(partial: Partial<PiecePathSpec>) {
+    if (!doc) return;
+    setDoc({ ...doc, piecePath: { ...(doc.piecePath || defaultPiecePath(doc.mechanisms.capacity)), ...partial } });
+  }
+
+  function patchPower(partial: Partial<PowerSystemSpec>) {
+    if (!doc) return;
+    setDoc({ ...doc, powerSystem: { ...(doc.powerSystem || defaultPower()), ...partial } });
   }
 
   async function onUploadModel(file: File | undefined) {
@@ -467,6 +699,14 @@ export function RobotBuilderPage() {
                 strokeWidth={sel.kind === "chassis" ? 0.7 : 0.35}
               />
               <polygon points={`${length / 2 - 1.5},0 ${length / 2},${-2} ${length / 2},${2}`} fill={theme.maroonDark} />
+              {launchSvg.length > 1 && (
+                <polyline
+                  points={launchSvg.map(([px, , pz]) => `${px},${pz}`).join(" ")}
+                  fill="none"
+                  stroke={theme.goldBright}
+                  strokeWidth={0.45}
+                />
+              )}
               {intakes.map((intake) => (
                 <polygon
                   key={intake.id}
@@ -513,8 +753,13 @@ export function RobotBuilderPage() {
                   visualAsset: typeof doc.visualAsset === "string" ? doc.visualAsset : null,
                   visualOffset: doc.visualOffset,
                   collisionShape: doc.chassis.collisionShape,
+                  rigidParts: doc.rigidParts,
+                  joints: doc.joints,
+                  actuators: doc.actuators,
+                  piecePath: doc.piecePath,
                 }}
                 showHull={doc.chassis.collisionShape === "mesh"}
+                launchPreview={{ flywheelFrac: previewFlywheel, hoodFrac: previewHood }}
               />
             </div>
           </div>
@@ -527,7 +772,12 @@ export function RobotBuilderPage() {
               <button type="button" onClick={addLauncher}>
                 Add launcher
               </button>
-              {(sel.kind === "intake" || sel.kind === "launcher") && (
+              {(sel.kind === "intake" ||
+                sel.kind === "launcher" ||
+                sel.kind === "part" ||
+                sel.kind === "joint" ||
+                sel.kind === "actuator" ||
+                sel.kind === "mechSensor") && (
                 <button type="button" onClick={removeSelected}>
                   Remove selected
                 </button>
@@ -555,6 +805,16 @@ export function RobotBuilderPage() {
                   value={doc.drivetrain.trackWidthIn}
                   onChange={(e) => setDoc({ ...doc, drivetrain: { ...doc.drivetrain, trackWidthIn: Number(e.target.value) } })}
                 />
+                <label htmlFor="action-tier">Action tier</label>
+                <select
+                  id="action-tier"
+                  value={doc.defaultActionTier || "high_level_waypoint"}
+                  onChange={(e) => setDoc({ ...doc, defaultActionTier: e.target.value as ActionTier })}
+                >
+                  <option value="high_level_waypoint">high_level_waypoint</option>
+                  <option value="low_level_velocity">low_level_velocity</option>
+                  <option value="physical_actuators">physical_actuators</option>
+                </select>
               </div>
             </div>
 
@@ -960,6 +1220,251 @@ export function RobotBuilderPage() {
               />
             </div>
           </div>
+        </div>
+
+        <div className="card">
+          <h3>Physical mechanism</h3>
+          <p className="note">
+            Hierarchy, joints, actuators, sensors, and piece path. Schema 1.1 is required for competitive physical simulation.
+            Gold arc is a ballistic launch preview from muzzle pose, flywheel RPM, and hood travel.
+          </p>
+          <div className="row">
+            <button type="button" onClick={enablePhysical}>
+              Enable physical fields
+            </button>
+            <button type="button" onClick={addPart}>
+              Add part
+            </button>
+            <button type="button" onClick={addJoint}>
+              Add joint
+            </button>
+            <button type="button" onClick={addActuator}>
+              Add actuator
+            </button>
+            <button type="button" onClick={addMechSensor}>
+              Add sensor
+            </button>
+          </div>
+          {muzzleWarning(doc) && <p className="note">{muzzleWarning(doc)}</p>}
+          <div className="legend">
+            {rigidParts.map((part) => (
+              <button key={part.id} type="button" className={sel.kind === "part" && sel.id === part.id ? "on" : ""} onClick={() => setSel({ kind: "part", id: part.id })}>
+                {part.id}
+                {part.parentId ? ` ← ${part.parentId}` : " (root)"}
+              </button>
+            ))}
+          </div>
+          {selectedPart && (
+            <div className="form-grid">
+              <label htmlFor="part-id">Part id</label>
+              <input id="part-id" value={selectedPart.id} onChange={(e) => patchPart(selectedPart.id, { id: e.target.value })} />
+              <label htmlFor="part-parent">Parent</label>
+              <select
+                id="part-parent"
+                value={selectedPart.parentId || ""}
+                onChange={(e) => patchPart(selectedPart.id, { parentId: e.target.value || null })}
+              >
+                <option value="">none (root)</option>
+                {rigidParts.filter((p) => p.id !== selectedPart.id).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.id}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="part-mass">Mass (kg)</label>
+              <input id="part-mass" className="narrow" type="number" value={selectedPart.massKg} onChange={(e) => patchPart(selectedPart.id, { massKg: Number(e.target.value) })} />
+              <label htmlFor="part-x">x (in)</label>
+              <input id="part-x" className="narrow" type="number" value={selectedPart.pose?.x ?? 0} onChange={(e) => patchPart(selectedPart.id, { pose: { ...(selectedPart.pose || {}), x: Number(e.target.value) } })} />
+              <label htmlFor="part-y">y (in)</label>
+              <input id="part-y" className="narrow" type="number" value={selectedPart.pose?.y ?? 0} onChange={(e) => patchPart(selectedPart.id, { pose: { ...(selectedPart.pose || {}), y: Number(e.target.value) } })} />
+              <label htmlFor="part-z">z (in)</label>
+              <input id="part-z" className="narrow" type="number" value={selectedPart.pose?.z ?? 0} onChange={(e) => patchPart(selectedPart.id, { pose: { ...(selectedPart.pose || {}), z: Number(e.target.value) } })} />
+              <label htmlFor="part-visual">Visual asset</label>
+              <input id="part-visual" value={selectedPart.visualAsset || ""} onChange={(e) => patchPart(selectedPart.id, { visualAsset: e.target.value || undefined })} />
+            </div>
+          )}
+          <p className="stat">Joints</p>
+          <div className="legend">
+            {joints.map((joint) => (
+              <button key={joint.id} type="button" className={sel.kind === "joint" && sel.id === joint.id ? "on" : ""} onClick={() => setSel({ kind: "joint", id: joint.id })}>
+                {joint.id}
+              </button>
+            ))}
+          </div>
+          {selectedJoint && (
+            <div className="form-grid">
+              <label htmlFor="joint-type">Type</label>
+              <select id="joint-type" value={selectedJoint.type} onChange={(e) => patchJoint(selectedJoint.id, { type: e.target.value as JointSpec["type"] })}>
+                <option value="fixed">fixed</option>
+                <option value="hinge">hinge</option>
+                <option value="slide">slide</option>
+              </select>
+              <label htmlFor="joint-parent">Parent part</label>
+              <select id="joint-parent" value={selectedJoint.parentPartId} onChange={(e) => patchJoint(selectedJoint.id, { parentPartId: e.target.value })}>
+                {rigidParts.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.id}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="joint-child">Child part</label>
+              <select id="joint-child" value={selectedJoint.childPartId} onChange={(e) => patchJoint(selectedJoint.id, { childPartId: e.target.value })}>
+                {rigidParts.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.id}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="joint-lo">Limit min</label>
+              <input id="joint-lo" className="narrow" type="number" value={selectedJoint.limit?.[0] ?? 0} onChange={(e) => patchJoint(selectedJoint.id, { limit: [Number(e.target.value), selectedJoint.limit?.[1] ?? 90] })} />
+              <label htmlFor="joint-hi">Limit max</label>
+              <input id="joint-hi" className="narrow" type="number" value={selectedJoint.limit?.[1] ?? 90} onChange={(e) => patchJoint(selectedJoint.id, { limit: [selectedJoint.limit?.[0] ?? 0, Number(e.target.value)] })} />
+            </div>
+          )}
+          <p className="stat">Actuators</p>
+          <div className="legend">
+            {actuators.map((actuator) => (
+              <button key={actuator.id} type="button" className={sel.kind === "actuator" && sel.id === actuator.id ? "on" : ""} onClick={() => setSel({ kind: "actuator", id: actuator.id })}>
+                {actuator.id}
+              </button>
+            ))}
+          </div>
+          {selectedActuator && (
+            <div className="form-grid">
+              <label htmlFor="act-kind">Kind</label>
+              <select id="act-kind" value={selectedActuator.kind} onChange={(e) => patchActuator(selectedActuator.id, { kind: e.target.value as ActuatorSpec["kind"] })}>
+                <option value="velocity_motor">velocity_motor</option>
+                <option value="position_motor">position_motor</option>
+                <option value="servo">servo</option>
+              </select>
+              <label htmlFor="act-joint">Joint</label>
+              <select
+                id="act-joint"
+                value={selectedActuator.jointId || ""}
+                onChange={(e) => patchActuator(selectedActuator.id, { jointId: e.target.value || null })}
+              >
+                <option value="">none</option>
+                {joints.map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.id}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="act-current">Current limit (A)</label>
+              <input id="act-current" className="narrow" type="number" value={selectedActuator.currentLimitA} onChange={(e) => patchActuator(selectedActuator.id, { currentLimitA: Number(e.target.value) })} />
+              <label htmlFor="act-rpm">Target RPM</label>
+              <input id="act-rpm" className="narrow" type="number" value={selectedActuator.targetRpm ?? 0} onChange={(e) => patchActuator(selectedActuator.id, { targetRpm: Number(e.target.value) })} />
+              <label htmlFor="act-lat">Latency (ms)</label>
+              <input id="act-lat" className="narrow" type="number" value={selectedActuator.controllerLatencyMs} onChange={(e) => patchActuator(selectedActuator.id, { controllerLatencyMs: Number(e.target.value) })} />
+            </div>
+          )}
+          <p className="stat">Mechanism sensors</p>
+          <div className="legend">
+            {mechanismSensors.map((sensor) => (
+              <button key={sensor.id} type="button" className={sel.kind === "mechSensor" && sel.id === sensor.id ? "on" : ""} onClick={() => setSel({ kind: "mechSensor", id: sensor.id })}>
+                {sensor.id}
+              </button>
+            ))}
+          </div>
+          {selectedMechSensor && (
+            <div className="form-grid">
+              <label htmlFor="ms-kind">Kind</label>
+              <select id="ms-kind" value={selectedMechSensor.kind} onChange={(e) => patchSensor(selectedMechSensor.id, { kind: e.target.value as MechanismSensorKind })}>
+                <option value="rpm">rpm</option>
+                <option value="encoder">encoder</option>
+                <option value="joint_position">joint_position</option>
+                <option value="motor_current">motor_current</option>
+                <option value="battery_voltage">battery_voltage</option>
+                <option value="beam_break">beam_break</option>
+              </select>
+              <label htmlFor="ms-act">Actuator</label>
+              <select
+                id="ms-act"
+                value={selectedMechSensor.actuatorId || ""}
+                onChange={(e) => patchSensor(selectedMechSensor.id, { actuatorId: e.target.value || undefined })}
+              >
+                <option value="">none</option>
+                {actuators.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.id}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="ms-rate">Sample rate (Hz)</label>
+              <input id="ms-rate" className="narrow" type="number" value={selectedMechSensor.sampleRateHz} onChange={(e) => patchSensor(selectedMechSensor.id, { sampleRateHz: Number(e.target.value) })} />
+              <label htmlFor="ms-noise">Noise std</label>
+              <input id="ms-noise" className="narrow" type="number" value={selectedMechSensor.noiseStd ?? 0} onChange={(e) => patchSensor(selectedMechSensor.id, { noiseStd: Number(e.target.value) })} />
+              <label htmlFor="ms-lat">Latency (ms)</label>
+              <input id="ms-lat" className="narrow" type="number" value={selectedMechSensor.latencyMs ?? 0} onChange={(e) => patchSensor(selectedMechSensor.id, { latencyMs: Number(e.target.value) })} />
+            </div>
+          )}
+          <p className="stat">Electrical</p>
+          <div className="form-grid">
+            <label htmlFor="ps-v">Open-circuit V</label>
+            <input id="ps-v" className="narrow" type="number" value={doc.powerSystem?.openCircuitVoltageV ?? 13} onChange={(e) => patchPower({ openCircuitVoltageV: Number(e.target.value) })} />
+            <label htmlFor="ps-r">Internal R (ohm)</label>
+            <input id="ps-r" className="narrow" type="number" value={doc.powerSystem?.internalResistanceOhm ?? 0.018} onChange={(e) => patchPower({ internalResistanceOhm: Number(e.target.value) })} />
+            <label htmlFor="ps-ah">Capacity (Ah)</label>
+            <input id="ps-ah" className="narrow" type="number" value={doc.powerSystem?.capacityAh ?? 3} onChange={(e) => patchPower({ capacityAh: Number(e.target.value) })} />
+            <label htmlFor="ps-soc">Initial SoC</label>
+            <input id="ps-soc" className="narrow" type="number" step={0.01} value={doc.powerSystem?.initialStateOfCharge ?? 1} onChange={(e) => patchPower({ initialStateOfCharge: Number(e.target.value) })} />
+            <label htmlFor="ps-bo">Brownout V</label>
+            <input id="ps-bo" className="narrow" type="number" value={doc.powerSystem?.brownoutVoltageV ?? 9} onChange={(e) => patchPower({ brownoutVoltageV: Number(e.target.value) })} />
+          </div>
+          <p className="stat">Piece path / muzzle</p>
+          <div className="form-grid">
+            <label htmlFor="pp-intake">Intake actuator</label>
+            <input id="pp-intake" value={doc.piecePath?.intakeActuatorId || ""} onChange={(e) => patchPath({ intakeActuatorId: e.target.value })} />
+            <label htmlFor="pp-conv">Conveyor actuator</label>
+            <input id="pp-conv" value={doc.piecePath?.conveyorActuatorId || ""} onChange={(e) => patchPath({ conveyorActuatorId: e.target.value })} />
+            <label htmlFor="pp-fly">Flywheel actuator</label>
+            <input id="pp-fly" value={doc.piecePath?.flywheelActuatorId || ""} onChange={(e) => patchPath({ flywheelActuatorId: e.target.value })} />
+            <label htmlFor="pp-gate">Gate actuator</label>
+            <input id="pp-gate" value={doc.piecePath?.gateActuatorId || ""} onChange={(e) => patchPath({ gateActuatorId: e.target.value })} />
+            <label htmlFor="pp-hood">Hood actuator</label>
+            <input id="pp-hood" value={doc.piecePath?.hoodActuatorId || ""} onChange={(e) => patchPath({ hoodActuatorId: e.target.value || null })} />
+            <label htmlFor="pp-mx">Muzzle x</label>
+            <input id="pp-mx" className="narrow" type="number" value={doc.piecePath?.muzzlePose?.x ?? 0} onChange={(e) => patchPath({ muzzlePose: { ...(doc.piecePath?.muzzlePose || {}), x: Number(e.target.value) } })} />
+            <label htmlFor="pp-my">Muzzle y</label>
+            <input id="pp-my" className="narrow" type="number" value={doc.piecePath?.muzzlePose?.y ?? 0} onChange={(e) => patchPath({ muzzlePose: { ...(doc.piecePath?.muzzlePose || {}), y: Number(e.target.value) } })} />
+            <label htmlFor="pp-mz">Muzzle z</label>
+            <input id="pp-mz" className="narrow" type="number" value={doc.piecePath?.muzzlePose?.z ?? 12} onChange={(e) => patchPath({ muzzlePose: { ...(doc.piecePath?.muzzlePose || {}), z: Number(e.target.value) } })} />
+            <label htmlFor="pp-eff">Launch efficiency</label>
+            <input id="pp-eff" className="narrow" type="number" step={0.01} value={doc.piecePath?.launchEfficiency ?? 0.235} onChange={(e) => patchPath({ launchEfficiency: Number(e.target.value) })} />
+            <label htmlFor="pp-slots">Storage slots</label>
+            <input
+              id="pp-slots"
+              type="number"
+              className="narrow"
+              value={(doc.piecePath?.storageSlots || []).length}
+              onChange={(e) => {
+                const n = Math.max(1, Number(e.target.value));
+                const slots = [...(doc.piecePath?.storageSlots || [])];
+                while (slots.length < n) slots.push({ x: -4.5 + slots.length * 3, y: 0, z: 4 });
+                patchPath({ storageSlots: slots.slice(0, n) });
+              }}
+            />
+          </div>
+          <Slider
+            id="prev-fly"
+            label="Preview flywheel"
+            value={previewFlywheel}
+            min={0}
+            max={1}
+            step={0.05}
+            unit=""
+            onChange={setPreviewFlywheel}
+          />
+          <Slider
+            id="prev-hood"
+            label="Preview hood"
+            value={previewHood}
+            min={0}
+            max={1}
+            step={0.05}
+            unit=""
+            onChange={setPreviewHood}
+          />
         </div>
 
         <div className="card">

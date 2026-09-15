@@ -29,8 +29,11 @@
     { "id": "parked_auto", "valueType": "bool", "scope": "robot", "init": false },
     { "id": "leave_park_points", "valueType": "int", "scope": "alliance", "init": 0 },
     { "id": "red_up_cell_load", "valueType": "int", "scope": "element", "init": 3 },
+    { "id": "blue_up_cell_load", "valueType": "int", "scope": "element", "init": 3 },
     { "id": "launched_count", "valueType": "int", "scope": "alliance", "init": 0 },
     { "id": "tip_count", "valueType": "int", "scope": "alliance", "init": 0 },
+    { "id": "red_tip_count", "valueType": "int", "scope": "element", "init": 0 },
+    { "id": "blue_tip_count", "valueType": "int", "scope": "element", "init": 0 },
     { "id": "rp_proxy_swarm", "valueType": "bool", "scope": "alliance", "init": false },
     { "id": "restricted_entry", "valueType": "bool", "scope": "robot", "init": false }
   ],
@@ -69,8 +72,7 @@
       "trigger": { "kind": "volumeEnter", "volumeId": "red_cell_up", "filterPieceType": "pollen,nectar_red" },
       "actions": [
         { "kind": "incAccumulator", "accumulator": "red_up_cell_load", "delta": 1 },
-        { "kind": "incAccumulator", "accumulator": "launched_count", "delta": 1 },
-        { "kind": "transferPiece", "toVolume": "red_cell_up" }
+        { "kind": "incAccumulator", "accumulator": "launched_count", "delta": 1 }
       ],
       "maxFires": 1,
       "fireScope": "piece",
@@ -84,9 +86,52 @@
       "actions": [
         { "kind": "addScore", "channel": "trueScore", "points": 20, "accumulator": "true_score" },
         { "kind": "incAccumulator", "accumulator": "tip_count", "delta": 1 },
+        { "kind": "incAccumulator", "accumulator": "red_tip_count", "delta": 1 },
         { "kind": "incAccumulator", "accumulator": "red_up_cell_load", "delta": -7 }
       ],
-      "explain": "HIVE TIP: 20 points. Placeholder threshold is 7 in the upward CELL (3 staged NECTAR + 4 launched). Same volume stays the up cell; spilled pieces are consumed. VERIFY CAD / Field Setup Guide and Table 10-2. Tips complete before TELEOP count as AUTO."
+      "explain": "HIVE TIP: 20 points at 7 physical pieces in the upward CELL (3 staged NECTAR + 4 launched). Pieces remain physical and spill as the articulated HIVE tips. VERIFY CAD / Field Setup Guide and Table 10-2."
+    },
+    {
+      "id": "blue_launch_into_up_cell",
+      "enabledPhases": ["AUTO", "TELEOP"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "blue_cell_up", "filterPieceType": "pollen,nectar_blue" },
+      "actions": [
+        { "kind": "incAccumulator", "accumulator": "blue_up_cell_load", "delta": 1 }
+      ],
+      "maxFires": 1,
+      "fireScope": "piece",
+      "explain": "Opponent launch retained physically in the blue upward-facing CELL."
+    },
+    {
+      "id": "blue_hive_tip",
+      "enabledPhases": ["AUTO", "TELEOP"],
+      "trigger": { "kind": "volumeEnter", "volumeId": "blue_cell_up", "filterPieceType": "pollen,nectar_blue" },
+      "conditions": [{ "op": "accumulatorGte", "accumulator": "blue_up_cell_load", "value": 7 }],
+      "actions": [
+        { "kind": "incAccumulator", "accumulator": "blue_tip_count", "delta": 1 },
+        { "kind": "incAccumulator", "accumulator": "blue_up_cell_load", "delta": -7 }
+      ],
+      "explain": "Blue HIVE mechanism tips symmetrically without adding to the red learner score."
+    },
+    {
+      "id": "red_piece_exits_up_cell",
+      "enabledPhases": ["AUTO", "TELEOP"],
+      "trigger": { "kind": "volumeExit", "volumeId": "red_cell_up", "filterPieceType": "pollen,nectar_red" },
+      "conditions": [{ "op": "accumulatorGte", "accumulator": "red_up_cell_load", "value": 1 }],
+      "actions": [
+        { "kind": "incAccumulator", "accumulator": "red_up_cell_load", "delta": -1 }
+      ],
+      "explain": "A bounce-out or spilled piece no longer occupies the upward CELL."
+    },
+    {
+      "id": "blue_piece_exits_up_cell",
+      "enabledPhases": ["AUTO", "TELEOP"],
+      "trigger": { "kind": "volumeExit", "volumeId": "blue_cell_up", "filterPieceType": "pollen,nectar_blue" },
+      "conditions": [{ "op": "accumulatorGte", "accumulator": "blue_up_cell_load", "value": 1 }],
+      "actions": [
+        { "kind": "incAccumulator", "accumulator": "blue_up_cell_load", "delta": -1 }
+      ],
+      "explain": "A bounce-out or spilled piece no longer occupies the upward CELL."
     },
     {
       "id": "swarm_rp_proxy_at_auto_end",

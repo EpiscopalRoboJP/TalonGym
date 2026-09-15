@@ -77,7 +77,7 @@ def test_cad_mjcf_uses_meshes_not_aabb_hive():
     from talongym.assets.mjcf_field import build_field_mjcf
 
     manifest, field = _manifest()
-    built = build_field_mjcf(field, n_robots=1, robot_hz=5.0)
+    built = build_field_mjcf(field, n_robots=1, robot_hz=7.0)
     xml = built.xml
     assert CAD_MJCF_MARKER in xml
     assert 'type="mesh"' in xml
@@ -93,6 +93,8 @@ def test_cad_mjcf_uses_meshes_not_aabb_hive():
     assert "nectar_red_hull.stl" in xml
     assert 'joint name="field_mech_red_hive"' in xml
     assert 'joint name="field_mech_blue_hive"' in xml
+    assert xml.count('name="perimeter_glass_') == 4
+    assert 'size="9.000 7.000 9.000"' in xml
     assert built.stats["fieldMechanismTargets"]["red_hive"] == pytest.approx(1.0472, abs=0.001)
     pollen_mass = next(p for p in field["gamePieces"] if p["typeId"] == "pollen")["massKg"]
     nectar_mass = next(p for p in field["gamePieces"] if p["typeId"] == "nectar_red")["massKg"]

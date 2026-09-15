@@ -39,8 +39,9 @@ def _run_one(
     seed: int,
     bundle: LoadedPresets | None,
     record: bool,
+    match_setup: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    env = FTCAutoEnv(bundle=bundle, record=record)
+    env = FTCAutoEnv(bundle=bundle, record=record, match_setup=match_setup)
     obs, info = env.reset(seed=seed)
     terminated = truncated = False
     hit = False
@@ -69,6 +70,7 @@ def run_trials(
     seed0: int = 10_000_000,
     record_best: bool = True,
     seeds: list[int] | None = None,
+    match_setup: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     seed_list = list(seeds) if seeds is not None else [seed0 + i for i in range(n_trials)]
     scores: list[float] = []
@@ -79,7 +81,7 @@ def run_trials(
     first_contacts: list[float] = []
     restricted = 0
     for seed in seed_list:
-        row = _run_one(policy, seed, bundle, record_best)
+        row = _run_one(policy, seed, bundle, record_best, match_setup)
         scores.append(row["score"])
         collision_times.append(row["collision_time_s"])
         if row["first_contact_s"] is not None:

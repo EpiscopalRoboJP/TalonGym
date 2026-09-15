@@ -142,7 +142,15 @@ def _decimate_hull(hull: Any) -> Any:
         return hull
 
 
-def import_robot_cad(source: Path, robot_id: str) -> dict[str, Any]:
+def import_robot_cad(
+    source: Path,
+    robot_id: str,
+    *,
+    part_id: str | None = None,
+    preserve_origin: bool = False,
+    parent_id: str | None = None,
+    joint_transform: dict[str, float] | None = None,
+) -> dict[str, Any]:
     source = Path(source)
     if not source.is_file():
         raise RobotCadError(f"file not found: {source}")
@@ -172,12 +180,13 @@ def import_robot_cad(source: Path, robot_id: str) -> dict[str, Any]:
     if abs(scale - 1.0) > 1e-9:
         mesh.apply_scale(scale)
 
-    min_b, max_b = mesh.bounds
-    cx = 0.5 * (float(min_b[0]) + float(max_b[0]))
-    cz = 0.5 * (float(min_b[2]) + float(max_b[2]))
-    mesh.apply_translation([-cx, -float(min_b[1]), -cz])
-    height = float(mesh.extents[1])
-    mesh.apply_translation([0.0, -height / 2.0, 0.0])
+    if not preserve_origin:
+        min_b, max_b = mesh.bounds
+        cx = 0.5 * (float(min_b[0]) + float(max_b[0]))
+        cz = 0.5 * (float(min_b[2]) + float(max_b[2]))
+        mesh.apply_translation([-cx, -float(min_b[1]), -cz])
+        height = float(mesh.extents[1])
+        mesh.apply_translation([0.0, -height / 2.0, 0.0])
 
     length_in = float(mesh.extents[0])
     width_in = float(mesh.extents[2])
@@ -190,7 +199,11 @@ def import_robot_cad(source: Path, robot_id: str) -> dict[str, Any]:
         hx, hy = length_in / 2.0, width_in / 2.0
         footprint_pts = [(hx, hy), (hx, -hy), (-hx, -hy), (-hx, hy)]
 
+    if part_id is not None and not ROBOT_ID_RE.match(part_id):
+        raise RobotCadError(f"invalid robot part id {part_id}")
     dest = robot_asset_dir(robot_id)
+    if part_id is not None:
+        dest = dest / "parts" / part_id
     dest.mkdir(parents=True, exist_ok=True)
     glb_path = dest / "visual.glb"
     stl_path = dest / "collision.stl"
@@ -199,7 +212,7 @@ def import_robot_cad(source: Path, robot_id: str) -> dict[str, Any]:
 
     rel_glb = str(glb_path.relative_to(robot_assets_root())).replace("\\", "/")
     rel_stl = str(stl_path.relative_to(robot_assets_root())).replace("\\", "/")
-    return {
+    result = {
         "visualAsset": rel_glb,
         "collisionAsset": rel_stl,
         "bbox": {
@@ -211,6 +224,35 @@ def import_robot_cad(source: Path, robot_id: str) -> dict[str, Any]:
         "unitsGuess": units,
         "faceCount": int(len(getattr(hull, "faces", []))),
     }
+    if part_id is not None:
+        result.update(
+            {
+                "partId": part_id,
+                "parentId": parent_id,
+                "jointTransform": dict(joint_transform or {}),
+                "originPreserved": bool(preserve_origin),
+            }
+        )
+    return result
+
+
+def import_robot_part_cad(
+    source: Path,
+    robot_id: str,
+    part_id: str,
+    *,
+    parent_id: str | None,
+    joint_transform: dict[str, float] | None = None,
+) -> dict[str, Any]:
+    """Import one articulated part without discarding assembly/joint coordinates."""
+    return import_robot_cad(
+        source,
+        robot_id,
+        part_id=part_id,
+        preserve_origin=True,
+        parent_id=parent_id,
+        joint_transform=joint_transform,
+    )
 
 
 def write_ascii_box_stl(path: Path, length: float, width: float, height: float) -> Path:

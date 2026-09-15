@@ -62,6 +62,21 @@
         "tileSize": { "type": "number", "default": 24 }
       }
     },
+    "playableBoundaryIn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["halfWidth", "halfDepth"],
+      "properties": {
+        "halfWidth": { "type": "number", "exclusiveMinimum": 0 },
+        "halfDepth": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "description": "STEP-derived inner perimeter planes used to validate complete robot footprints."
+    },
+    "requiredPreloadCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Exact number of pieces every enabled robot must hold at match start."
+    },
     "requiredCapabilities": {
       "type": "array",
       "items": { "$ref": "#/$defs/capability" },
@@ -254,6 +269,14 @@
         "heldByRobotId": {
           "type": "string",
           "description": "Robot id that starts with these pieces held. If that robot is not in the simulated match, the pieces are omitted."
+        },
+        "initialVolumeId": {
+          "type": "string",
+          "description": "Trigger volume containing these physical pieces at match start."
+        },
+        "containedByMechanismId": {
+          "type": "string",
+          "description": "Articulated field mechanism that physically supports these pieces."
         }
       }
     },
@@ -261,6 +284,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "alliance", "slot", "pose"],
+      "description": "G304 start: own alliance half, touching the perimeter, not in a LOADING ZONE or FLOWER. legalRegion is the allowed center offset from pose. Runtime also rejects starts that already qualify for LEAVE or PARK.",
       "properties": {
         "id": { "type": "string" },
         "alliance": { "type": "string", "enum": ["red", "blue"] },

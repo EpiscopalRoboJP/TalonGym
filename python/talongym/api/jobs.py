@@ -214,6 +214,7 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
             save_dir=paths.VAR_DIR / "ckpts" / run_id,
             resume=bool(config.get("resume")),
             demo=demo,
+            match_setup=config.get("matchSetup"),
         )
         if algo_name == "rllib_ppo" and not demo:
             try:
