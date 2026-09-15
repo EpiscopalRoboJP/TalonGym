@@ -5,6 +5,8 @@ import {
   cadCacheTokenFromManifest,
   explicitCadCacheToken,
   fieldAssetUrl,
+  hasFieldCadAsset,
+  hideSchematicSolid,
   inferPieceVisualAsset,
   pieceThreeEulerRad,
   pieceThreePose,
@@ -131,6 +133,23 @@ const tests: Array<[string, () => void]> = [
       elements: [{ id: "red_cell_up", type: "goal", pose: { x: 0, y: 0 }, shape: { kind: "aabb" } }],
     });
     assert(resolveBackgroundAsset(old) === BIOBUZZ_GLB, "hive heuristic");
+  }],
+  ["CAD-present frames hide schematic solids before the GLB finishes loading", () => {
+    const cadFrame = frame({ backgroundAsset: BIOBUZZ_GLB });
+    const hiveFrame = frame({
+      elements: [{ id: "red_cell_up", type: "goal", pose: { x: 0, y: 0 }, shape: { kind: "aabb" } }],
+    });
+    const schematicFrame = frame({
+      elements: [{ id: "box", type: "obstacle", pose: { x: 0, y: 0 }, shape: { kind: "aabb" } }],
+    });
+    assert(hasFieldCadAsset(cadFrame), "backgroundAsset is CAD-present immediately");
+    assert(hasFieldCadAsset(hiveFrame), "hive heuristic is CAD-present immediately");
+    assert(!hasFieldCadAsset(schematicFrame), "plain obstacle field stays schematic");
+    assert(hideSchematicSolid({ type: "goal" }, hasFieldCadAsset(cadFrame)), "goal hidden with CAD");
+    assert(hideSchematicSolid({ type: "cell", tags: ["cell"] }, true), "cell hidden with CAD");
+    assert(hideSchematicSolid({ tags: ["hive"] }, true), "hive tag hidden with CAD");
+    assert(!hideSchematicSolid({ type: "goal" }, false), "goal stays visible without CAD");
+    assert(!hideSchematicSolid({ type: "tape", tags: ["restricted"] }, true), "zone overlays are not schematic solids");
   }],
   ["yawDeg wins over headingDeg for robot visual offset", () => {
     almostEqual(visualOffsetYawDeg({ yawDeg: 90, headingDeg: 12 }), 90);

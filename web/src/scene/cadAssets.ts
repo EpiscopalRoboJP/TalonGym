@@ -54,6 +54,18 @@ export function resolveBackgroundAsset(frame: Frame | null | undefined, fallback
   return null;
 }
 
+export function hasFieldCadAsset(frame: Frame | null | undefined, fallback?: string | null): boolean {
+  return Boolean(resolveBackgroundAsset(frame, fallback));
+}
+
+export function hideSchematicSolid(el: { type?: string; tags?: string[] }, hasCad: boolean): boolean {
+  if (!hasCad) return false;
+  const tags = el.tags || [];
+  const type = el.type || "";
+  if (type === "wall" || type === "hive_frame" || type === "goal" || type === "cell" || type === "flower") return true;
+  return tags.some((t) => t === "hive" || t === "frame" || t === "cell" || t === "flower" || t === "perimeter");
+}
+
 export function siblingCadManifestPath(assetPath: string | null | undefined): string | null {
   if (!assetPath) return null;
   const trimmed = assetPath.split("?")[0].replace(/\\/g, "/");

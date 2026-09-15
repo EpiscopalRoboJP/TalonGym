@@ -24,6 +24,7 @@ import {
   fieldAssetUrl,
   ftcToThreePosition,
   hasYupQuaternion,
+  hideSchematicSolid,
   pieceAssetUrl,
   pieceThreePose,
   resolveBackgroundAsset,
@@ -171,14 +172,6 @@ function dedupe(els: El[]) {
     out.push(el);
   }
   return out;
-}
-
-function hideSchematicSolid(el: El, hasCad: boolean) {
-  if (!hasCad) return false;
-  const tags = el.tags || [];
-  const type = el.type || "";
-  if (type === "wall" || type === "hive_frame" || type === "goal" || type === "cell" || type === "flower") return true;
-  return tags.some((t) => t === "hive" || t === "frame" || t === "cell" || t === "flower" || t === "perimeter");
 }
 
 function CameraRig({ view, w, d }: { view: SceneView; w: number; d: number }) {
@@ -740,28 +733,27 @@ function FieldMeshes({
   const fieldArea = w * d;
   const elements = dedupe(frame.elements || []);
   const { cadUrl, token, catalog, cadPath, manifest } = useCadRuntime(frame, cadFallback);
-  const [cadReady, setCadReady] = useState(false);
+  const hasFieldCad = Boolean(cadPath);
   const enteredRestricted =
     (frame.robots || []).some((r) => r.enteredRestricted) || Boolean(frame.collision?.enteredRestricted);
   const foulStep = (frame.stepExplains || []).some((e) => e.points < 0);
   const contact = Boolean(frame.collision?.wall || frame.collision?.robot);
   const physicalStorage = usesPhysicalStorage(frame);
   useEffect(() => {
-    setCadReady(false);
     if (cadUrl) useGLTF.preload(cadUrl);
   }, [cadUrl]);
   return (
     <group>
-      {!cadReady && (
+      {!hasFieldCad && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]}>
           <planeGeometry args={[w, d]} />
           <meshStandardMaterial color={theme.field} />
         </mesh>
       )}
       {cadUrl && (
-        <CadErrorBoundary onError={() => setCadReady(false)}>
+        <CadErrorBoundary>
           <Suspense fallback={null}>
-            <CadBackground url={cadUrl} onReady={() => setCadReady(true)} />
+            <CadBackground url={cadUrl} />
           </Suspense>
         </CadErrorBoundary>
       )}
@@ -779,7 +771,7 @@ function FieldMeshes({
           </CadErrorBoundary>
         );
       })}
-      {!cadReady &&
+      {!hasFieldCad &&
         (
           [
             [0, d / 2, w + 2, 2],
@@ -797,7 +789,7 @@ function FieldMeshes({
         const pose = el.pose || { x: 0, y: 0 };
         const sh = el.shape || { kind: "aabb" };
         if (el.type === "wall") return null;
-        if (hideSchematicSolid(el, cadReady)) return null;
+        if (hideSchematicSolid(el, hasFieldCad)) return null;
         if (isFlatOverlay(el)) {
           const restricted = (el.tags || []).some((t) => t.includes("restricted"));
           return (
