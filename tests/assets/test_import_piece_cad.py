@@ -144,6 +144,6 @@ def test_committed_piece_transform_bounds_and_assets():
         assert specs[type_id]["shape"]["radius"] == pytest.approx(spec_d / 2.0, abs=0.05)
         center = [
             0.5 * (a + b)
-            for a, b in zip(rec["boundsIn"]["minIn"], rec["boundsIn"]["maxIn"])
+            for a, b in zip(rec["boundsIn"]["minIn"], rec["boundsIn"]["maxIn"], strict=True)
         ]
         assert all(abs(c) < 0.6 for c in center)

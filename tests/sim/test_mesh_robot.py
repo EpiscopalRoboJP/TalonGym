@@ -1,7 +1,6 @@
 from talongym.sim.geometry import AABB
 from talongym.sim.physics import Body, _chassis_vs_circle, _resolve_chassis
 
-
 DIAMOND = ((8.0, 0.0), (0.0, 4.0), (-8.0, 0.0), (0.0, -4.0))
 
 

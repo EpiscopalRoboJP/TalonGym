@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import math
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
 from talongym.assets.mjcf_field import GEOM_GROUP_FIELD, GEOM_GROUP_PIECE, GEOM_GROUP_ROBOT
 from talongym.sim.physics import (
+    NM_TO_INCH_TORQUE,
     Body,
     ContactSet,
-    NM_TO_INCH_TORQUE,
     WorldStep,
     _clip_chassis,
     _resolve_chassis,

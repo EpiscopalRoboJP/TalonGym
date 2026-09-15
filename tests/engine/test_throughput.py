@@ -1,7 +1,8 @@
 import time
 
-from talongym.env.ftc_auto import FTCAutoEnv, FlatBoxEnv
 import numpy as np
+
+from talongym.env.ftc_auto import FlatBoxEnv, FTCAutoEnv
 
 
 def test_throughput_smoke(capsys):

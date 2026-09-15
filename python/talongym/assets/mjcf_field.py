@@ -7,15 +7,14 @@ Non-CAD seasons keep the schematic AABB generator.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
 
 from talongym.paths import ASSETS_DIR
-
 
 IN_G = 386.0886  # 9.80665 m/s^2 in inches/s^2
 CAD_MJCF_MARKER = "talongym_cad_field"

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from talongym.robot.dynamics import MechanismDynamics, RPM_TO_RAD_S
+from talongym.robot.dynamics import RPM_TO_RAD_S, MechanismDynamics
 
 
 def _motor(**overrides):

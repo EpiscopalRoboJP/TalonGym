@@ -9,7 +9,6 @@ import numpy as np
 from talongym.env.ftc_auto import FTCAutoEnv
 from talongym.presets.loader import LoadedPresets
 
-
 try:
     from pettingzoo import ParallelEnv
 except ImportError:  # pragma: no cover

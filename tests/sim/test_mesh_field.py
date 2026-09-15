@@ -59,8 +59,8 @@ def test_snapshot_includes_background_asset():
 
 @pytest.mark.require_mesh
 def test_mesh_required_refuses_planar_fallback(monkeypatch):
-    from talongym.sim.mujoco_backend import MeshFieldRequiredError
     import talongym.sim.mujoco_backend as mb
+    from talongym.sim.mujoco_backend import MeshFieldRequiredError
 
     monkeypatch.setattr(mb, "available", lambda: False)
     bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")

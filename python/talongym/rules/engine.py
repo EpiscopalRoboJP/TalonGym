@@ -4,7 +4,6 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
-
 MECHANISM_VERBS = ("idle", "intake", "score", "open_gate", "stow")
 
 
@@ -14,6 +13,7 @@ class TickEvent:
     volume_id: str | None = None
     piece_id: str | None = None
     robot_id: str | None = None
+    robot_alliance: str | None = None
     fsm_id: str | None = None
     from_state: str | None = None
     to_state: str | None = None
@@ -151,6 +151,8 @@ class RuleEngine:
             return c.get("volumeId") in ctx.actor_volumes
         if op == "actorNotInVolume":
             return c.get("volumeId") not in ctx.actor_volumes
+        if op == "robotAllianceIs":
+            return match.robot_alliance == c.get("alliance")
         if op == "accumulatorGte":
             return float(ctx.accumulators.get(c.get("accumulator"), 0) or 0) >= float(c.get("value", 0))
         if op == "accumulatorEq":

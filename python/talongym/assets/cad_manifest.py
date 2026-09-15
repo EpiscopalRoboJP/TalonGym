@@ -11,7 +11,6 @@ from jsonschema import Draft202012Validator
 from talongym.assets.cad_common import CAD_GENERATOR_VERSION, CadImportError, sha256_file
 from talongym.paths import ASSETS_DIR, SCHEMAS_DIR
 
-
 MANIFEST_SCHEMA_NAME = "cad-manifest.schema.json"
 MANIFEST_SCHEMA_VERSION = "1.0.0"
 COORDINATE_SYSTEM = "ftc_inches_yup"
