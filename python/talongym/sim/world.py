@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import math
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -12,6 +11,7 @@ from talongym.robot.drivetrain import clip_twist
 from talongym.robot.mechanisms import chassis_moving, launcher_aim, muzzle_velocity, piece_in_intake, pose_world
 from talongym.robot.sensors import camera_world_pose, detect_tags
 from talongym.rules.engine import MECHANISM_VERBS, RuleContext, RuleEngine, TickEvent
+from talongym.sim.mujoco_backend import ftc_yaw_to_mj_quat
 from talongym.sim.geometry import (
     AABB,
     deg_to_rad,
@@ -46,6 +46,15 @@ class Piece:
     vz: float = 0.0
     ballistic: bool = False
     kick: bool = False
+    qw: float = 1.0
+    qx: float = 0.0
+    qy: float = 0.0
+    qz: float = 0.0
+    wx: float = 0.0
+    wy: float = 0.0
+    wz: float = 0.0
+    visual_asset: str | None = None
+    collision_asset: str | None = None
 
 
 @dataclass
@@ -101,6 +110,8 @@ class World:
                 if isinstance(sh, AABB):
                     self.occluders.append(sh)
         self.piece_types = {p["typeId"]: p for p in self.field.get("gamePieces") or []}
+        self._cad_source_sha256 = str((self.field.get("provenance") or {}).get("contentSha256") or "") or None
+        self._cad_asset_version = self._cad_source_sha256
         self.tags = list(self.field.get("aprilTags") or [])
         self.constraints = self.robot.get("constraints") or {}
         self.max_vel = float(self.constraints.get("maxVelInPerS", 30))
@@ -125,6 +136,13 @@ class World:
                 self._robot_kind = "aabb"
             self.robot_hz = float(chassis.get("heightIn") or 10) / 2.0
         self.backend = self._make_backend(fw / 2.0, fd / 2.0)
+        self.floor_y = float(getattr(self.backend, "floor_y", 0.0) or 0.0)
+        cad_stats = dict(getattr(self.backend, "cad_stats", None) or {})
+        self.field_mechanism_tip_angles = {
+            str(key): float(value)
+            for key, value in (cad_stats.get("fieldMechanismTargets") or {}).items()
+        }
+        self.field_mechanisms = {key: 0.0 for key in self.field_mechanism_tip_angles}
         if getattr(self.backend, "name", "") == "mujoco_field":
             self.obstacles = []
         mech = self.robot.get("mechanisms") or {}
@@ -195,8 +213,17 @@ class World:
             raise MeshFieldRequiredError(
                 "This field requires mesh_field_collision; pip install -e '.[mujoco]'"
             )
-        xml, xml_path = self._collision_xml()
-        return MujocoFieldBackend(xml, half_w, half_d, robot_hz=self.robot_hz, xml_path=xml_path)
+        xml, xml_path, built = self._collision_xml()
+        return MujocoFieldBackend(
+            xml,
+            half_w,
+            half_d,
+            robot_hz=self.robot_hz,
+            xml_path=xml_path,
+            slot_plan=built.slot_plan,
+            floor_y=built.floor_y,
+            cad_stats=built.stats,
+        )
 
     def _robot_mesh_path(self):
         from talongym.assets.import_robot_cad import RobotCadError, resolve_robot_asset
@@ -212,23 +239,75 @@ class World:
             return None
         return dest if dest.is_file() else None
 
-    def _collision_xml(self) -> tuple[str, Path | None]:
-        from talongym.assets.mjcf_field import build_mjcf
+    def _collision_xml(self):
+        from talongym.assets.cad_common import CadImportError
+        from talongym.assets.mjcf_field import (
+            CAD_MJCF_MARKER,
+            FieldMjcf,
+            build_field_mjcf,
+            load_field_manifest,
+            piece_slot_plan,
+            select_field_collision_parts,
+            verify_collision_asset,
+        )
+        from talongym.sim.mujoco_backend import MeshFieldRequiredError
 
         mesh = self._robot_mesh_path()
-        xml = build_mjcf(
-            self.field,
-            robot_hx=self.robot_hx,
-            robot_hy=self.robot_hy,
-            robot_hz=self.robot_hz,
-            robot_mesh=mesh,
-        )
+        try:
+            committed = verify_collision_asset(self.field)
+            if committed is not None and mesh is None and self.field.get("cadManifest"):
+                doc = load_field_manifest(self.field, require=True)
+                xml = committed.read_text(encoding="utf-8")
+                if CAD_MJCF_MARKER not in xml[:1600]:
+                    raise CadImportError(
+                        f"collisionAsset {committed} is not CAD-assembled; rebuild with write_collision_mjcf"
+                    )
+                parts = list((doc.get("field") or {}).get("collisionParts") or [])
+                _kept, filter_stats = select_field_collision_parts(parts)
+                slot_plan = piece_slot_plan(self.field)
+                digest = str((doc.get("field") or {}).get("sha256") or "") or self._cad_source_sha256
+                self._cad_source_sha256 = digest
+                generator_version = str(doc.get("generatorVersion") or "")
+                self._cad_asset_version = f"{digest}:{generator_version}" if generator_version else digest
+                built = FieldMjcf(
+                    xml=xml,
+                    stats={
+                        "cad": True,
+                        "filter": filter_stats.as_dict(),
+                        "slotPlan": dict(slot_plan),
+                        "fieldMechanismTargets": {
+                            str(mechanism.get("id")): math.radians(float(mechanism.get("tipAngleDeg") or 0.0))
+                            for mechanism in ((doc.get("field") or {}).get("mechanisms") or [])
+                            if mechanism.get("id")
+                        },
+                        "loadedCommitted": True,
+                    },
+                    floor_y=float(filter_stats.floor_y),
+                    slot_plan=slot_plan,
+                    cad=True,
+                )
+                return xml, committed, built
+            built = build_field_mjcf(
+                self.field,
+                robot_hx=self.robot_hx,
+                robot_hy=self.robot_hy,
+                robot_hz=self.robot_hz,
+                robot_mesh=mesh,
+            )
+        except CadImportError as exc:
+            raise MeshFieldRequiredError(str(exc)) from exc
+        if committed is not None and built.cad:
+            head = committed.read_text(encoding="utf-8")[:1200]
+            if CAD_MJCF_MARKER not in head:
+                raise MeshFieldRequiredError(
+                    f"collisionAsset {committed} is not CAD-assembled; rebuild with write_collision_mjcf"
+                )
         xml_path = None
         if mesh is not None:
             dest = mesh.parent / "mjcf_robots.xml"
-            dest.write_text(xml, encoding="utf-8")
+            dest.write_text(built.xml, encoding="utf-8")
             xml_path = dest
-        return xml, xml_path
+        return built.xml, xml_path, built
 
     def _domain_randomization(self) -> dict[str, Any]:
         return ((self.bundle.training or {}).get("domainRandomization") or {})
@@ -282,6 +361,8 @@ class World:
         self.accumulators.update(acc_seed)
         self.observed_vars = {k: None for k in self.match_vars}
         self.pieces = {}
+        self.field_mechanisms = {key: 0.0 for key in self.field_mechanism_tip_angles}
+        preload_ids: dict[str, list[str]] = {}
         pid = 0
         for spawn in self.field.get("spawns") or []:
             ptype = spawn["pieceTypeId"]
@@ -298,6 +379,9 @@ class World:
                 jy = float(self.rng.normal(0, xy_sigma)) if xy_sigma > 0 else 0.0
                 name = f"p{pid}"
                 pid += 1
+                heading0 = deg_to_rad(float(pose.get("headingDeg") or 0.0))
+                qw, qx, qy, qz = ftc_yaw_to_mj_quat(heading0)
+                spawn_z = float(pose.get("z") or (rad + self.floor_y))
                 piece = Piece(
                     id=name,
                     type_id=ptype,
@@ -307,11 +391,33 @@ class World:
                     attrs={"color": color, "passed_goal_top": False, "passed_archway": False},
                     restitution=float(spec.get("restitution") or 0.3),
                     mass=float(spec.get("massKg") or 0.1),
-                    z=float(pose.get("z") or rad),
+                    z=spawn_z,
+                    qw=qw,
+                    qx=qx,
+                    qy=qy,
+                    qz=qz,
+                    visual_asset=spec.get("visualAsset"),
+                    collision_asset=spec.get("collisionAsset"),
                 )
                 self.pieces[name] = piece
+                preload_robot = spawn.get("heldByRobotId")
+                if preload_robot:
+                    preload_ids.setdefault(str(preload_robot), []).append(name)
         self.robots = {}
         self._spawn_robots(static_teammate=static_teammate, opponent_mode=opponent_mode, live_teammate=live_teammate)
+        for robot_id, piece_ids in preload_ids.items():
+            holder = self.robots.get(robot_id)
+            if holder is None:
+                for piece_id in piece_ids:
+                    self.pieces.pop(piece_id, None)
+                continue
+            for piece_id in piece_ids[: self.capacity]:
+                piece = self.pieces[piece_id]
+                piece.held_by = robot_id
+                piece.x, piece.y = holder.body.x, holder.body.y
+                piece.z = holder.body.z
+                piece.vx = piece.vy = piece.vz = 0.0
+                holder.held.append(piece_id)
         self.prev_occupancy = self._occupancy()
         self.vision_hits = []
         self.pending_piece_ops = []
@@ -507,7 +613,8 @@ class World:
                 rs.intake_timer += dt
                 if rs.intake_timer >= cycle:
                     p.held_by = rs.body.id
-                    p.vx = p.vy = 0.0
+                    p.vx = p.vy = p.vz = 0.0
+                    p.wx = p.wy = p.wz = 0.0
                     p.x, p.y = rs.body.x, rs.body.y
                     rs.held.append(p.id)
                     rs.intake_timer = 0.0
@@ -761,7 +868,7 @@ class World:
 
     def _update_contacts_and_restricted(self, dt: float, occ: dict[str, set[str]]) -> None:
         for rs in self.robots.values():
-            if self._chassis_hits_other(rs):
+            if self._chassis_hits_other(rs) or (self.robot_hit and rs.body.dynamic):
                 rs.collision_time_s += dt
                 if rs.first_contact_s is None:
                     rs.first_contact_s = self.time_s
@@ -885,11 +992,20 @@ class World:
                     z=p.z,
                     vz=p.vz,
                     kick=p.kick,
+                    type_id=p.type_id,
+                    qw=p.qw,
+                    qx=p.qx,
+                    qy=p.qy,
+                    qz=p.qz,
+                    wx=p.wx,
+                    wy=p.wy,
+                    wz=p.wz,
                 )
                 p.kick = False
                 floor_bodies.append(body)
                 floor_index[p.id] = p
             flags = self.backend.step_world(
+                # A HIVE alternates between its two stable positions on each tip.
                 WorldStep(
                     robots=[o.body for o in self.robots.values()],
                     pieces=floor_bodies,
@@ -899,9 +1015,20 @@ class World:
                     max_accel=self.max_accel,
                     max_omega=self.max_ang_vel,
                     max_ang_accel=self.max_ang_accel,
+                    field_mechanism_targets={
+                        mechanism_id: (
+                            tip_angle * (int(self.accumulators.get("tip_count") or 0) % 2)
+                            if mechanism_id == "red_hive"
+                            else 0.0
+                        )
+                        for mechanism_id, tip_angle in self.field_mechanism_tip_angles.items()
+                    },
                 ),
                 self.dt,
             )
+            read_mechanisms = getattr(self.backend, "field_mechanism_positions", None)
+            if callable(read_mechanisms):
+                self.field_mechanisms.update(read_mechanisms())
             self.wall_hit = self.wall_hit or flags.wall
             self.robot_hit = self.robot_hit or flags.robot
             self.piece_hit = self.piece_hit or flags.piece
@@ -910,6 +1037,13 @@ class World:
                 p.x, p.y, p.vx, p.vy = body.x, body.y, body.vx, body.vy
                 p.z = float(getattr(body, "z", p.z))
                 p.vz = float(getattr(body, "vz", p.vz))
+                p.qw = float(getattr(body, "qw", p.qw))
+                p.qx = float(getattr(body, "qx", p.qx))
+                p.qy = float(getattr(body, "qy", p.qy))
+                p.qz = float(getattr(body, "qz", p.qz))
+                p.wx = float(getattr(body, "wx", p.wx))
+                p.wy = float(getattr(body, "wy", p.wy))
+                p.wz = float(getattr(body, "wz", p.wz))
             self._advance_flights(events, self.dt)
             self._advance_ballistic(self.dt)
             for p in self.pieces.values():
@@ -918,6 +1052,7 @@ class World:
                     p.x, p.y = holder.body.x, holder.body.y
                     p.z = getattr(holder.body, "z", self.robot_hz)
                     p.vx = p.vy = p.vz = 0.0
+                    p.wx = p.wy = p.wz = 0.0
             self.time_s += self.dt
             occ_mid = self._occupancy()
             events.extend(self._events_from_occupancy(occ_mid))
@@ -969,6 +1104,15 @@ class World:
                     "x": p.x,
                     "y": p.y,
                     "z": p.z,
+                    "quat": [p.qw, p.qx, p.qy, p.qz],
+                    "qw": p.qw,
+                    "qx": p.qx,
+                    "qy": p.qy,
+                    "qz": p.qz,
+                    "headingDeg": rad_to_deg(math.atan2(2.0 * (p.qw * p.qy - p.qz * p.qx), 1.0 - 2.0 * (p.qy * p.qy + p.qz * p.qz))),
+                    "radius": p.radius,
+                    "visualAsset": p.visual_asset,
+                    "collisionAsset": p.collision_asset,
                     "color": p.attrs.get("color"),
                     "heldBy": p.held_by,
                     "inFlight": p.in_flight,
@@ -997,6 +1141,26 @@ class World:
             "fieldId": self.field.get("id"),
             "backgroundAsset": self.field.get("backgroundAsset"),
             "collisionAsset": self.field.get("collisionAsset"),
+            "cadManifest": self.field.get("cadManifest"),
+            "cadSourceSha256": self._cad_source_sha256,
+            "cadAssetVersion": self._cad_asset_version,
+            "gamePieces": [
+                {
+                    "typeId": spec["typeId"],
+                    "displayName": spec.get("displayName"),
+                    "shape": dict(spec.get("shape") or {}),
+                    "color": spec.get("color"),
+                    "visualAsset": spec.get("visualAsset"),
+                    "collisionAsset": spec.get("collisionAsset"),
+                }
+                for spec in (self.field.get("gamePieces") or [])
+                if spec.get("typeId")
+            ],
+            "cadCollision": getattr(self.backend, "cad_stats", None),
+            "fieldMechanisms": [
+                {"id": mechanism_id, "angleRad": angle}
+                for mechanism_id, angle in self.field_mechanisms.items()
+            ],
             "physicsBackend": getattr(self.backend, "name", None),
             "elements": [
                 {

@@ -396,12 +396,13 @@ export function RobotBuilderPage() {
   }
 
   if (!doc) return <div className="page single">Loading…</div>;
-  const camera = cam(doc);
+  const robot = doc;
+  const camera = cam(robot);
 
   function setCamera(partial: { fovDeg?: number; rangeIn?: number }) {
     setDoc({
-      ...doc,
-      sensors: (doc.sensors || []).map((s) => (s === camera || s.kind === "apriltag_camera" ? { ...s, ...partial } : s)),
+      ...robot,
+      sensors: (robot.sensors || []).map((s) => (s === camera || s.kind === "apriltag_camera" ? { ...s, ...partial } : s)),
     });
   }
 

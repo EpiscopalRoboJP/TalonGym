@@ -22,10 +22,7 @@ htmlcov/
 *.STEP
 *.STP
 MUJOCO_LOG.TXT
-core
-core.*
 
-# Generated CAD meshes (hundreds of STLs; read cad_manifest.json if needed)
 assets/seasons/*/collision/
 assets/seasons/*/mechanisms/
 assets/seasons/*/pieces/

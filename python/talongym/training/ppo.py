@@ -256,8 +256,33 @@ def train_ppo(
     last_improve_at = 0
     last_metrics: dict[str, Any] = {}
 
+    def _live_metrics(steps: int) -> dict[str, Any]:
+        progress.steps = int(steps)
+        stage = stage_info(training, progress.frac)
+        elapsed = time.monotonic() - t0
+        packed: dict[str, Any] = {
+            "envSteps": progress.steps,
+            "nEnvs": n_envs,
+            "objectiveMean": float(np.mean(obj_hist[-200:])) if obj_hist else None,
+            "trueScoreMean": float(np.mean(true_hist[-32:])) if true_hist else None,
+            "shapingMean": float(np.mean(shape_hist[-200:])) if shape_hist else None,
+            "algo": algo_name,
+            "progressFrac": progress.frac,
+            "curriculumStage": stage.get("index"),
+            "curriculumUnlock": stage.get("unlock"),
+        }
+        if elapsed > 0 and progress.steps > 0:
+            packed["fps"] = float(progress.steps / elapsed)
+        packed.update({k: v for k, v in _logger_metrics().items() if v is not None})
+        return packed
+
     class MetricsCb(BaseCallback):
-        def _on_step(self) -> bool:
+        def __init__(self) -> None:
+            super().__init__()
+            self._last_emit_t = 0.0
+            self._last_emit_steps = -1
+
+        def _collect(self) -> None:
             infos = self.locals.get("infos") or []
             dones = self.locals.get("dones")
             rewards = self.locals.get("rewards")
@@ -271,9 +296,33 @@ def train_ppo(
                 done = bool(dones[i]) if dones is not None and i < len(dones) else False
                 if done and "true_score" in info:
                     true_hist.append(float(info["true_score"]))
+
+        def _emit(self, force: bool = False) -> None:
+            steps = int(getattr(self, "num_timesteps", 0) or 0)
+            progress.steps = steps
+            now = time.monotonic()
+            if not force and (steps == self._last_emit_steps or (now - self._last_emit_t) < 0.25):
+                return
+            self._last_emit_t = now
+            self._last_emit_steps = steps
+            metrics = _live_metrics(steps)
+            nonlocal last_metrics
+            last_metrics = metrics
+            if on_metrics:
+                on_metrics(metrics)
+
+        def _on_training_start(self) -> None:
+            self._emit(force=True)
+
+        def _on_step(self) -> bool:
+            self._collect()
+            self._emit()
             if should_stop and should_stop():
                 return False
             return True
+
+        def _on_rollout_end(self) -> None:
+            self._emit(force=True)
 
     chunk = max(rollout_len, min(total_steps, 8192))
     chunk = max(rollout_len, (chunk // rollout_len) * rollout_len)
@@ -283,13 +332,14 @@ def train_ppo(
 
     def _logger_metrics() -> dict[str, Any]:
         lv = getattr(model.logger, "name_to_value", {}) or {}
-        return {
+        packed = {
             "entropy": _finite(lv.get("train/entropy_loss")),
             "approxKl": _finite(lv.get("train/approx_kl")),
             "explainedVariance": _finite(lv.get("train/explained_variance")),
             "clipFraction": _finite(lv.get("train/clip_fraction")),
             "fps": _finite(lv.get("time/fps")),
         }
+        return packed
 
     while done < total_steps:
         if should_stop and should_stop():
@@ -305,19 +355,7 @@ def train_ppo(
         model.learn(total_timesteps=step, reset_num_timesteps=done == 0, callback=MetricsCb())
         done = int(model.num_timesteps)
         progress.steps = done
-        stage = stage_info(training, progress.frac)
-        metrics: dict[str, Any] = {
-            "envSteps": done,
-            "nEnvs": n_envs,
-            "objectiveMean": float(np.mean(obj_hist[-200:])) if obj_hist else None,
-            "trueScoreMean": float(np.mean(true_hist[-32:])) if true_hist else None,
-            "shapingMean": float(np.mean(shape_hist[-200:])) if shape_hist else None,
-            "algo": algo_name,
-            "progressFrac": progress.frac,
-            "curriculumStage": stage.get("index"),
-            "curriculumUnlock": stage.get("unlock"),
-            **_logger_metrics(),
-        }
+        metrics = _live_metrics(done)
         eval_frames: list[dict[str, Any]] = []
         try:
             model.save(str(latest))

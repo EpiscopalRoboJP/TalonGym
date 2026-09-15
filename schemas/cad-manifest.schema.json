@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://talongym.dev/schemas/cad-manifest.schema.json",
+  "title": "CadAssetManifest",
+  "description": "Committed derived CAD assets for a season. Raw STEP stays in var/cad/. Coordinates are FTC inches, Y-up (x=ftc.x, y=height, z=-ftc.y). Field collision is a list of convex parts — never a single concave mesh.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatorVersion", "seasonSlug", "coordinateSystem"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "generatorVersion": { "type": "string", "minLength": 1 },
+    "seasonSlug": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" },
+    "coordinateSystem": {
+      "type": "string",
+      "const": "ftc_inches_yup",
+      "description": "FTC inches with Y-up: x = ftc.x, y = height, z = -ftc.y. Matches Lab/Three and MuJoCo."
+    },
+    "notes": { "type": "string" },
+    "field": { "$ref": "#/$defs/fieldAsset" },
+    "pieces": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/pieceAsset" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "xyz": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scaleToInches", "rotatedZupToYup", "translationIn"],
+      "properties": {
+        "scaleToInches": { "type": "number" },
+        "rotatedZupToYup": { "type": "boolean" },
+        "translationIn": { "$ref": "#/$defs/xyz" }
+      }
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minIn", "maxIn", "extentsIn"],
+      "properties": {
+        "minIn": { "$ref": "#/$defs/xyz" },
+        "maxIn": { "$ref": "#/$defs/xyz" },
+        "extentsIn": { "$ref": "#/$defs/xyz" }
+      }
+    },
+    "collisionPart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "asset", "convex"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "asset": {
+          "type": "string",
+          "description": "Repo-relative path under assets/, e.g. seasons/biobuzz_2026/collision/part_0001.stl"
+        },
+        "convex": { "type": "boolean", "const": true },
+        "faceCount": { "type": "integer", "minimum": 1 },
+        "minIn": { "$ref": "#/$defs/xyz" },
+        "maxIn": { "$ref": "#/$defs/xyz" },
+        "extentsIn": { "$ref": "#/$defs/xyz" }
+      }
+    },
+    "fieldAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceUrl", "sourceFilename", "sha256", "units", "transform", "boundsIn", "visualAsset", "collisionParts"],
+      "properties": {
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "sourceFilename": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "units": { "type": "string", "enum": ["m", "mm", "in", "unknown"] },
+        "transform": { "$ref": "#/$defs/transform" },
+        "boundsIn": { "$ref": "#/$defs/bounds" },
+        "visualAsset": { "type": "string" },
+        "visualFaceCount": { "type": "integer", "minimum": 0 },
+        "collisionParts": {
+          "type": "array",
+          "minItems": 2,
+          "description": "Convex hull of each CAD solid. A single concave field mesh is invalid for MuJoCo.",
+          "items": { "$ref": "#/$defs/collisionPart" }
+        },
+        "mechanisms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fieldMechanism" }
+        },
+        "partCount": { "type": "integer", "minimum": 2 },
+        "tolLinear": { "type": "number" },
+        "tessellation": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "tolLinear": { "type": "number" },
+            "mergePrimitives": { "type": "boolean" },
+            "visualFaceTarget": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "fieldMechanism": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "alliance", "visualAsset", "pivotIn", "axis", "tipAngleDeg", "collisionParts"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "alliance": { "type": "string", "enum": ["red", "blue", "neutral"] },
+        "visualAsset": { "type": "string" },
+        "visualFaceCount": { "type": "integer", "minimum": 0 },
+        "pivotIn": { "$ref": "#/$defs/xyz" },
+        "axis": { "$ref": "#/$defs/xyz" },
+        "tipAngleDeg": { "type": "number" },
+        "collisionParts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/collisionPart" }
+        }
+      }
+    },
+    "pieceAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceUrl", "sourceFilename", "sha256", "units", "transform", "boundsIn", "visualAsset", "collisionAsset", "convex", "specDiameterIn", "measuredDiameterIn"],
+      "properties": {
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "sourceFilename": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "units": { "type": "string", "enum": ["m", "mm", "in", "unknown"] },
+        "transform": { "$ref": "#/$defs/transform" },
+        "boundsIn": { "$ref": "#/$defs/bounds" },
+        "visualAsset": { "type": "string" },
+        "collisionAsset": { "type": "string" },
+        "convex": { "type": "boolean", "const": true },
+        "specDiameterIn": { "type": "number", "exclusiveMinimum": 0 },
+        "measuredDiameterIn": { "type": "number", "exclusiveMinimum": 0 },
+        "faceCount": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

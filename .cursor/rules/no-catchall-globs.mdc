@@ -19,4 +19,4 @@ Never use a `*` / `**/*` glob, or an unscoped regex, that walks the entire repos
 - Scope searches: `python/talongym/**/*.py`, `web/src/**/*.{ts,tsx}`, `docs/*.md`, `tests/**/*.py`
 - Open known paths (`README.md`, `pyproject.toml`) instead of discovering them with `*`
 
-Stay out of `.venv/`, `venv/`, `var/`, `logs/`, `outputs/`, `web/node_modules/`, `web/dist/`, `engine/target/`, `.pytest_cache/`, and `__pycache__/`.
+Stay out of `.venv/`, `venv/`, `var/`, `logs/`, `outputs/`, `web/node_modules/`, `web/dist/`, `engine/target/`, `.pytest_cache/`, `__pycache__/`, and generated CAD under `assets/seasons/*/collision/`, `pieces/`, and `mechanisms/`.

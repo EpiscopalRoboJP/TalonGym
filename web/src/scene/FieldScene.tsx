@@ -2,22 +2,26 @@ import { Component, Suspense, useEffect, useMemo, useState, type ReactNode } fro
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Grid, Line, useGLTF } from "@react-three/drei";
 import { DoubleSide, Mesh, Object3D } from "three";
-import type { Frame, IntakeSpec, LauncherSpec, RobotDesign } from "../api";
+import type { Frame, FramePiece, IntakeSpec, LauncherSpec, RobotDesign } from "../api";
 import { API } from "../api";
 import { theme } from "../theme";
+import {
+  buildPieceCatalog,
+  cadCacheTokenFromManifest,
+  explicitCadCacheToken,
+  fetchCadManifest,
+  fieldAssetUrl,
+  pieceAssetUrl,
+  pieceThreePose,
+  resolveBackgroundAsset,
+  resolveCadManifestPath,
+  resolvePieceVisualAsset,
+  visualOffsetYawDeg,
+  type CadManifest,
+  type PieceCatalog,
+} from "./cadAssets";
 
-const BIOBUZZ_GLB = "seasons/biobuzz_2026/field.glb";
-const CAD_ASSET_VERSION = "am-5850e";
-
-export function resolveBackgroundAsset(frame: Frame | null | undefined, fallback?: string | null) {
-  if (frame?.backgroundAsset) return frame.backgroundAsset;
-  if (fallback) return fallback;
-  const els = frame?.elements || [];
-  if (els.some((el) => el.id === "red_cell_up" || el.type === "hive_frame" || (el.tags || []).includes("hive"))) {
-    return BIOBUZZ_GLB;
-  }
-  return null;
-}
+export { resolveBackgroundAsset } from "./cadAssets";
 
 export type SceneView = "threeQuarter" | "top";
 
@@ -38,6 +42,32 @@ function prepareCadScene(scene: Object3D) {
       if ("color" in mat && mat.color && typeof mat.color.getHex === "function" && mat.color.getHex() === 0) {
         mat.color.set(theme.goldLight);
       }
+    }
+  });
+}
+
+function prepareFieldCadScene(scene: Object3D) {
+  prepareCadScene(scene);
+  scene.traverse((obj) => {
+    if (!(obj instanceof Mesh) || !obj.material) return;
+    const name = obj.name.toLowerCase();
+    const source = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const mats = source.map((material) => material.clone());
+    obj.material = Array.isArray(obj.material) ? mats : mats[0];
+    for (const mat of mats) {
+      if (!("color" in mat) || !mat.color) continue;
+      if (name.includes("soft_tiles")) mat.color.set(theme.field);
+      else if (name.includes("gaffer_tape_red")) mat.color.set(theme.maroon);
+      else if (name.includes("gaffer_tape_blue")) mat.color.set(theme.allianceBlue);
+      else if (name.includes("flower")) mat.color.set(theme.gold);
+      else if (name.includes("blue_goal")) mat.color.set(theme.allianceBlueBright);
+      else if (name.includes("red_goal")) mat.color.set(theme.maroon);
+      else if (name.includes("field_side_glass")) {
+        mat.color.set("#b9d7df");
+        mat.transparent = true;
+        mat.opacity = 0.24;
+        mat.depthWrite = false;
+      } else mat.color.set("#a9adb0");
     }
   });
 }
@@ -147,11 +177,38 @@ class CadErrorBoundary extends Component<{ onError?: () => void; children: React
   }
 }
 
+class SceneErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div
+        role="status"
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "grid",
+          placeItems: "center",
+          padding: 24,
+          color: theme.muted,
+          background: theme.scene,
+          textAlign: "center",
+        }}
+      >
+        3D preview unavailable. Enable WebGL to view the field.
+      </div>
+    );
+  }
+}
+
 function CadBackground({ url, onReady }: { url: string; onReady?: () => void }) {
   const gltf = useGLTF(url);
   const scene = useMemo(() => {
     const cloned = gltf.scene.clone(true);
-    prepareCadScene(cloned);
+    prepareFieldCadScene(cloned);
     return cloned;
   }, [gltf.scene]);
   useEffect(() => {
@@ -160,6 +217,37 @@ function CadBackground({ url, onReady }: { url: string; onReady?: () => void }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene]);
   return <primitive object={scene} />;
+}
+
+function FieldMechanismActor({
+  visualAsset,
+  pivot,
+  axis,
+  angle,
+  cacheToken,
+}: {
+  visualAsset: string;
+  pivot: [number, number, number];
+  axis: [number, number, number];
+  angle: number;
+  cacheToken?: string | null;
+}) {
+  const url = fieldAssetUrl(visualAsset, cacheToken);
+  const length = Math.hypot(axis[0], axis[1], axis[2]) || 1;
+  const halfSin = Math.sin(angle / 2);
+  const quaternion: [number, number, number, number] = [
+    (axis[0] / length) * halfSin,
+    (axis[1] / length) * halfSin,
+    (axis[2] / length) * halfSin,
+    Math.cos(angle / 2),
+  ];
+  return (
+    <group position={pivot} quaternion={quaternion}>
+      <Suspense fallback={null}>
+        <CadBackground url={url} />
+      </Suspense>
+    </group>
+  );
 }
 
 function RobotCad({ url, onReady }: { url: string; onReady?: () => void }) {
@@ -259,7 +347,7 @@ export function RobotActor({
   return (
     <group position={[inch(x), height / 2, inch(-y)]} rotation={[0, (headingDeg * Math.PI) / 180, 0]}>
       {cadUrl && (
-        <group position={[offset.x || 0, (offset.z || 0) - height / 2, -(offset.y || 0)]} rotation={[0, ((offset.headingDeg || 0) * Math.PI) / 180, 0]}>
+        <group position={[offset.x || 0, (offset.z || 0) - height / 2, -(offset.y || 0)]} rotation={[0, (visualOffsetYawDeg(offset) * Math.PI) / 180, 0]}>
           <CadErrorBoundary onError={() => setCadReady(false)}>
             <Suspense fallback={null}>
               <RobotCad url={cadUrl} onReady={() => setCadReady(true)} />
@@ -315,6 +403,98 @@ export function RobotPreview({ design, showFov = false, showHull = false }: { de
   );
 }
 
+function useCadRuntime(frame: Frame, cadFallback?: string | null) {
+  const cadPath = resolveBackgroundAsset(frame, cadFallback);
+  const manifestPath = resolveCadManifestPath(frame);
+  const explicitToken = explicitCadCacheToken(frame);
+  const [manifest, setManifest] = useState<CadManifest | null>(null);
+  const [manifestSettled, setManifestSettled] = useState(!manifestPath);
+  useEffect(() => {
+    if (!manifestPath) {
+      setManifest(null);
+      setManifestSettled(true);
+      return;
+    }
+    let cancelled = false;
+    setManifestSettled(Boolean(explicitToken));
+    void fetchCadManifest(manifestPath).then((doc) => {
+      if (cancelled) return;
+      setManifest(doc);
+      setManifestSettled(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [manifestPath, explicitToken]);
+  const token = explicitToken || cadCacheTokenFromManifest(manifest);
+  const catalog = useMemo(() => buildPieceCatalog(frame, manifest), [frame, manifest]);
+  const cadUrl = cadPath && (token || manifestSettled) ? fieldAssetUrl(cadPath, token) : null;
+  return { cadPath, cadUrl, token, catalog, manifest };
+}
+
+function PieceCad({ url, color, onReady }: { url: string; color: string; onReady?: () => void }) {
+  const gltf = useGLTF(url);
+  const scene = useMemo(() => {
+    const cloned = gltf.scene.clone(true);
+    prepareCadScene(cloned);
+    cloned.traverse((obj) => {
+      if (!(obj instanceof Mesh) || !obj.material) return;
+      const source = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const mats = source.map((material) => material.clone());
+      obj.material = Array.isArray(obj.material) ? mats : mats[0];
+      for (const mat of mats) {
+        if ("color" in mat && mat.color) mat.color.set(color);
+      }
+    });
+    return cloned;
+  }, [gltf.scene, color]);
+  useEffect(() => {
+    onReady?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene]);
+  return <primitive object={scene} />;
+}
+
+function PieceActor({
+  piece,
+  catalog,
+  backgroundAsset,
+  cacheToken,
+}: {
+  piece: FramePiece;
+  catalog: PieceCatalog;
+  backgroundAsset?: string | null;
+  cacheToken?: string | null;
+}) {
+  const visualAsset = resolvePieceVisualAsset(piece, catalog, backgroundAsset);
+  const pose = pieceThreePose(piece, catalog);
+  const cadUrl = visualAsset ? pieceAssetUrl(visualAsset, catalog, piece.typeId, cacheToken) : null;
+  const color = pieceColor(piece.color);
+  const [cadReady, setCadReady] = useState(false);
+  useEffect(() => {
+    setCadReady(false);
+    if (cadUrl) useGLTF.preload(cadUrl);
+  }, [cadUrl]);
+  const orient = pose.quaternion ? { quaternion: pose.quaternion } : { rotation: pose.euler };
+  return (
+    <group position={pose.position} {...orient}>
+      {cadUrl && (
+        <CadErrorBoundary onError={() => setCadReady(false)}>
+          <Suspense fallback={null}>
+            <PieceCad url={cadUrl} color={color} onReady={() => setCadReady(true)} />
+          </Suspense>
+        </CadErrorBoundary>
+      )}
+      {(!cadUrl || !cadReady) && (
+        <mesh>
+          <sphereGeometry args={[pose.radius, 16, 16]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
 function FieldMeshes({
   frame,
   showFov,
@@ -330,8 +510,7 @@ function FieldMeshes({
   const d = frame.fieldSizeIn.depth;
   const fieldArea = w * d;
   const elements = dedupe(frame.elements || []);
-  const cadPath = resolveBackgroundAsset(frame, cadFallback);
-  const cadUrl = cadPath ? `${API}/field-assets/${cadPath}?v=${CAD_ASSET_VERSION}` : null;
+  const { cadUrl, token, catalog, cadPath, manifest } = useCadRuntime(frame, cadFallback);
   const [cadReady, setCadReady] = useState(false);
   const enteredRestricted =
     (frame.robots || []).some((r) => r.enteredRestricted) || Boolean(frame.collision?.enteredRestricted);
@@ -356,6 +535,20 @@ function FieldMeshes({
           </Suspense>
         </CadErrorBoundary>
       )}
+      {(manifest?.field?.mechanisms || []).map((mechanism) => {
+        const angle = frame.fieldMechanisms?.find((state) => state.id === mechanism.id)?.angleRad || 0;
+        return (
+          <CadErrorBoundary key={mechanism.id}>
+            <FieldMechanismActor
+              visualAsset={mechanism.visualAsset}
+              pivot={mechanism.pivotIn}
+              axis={mechanism.axis}
+              angle={angle}
+              cacheToken={token}
+            />
+          </CadErrorBoundary>
+        );
+      })}
       {!cadReady &&
         (
           [
@@ -412,12 +605,15 @@ function FieldMeshes({
         );
       })}
       {(frame.pieces || [])
-        .filter((p) => !p.scored)
+        .filter((p) => !p.scored && !p.heldBy)
         .map((p) => (
-          <mesh key={p.id} position={[inch(p.x), p.z ?? 2.6, inch(-p.y)]}>
-            <sphereGeometry args={[2.5, 16, 16]} />
-            <meshStandardMaterial color={pieceColor(p.color)} />
-          </mesh>
+          <PieceActor
+            key={p.id}
+            piece={p}
+            catalog={catalog}
+            backgroundAsset={cadPath}
+            cacheToken={token}
+          />
         ))}
       {(frame.robots || []).map((r) => (
         <RobotActor
@@ -460,14 +656,16 @@ export function FieldScene({
   const d = frame?.fieldSizeIn.depth || 144;
   const span = Math.max(w, d);
   return (
-    <Canvas camera={{ position: [0, span * 1.45, span * 0.95], fov: 40 }} style={{ width: "100%", height: "100%" }}>
-      <color attach="background" args={[theme.scene]} />
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[80, 200, 60]} intensity={1.1} />
-      <Grid args={[w, d]} cellSize={24} sectionSize={72} cellColor={theme.grid} sectionColor={theme.gridSection} fadeDistance={400} />
-      <CameraRig view={view} w={w} d={d} />
-      {frame && <FieldMeshes frame={frame} showFov={showFov} path={path} cadFallback={cadAsset} />}
-      <OrbitControls makeDefault />
-    </Canvas>
+    <SceneErrorBoundary>
+      <Canvas camera={{ position: [0, span * 1.45, span * 0.95], fov: 40 }} style={{ width: "100%", height: "100%" }}>
+        <color attach="background" args={[theme.scene]} />
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[80, 200, 60]} intensity={1.1} />
+        <Grid args={[w, d]} cellSize={24} sectionSize={72} cellColor={theme.grid} sectionColor={theme.gridSection} fadeDistance={400} />
+        <CameraRig view={view} w={w} d={d} />
+        {frame && <FieldMeshes frame={frame} showFov={showFov} path={path} cadFallback={cadAsset} />}
+        <OrbitControls makeDefault />
+      </Canvas>
+    </SceneErrorBoundary>
   );
 }

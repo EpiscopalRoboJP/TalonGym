@@ -143,10 +143,14 @@ export function ReplayPage() {
   }
 
   async function demo() {
-    const res = await postJson<{ replayId: string }>("/replays/demo", {});
-    const list = await getJson<ReplayMeta[]>("/replays");
-    setIds(list);
-    selectReplay(res.replayId);
+    try {
+      const res = await postJson<{ replayId: string }>("/replays/demo", {});
+      const list = await getJson<ReplayMeta[]>("/replays");
+      setIds(list);
+      selectReplay(res.replayId);
+    } catch {
+      /* ToastHost already surfaced the API error */
+    }
   }
 
   async function exportRr() {

@@ -1,47 +1,88 @@
-"""Download official field STEP if possible; always emit glTF + MJCF colliders.
+"""Deterministic official field STEP import: visual GLB, convex parts, manifest.
 
-Raw STEP is written under var/cad/ and is not committed. Converted assets live in
-assets/seasons/<slug>/. HubSpot often hides the direct CAD URL — we scrape the
-archive page, then fall back to tessellating the field preset AABBs.
-
-When a local STEP is supplied, Lab glTF is tessellated from that file. MuJoCo
-colliders stay as field-preset AABBs so robots can still drive under the hive.
+Raw STEP stays under var/cad/ (gitignored). Derived GLB/STL/manifest live in
+assets/seasons/<slug>/ and are also gitignored; rebuild with import-field-cad.
+Seasons that require mesh_field_collision fail if the
+verified STEP or derived collision parts are missing — they are never replaced
+with schematic AABB boxes.
 """
 
 from __future__ import annotations
 
 import json
 import re
-import shutil
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
 
+from talongym.assets.cad_common import (
+    CAD_GENERATOR_VERSION,
+    CadImportError,
+    align_field_mesh,
+    as_trimesh,
+    bounds_dict,
+    cad_cache_dir,
+    decimate_visual,
+    download_step,
+    export_visual_parts_glb,
+    field_tile_surface_y,
+    guess_field_inch_scale,
+    infer_up_axis,
+    iter_assembly_parts,
+    load_tessellated_step,
+    mesh_required,
+    round_xyz,
+    select_field_visual_parts,
+    split_moving_hive_parts,
+    moving_hive_alliance,
+    sha256_file,
+    sniff_step_units,
+    stage_step,
+    write_convex_collision_parts,
+)
+from talongym.assets.cad_manifest import (
+    asset_relpath,
+    bounds_block,
+    build_manifest,
+    load_manifest,
+    manifest_relpath,
+    source_block,
+    transform_block,
+    validate_manifest,
+    verify_manifest_files,
+    write_manifest,
+)
+from talongym.assets.cad_sources import (
+    FIELD_SOURCE,
+    OFFICIAL_FIELD_PAGE,
+    OFFICIAL_FIELD_STEP_URL,
+    expected_sha256,
+)
 from talongym.assets.gltf_boxes import solids_from_field, write_glb
 from talongym.assets.mjcf_field import build_mjcf
-from talongym.paths import ASSETS_DIR, PRESETS_DIR, VAR_DIR
+from talongym.paths import ASSETS_DIR, PRESETS_DIR
 
-DEFAULT_CAD_PAGE = "https://ftc-resources.firstinspires.org/ftc/archive/2027/field"
+DEFAULT_CAD_PAGE = OFFICIAL_FIELD_PAGE
 STEP_RE = re.compile(r"""href=["']([^"']+\.(?:step|stp|STEP|STP))["']""", re.I)
-ONSHAPE_RE = re.compile(r"""href=["'](https://[^"']*onshape[^"']*)["']""", re.I)
-IN_PER_M = 39.37007874015748
-MM_PER_IN = 25.4
-FIELD_SPAN_IN = 144.0
-# OpenCASCADE linear deflection in source units (metres for Onshape AP242).
-# 20 mm is coarse enough for Lab; we still quadric-decimate after tessellation.
-DEFAULT_TOL_BY_UNIT = {"m": 0.02, "mm": 20.0, "in": 0.75, "unknown": 0.02}
-VISUAL_FACE_TARGET = 350_000
-# FTC (x, y floor, z height) -> Three/MuJoCo Y-up (x, height, -y).
-YUP_FROM_ZUP = [
-    [1.0, 0.0, 0.0, 0.0],
-    [0.0, 0.0, 1.0, 0.0],
-    [0.0, -1.0, 0.0, 0.0],
-    [0.0, 0.0, 0.0, 1.0],
+
+# Re-export helpers tests and CLI already import.
+_as_trimesh = as_trimesh
+__all__ = [
+    "CAD_GENERATOR_VERSION",
+    "CadImportError",
+    "DEFAULT_CAD_PAGE",
+    "OFFICIAL_FIELD_STEP_URL",
+    "align_field_mesh",
+    "asset_dir_for",
+    "discover_step_urls",
+    "guess_field_inch_scale",
+    "import_field_cad",
+    "infer_up_axis",
+    "sniff_step_units",
+    "stage_step",
+    "verify_season_cad",
+    "write_assets_from_field",
 ]
-
-
-class CadImportError(RuntimeError):
-    pass
 
 
 def _season_slug(field: dict[str, Any]) -> str:
@@ -61,267 +102,43 @@ def load_field_json(path: Path | None = None) -> dict[str, Any]:
 
 def discover_step_urls(page_url: str = DEFAULT_CAD_PAGE, html: str | None = None) -> list[str]:
     if html is None:
-        import urllib.request
+        import httpx
 
-        req = urllib.request.Request(page_url, headers={"User-Agent": "TalonGym/0.1"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            html = resp.read().decode("utf-8", errors="replace")
+        resp = httpx.get(page_url, headers={"User-Agent": "TalonGym/0.1"}, timeout=30.0, follow_redirects=True)
+        resp.raise_for_status()
+        html = resp.text
     found = [urljoin(page_url, m.group(1)) for m in STEP_RE.finditer(html)]
-    # Prefer filenames that look like the full field, not a single scoring volume.
     found.sort(key=lambda u: (0 if "flower" in u.lower() else 1, len(u)))
     fieldish = [u for u in found if "flower" not in u.lower()]
     return fieldish or found
 
 
-def download_step(url: str, dest: Path) -> Path:
-    import urllib.request
-
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    req = urllib.request.Request(url, headers={"User-Agent": "TalonGym/0.1"})
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        dest.write_bytes(resp.read())
-    if dest.stat().st_size < 1024:
-        raise CadImportError(f"STEP download too small: {dest}")
-    return dest
-
-
-def cad_cache_dir() -> Path:
-    dest = VAR_DIR / "cad"
-    dest.mkdir(parents=True, exist_ok=True)
-    return dest
-
-
-def stage_step(source: Path) -> Path:
-    source = Path(source)
-    if not source.is_file():
-        raise CadImportError(f"STEP not found: {source}")
-    suffix = source.suffix.lower()
-    if suffix not in {".step", ".stp"}:
-        raise CadImportError(f"expected .step/.stp, got {suffix or 'no suffix'}")
-    dest = cad_cache_dir() / re.sub(r"[^A-Za-z0-9._-]+", "_", source.name)
-    if dest.resolve() != source.resolve():
-        shutil.copy2(source, dest)
-    return dest
-
-
-def sniff_step_units(step_path: Path | None = None, text: str | None = None) -> str:
-    """Best-effort length unit from an AP242/Onshape STEP header or unit block."""
-    if text is None:
-        if step_path is None:
-            raise CadImportError("sniff_step_units needs a path or text")
-        with Path(step_path).open("rb") as fh:
-            fh.seek(0, 2)
-            size = fh.tell()
-            fh.seek(0)
-            head = fh.read(min(size, 750_000))
-            fh.seek(max(0, size - 2_000_000))
-            tail = fh.read()
-        text = (head + tail).decode("latin-1", errors="ignore")
-    blob = text.upper()
-    if "SI_UNIT(.MILLI.,.METRE.)" in blob:
-        return "mm"
-    if "SI_UNIT($,.METRE.)" in blob or "SI_UNIT(*,.METRE.)" in blob:
-        return "m"
-    if "CONVERSION_BASED_UNIT" in blob and "INCH" in blob:
-        return "in"
-    return "unknown"
-
-
-def guess_field_inch_scale(span: float) -> tuple[float, str]:
-    """Pick m/mm/in so the largest extent lands near a 144 in FTC field."""
-    candidates = [
-        (1.0, "in", abs(float(span) - FIELD_SPAN_IN)),
-        (1.0 / MM_PER_IN, "mm", abs(float(span) / MM_PER_IN - FIELD_SPAN_IN)),
-        (IN_PER_M, "m", abs(float(span) * IN_PER_M - FIELD_SPAN_IN)),
-    ]
-    _scale, units, _err = min(candidates, key=lambda row: row[2])
-    return _scale, units
-
-
-def infer_up_axis(extents: Any) -> int:
-    vals = [float(extents[0]), float(extents[1]), float(extents[2])]
-    return int(min(range(3), key=lambda i: vals[i]))
-
-
-def default_linear_deflection(units: str) -> float:
-    return float(DEFAULT_TOL_BY_UNIT.get(units, DEFAULT_TOL_BY_UNIT["unknown"]))
-
-
-def _require_trimesh():
+def fetch_official_field_step(
+    *,
+    url: str | None = None,
+    page_url: str = DEFAULT_CAD_PAGE,
+    dest_name: str | None = None,
+) -> tuple[Path, str, str]:
+    expected = expected_sha256(FIELD_SOURCE)
+    dest = cad_cache_dir() / (dest_name or str(FIELD_SOURCE.get("filename") or "field.step"))
+    primary = url or OFFICIAL_FIELD_STEP_URL
     try:
-        import trimesh
-    except ImportError as exc:
-        raise CadImportError("trimesh missing; pip install -e '.[cad]'") from exc
-    return trimesh
-
-
-def _require_cascadio():
-    try:
-        import cascadio
-    except ImportError as exc:
-        raise CadImportError("cascadio missing; pip install -e '.[cad]'") from exc
-    return cascadio
-
-
-def _face_count(obj: Any) -> int:
-    faces = getattr(obj, "faces", None)
-    if faces is not None:
+        return download_step(primary, dest, expected_sha256=expected)
+    except CadImportError as primary_exc:
+        urls = []
         try:
-            return int(len(faces))
-        except TypeError:
-            pass
-    geoms = getattr(obj, "geometry", None)
-    if isinstance(geoms, dict):
-        total = 0
-        for geom in geoms.values():
-            geom_faces = getattr(geom, "faces", None)
-            if geom_faces is None:
-                continue
-            total += int(len(geom_faces))
-        return total
-    return 0
-
-
-def _as_trimesh(obj: Any, trimesh: Any) -> Any:
-    if isinstance(obj, trimesh.Trimesh):
-        return obj
-    if isinstance(obj, trimesh.Scene):
-        dumped = obj.to_geometry() if hasattr(obj, "to_geometry") else obj.dump(concatenate=True)
-        if isinstance(dumped, trimesh.Trimesh):
-            return dumped
-        geoms = dumped if isinstance(dumped, (list, tuple)) else [dumped]
-        geoms = [g for g in geoms if isinstance(g, trimesh.Trimesh) and len(getattr(g, "faces", []))]
-        if not geoms:
-            raise CadImportError("STEP scene has no triangle mesh")
-        if len(geoms) == 1:
-            return geoms[0]
-        return trimesh.util.concatenate(geoms)
-    raise CadImportError(f"unsupported mesh type {type(obj).__name__}")
-
-
-def _paint_lab_mesh(mesh: Any) -> Any:
-    """Keep STEP tessellation exportable; Lab lights/materials are applied in FieldScene."""
-    try:
-        mesh.fix_normals()
-    except Exception:
-        pass
-    return mesh
-
-
-def _decimate_visual(obj: Any, trimesh: Any, target: int = VISUAL_FACE_TARGET) -> tuple[Any, bool]:
-    mesh = _as_trimesh(obj, trimesh)
-    if len(mesh.faces) <= target:
-        return _paint_lab_mesh(mesh), False
-    try:
-        reduced = mesh.simplify_quadric_decimation(face_count=int(target))
-    except Exception as exc:
+            urls = discover_step_urls(page_url)
+        except Exception:
+            urls = []
+        last = primary_exc
+        for candidate in urls:
+            try:
+                return download_step(candidate, dest, expected_sha256=expected)
+            except CadImportError as exc:
+                last = exc
         raise CadImportError(
-            "field mesh is too dense and fast-simplification is missing; pip install -e '.[cad]'"
-        ) from exc
-    if reduced is None or len(getattr(reduced, "faces", [])) < 32:
-        return _paint_lab_mesh(mesh), False
-    return _paint_lab_mesh(reduced), True
-
-
-def align_field_mesh(obj: Any, units: str | None = None) -> tuple[Any, dict[str, Any]]:
-    """Scale to inches, Z-up CAD -> Y-up Lab, origin at field center, sit on the floor."""
-    extents = obj.extents
-    span = float(max(extents)) if len(extents) else 0.0
-    if span < 1e-9:
-        raise CadImportError("STEP mesh has zero size")
-    if units in (None, "", "unknown"):
-        scale, units_guess = guess_field_inch_scale(span)
-    elif units == "m":
-        scale, units_guess = IN_PER_M, "m"
-    elif units == "mm":
-        scale, units_guess = 1.0 / MM_PER_IN, "mm"
-    else:
-        scale, units_guess = 1.0, "in"
-    if abs(scale - 1.0) > 1e-9:
-        obj.apply_scale(scale)
-    up = infer_up_axis(obj.extents)
-    rotated = False
-    if up == 2:
-        obj.apply_transform(YUP_FROM_ZUP)
-        rotated = True
-    min_b, max_b = obj.bounds
-    cx = 0.5 * (float(min_b[0]) + float(max_b[0]))
-    cz = 0.5 * (float(min_b[2]) + float(max_b[2]))
-    # Official FTC CAD is origin-at-center; only slide if the assembly is clearly offset.
-    if abs(cx) > 8.0 or abs(cz) > 8.0:
-        obj.apply_translation([-cx, 0.0, -cz])
-        min_b, max_b = obj.bounds
-    floor = float(min_b[1])
-    if abs(floor) > 0.05:
-        obj.apply_translation([0.0, -floor, 0.0])
-    min_b, max_b = obj.bounds
-    meta = {
-        "unitsGuess": units_guess,
-        "rotatedZupToYup": rotated,
-        "faceCount": _face_count(obj),
-        "extentsIn": [round(float(v), 3) for v in obj.extents],
-        "minIn": [round(float(v), 3) for v in min_b],
-        "maxIn": [round(float(v), 3) for v in max_b],
-    }
-    return obj, meta
-
-
-def tessellate_step_to_glb(
-    step_path: Path,
-    dest_glb: Path,
-    *,
-    units: str = "unknown",
-    tol_linear: float | None = None,
-) -> Path:
-    cascadio = _require_cascadio()
-    dest_glb.parent.mkdir(parents=True, exist_ok=True)
-    tol = float(tol_linear) if tol_linear is not None else default_linear_deflection(units)
-    kwargs: dict[str, Any] = {
-        "tol_linear": tol,
-        "tol_angular": 0.5,
-        "merge_primitives": True,
-        "use_parallel": True,
-    }
-    try:
-        cascadio.step_to_glb(str(step_path), str(dest_glb), include_materials=True, **kwargs)
-    except TypeError:
-        cascadio.step_to_glb(str(step_path), str(dest_glb), **kwargs)
-    if not dest_glb.is_file() or dest_glb.stat().st_size < 64:
-        raise CadImportError(f"cascadio wrote no GLB at {dest_glb}")
-    return dest_glb
-
-
-def convert_step_to_trimesh(
-    step_path: Path,
-    *,
-    units: str | None = None,
-    tol_linear: float | None = None,
-    raw_glb: Path | None = None,
-) -> tuple[Any, dict[str, Any]]:
-    trimesh = _require_trimesh()
-    _require_cascadio()
-    step_path = Path(step_path)
-    sniffed = units or sniff_step_units(step_path)
-    raw_glb = raw_glb or (cad_cache_dir() / f"{step_path.stem}.raw.glb")
-    reuse = (
-        raw_glb.is_file()
-        and raw_glb.stat().st_size > 64
-        and raw_glb.stat().st_mtime >= step_path.stat().st_mtime
-        and tol_linear is None
-    )
-    if not reuse:
-        tessellate_step_to_glb(step_path, raw_glb, units=sniffed, tol_linear=tol_linear)
-    loaded = trimesh.load(str(raw_glb), force=None)
-    if loaded is None:
-        raise CadImportError(f"trimesh could not load tessellated {raw_glb}")
-    aligned, meta = align_field_mesh(loaded, units=sniffed)
-    visual, decimated = _decimate_visual(aligned, trimesh)
-    meta["rawGlb"] = str(raw_glb)
-    meta["sniffedUnits"] = sniffed
-    meta["tolLinear"] = float(tol_linear) if tol_linear is not None else default_linear_deflection(sniffed)
-    meta["decimated"] = decimated
-    meta["faceCount"] = _face_count(visual)
-    return visual, meta
+            f"official field STEP missing from {primary} (and archive page fallback). {last}"
+        ) from last
 
 
 def write_assets_from_field(
@@ -329,6 +146,7 @@ def write_assets_from_field(
     dest_dir: Path | None = None,
     year_hint: str = "2026",
 ) -> dict[str, str]:
+    """Schematic AABB tessellation for seasons that do not require CAD collision."""
     dest_dir = dest_dir or asset_dir_for(field, year_hint)
     dest_dir.mkdir(parents=True, exist_ok=True)
     glb_path = dest_dir / "field.glb"
@@ -340,38 +158,140 @@ def write_assets_from_field(
     return {"glb": str(glb_path), "mjcf": str(xml_path), "backgroundAsset": rel_glb, "collisionAsset": rel_xml}
 
 
-def write_step_visual_and_aabb_colliders(
-    field: dict[str, Any],
-    mesh: Any,
+def convert_step_to_trimesh(
+    step_path: Path,
     *,
-    year_hint: str = "2026",
-) -> dict[str, str]:
-    dest_dir = asset_dir_for(field, year_hint)
+    units: str | None = None,
+    tol_linear: float | None = None,
+    raw_glb: Path | None = None,
+) -> tuple[Any, dict[str, Any]]:
+    """Load + align a field STEP, returning the visual mesh (concatenated) and metadata."""
+    from talongym.assets.cad_common import _require_trimesh
+
+    trimesh = _require_trimesh()
+    loaded, tess_meta = load_tessellated_step(
+        step_path,
+        units=units,
+        tol_linear=tol_linear,
+        raw_glb=raw_glb,
+        merge_primitives=True,
+        piece=False,
+    )
+    aligned, meta = align_field_mesh(loaded, units=tess_meta.get("sniffedUnits"))
+    visual, decimated = decimate_visual(aligned, trimesh)
+    meta.update(tess_meta)
+    meta["decimated"] = decimated
+    meta["faceCount"] = int(meta.get("faceCount") or 0)
+    return visual, meta
+
+
+def _write_field_derived(
+    field: dict[str, Any],
+    aligned: Any,
+    *,
+    dest_dir: Path,
+    sha256: str,
+    source_url: str,
+    filename: str,
+    tess_meta: dict[str, Any],
+    align_meta: dict[str, Any],
+) -> dict[str, Any]:
+    from talongym.assets.cad_common import _require_trimesh
+
+    trimesh = _require_trimesh()
     dest_dir.mkdir(parents=True, exist_ok=True)
     glb_path = dest_dir / "field.glb"
-    xml_path = dest_dir / "field_mjcf.xml"
-    mesh.export(str(glb_path), file_type="glb")
-    xml_path.write_text(build_mjcf(field), encoding="utf-8")
-    rel_glb = str(glb_path.relative_to(ASSETS_DIR)).replace("\\", "/")
-    rel_xml = str(xml_path.relative_to(ASSETS_DIR)).replace("\\", "/")
+    collision_dir = dest_dir / "collision"
+    initial_parts = iter_assembly_parts(aligned, trimesh)
+    tile_surface_y = field_tile_surface_y(initial_parts)
+    base_translation = list(align_meta.get("translationIn") or [0.0, 0.0, 0.0])
+    if abs(tile_surface_y) > 1e-6:
+        aligned.apply_translation([0.0, -tile_surface_y, 0.0])
+        align_meta["translationIn"] = round_xyz(
+            [base_translation[0], float(base_translation[1]) - tile_surface_y, base_translation[2]]
+        )
+        align_meta.update(bounds_dict(aligned))
+    parts = iter_assembly_parts(aligned, trimesh)
+    visual_parts, visual_filter = select_field_visual_parts(parts)
+    static_visual_parts, moving_visual_parts = split_moving_hive_parts(visual_parts)
+    collision_parts = write_convex_collision_parts(
+        parts,
+        collision_dir,
+        rel_prefix=str((dest_dir.relative_to(ASSETS_DIR) / "collision")).replace("\\", "/"),
+        allow_single_concave=False,
+    )
+    _visual_path, visual_meta = export_visual_parts_glb(static_visual_parts, glb_path, trimesh)
+    mechanism_dir = dest_dir / "mechanisms"
+    hive_pivots = {
+        "red": [-12.75, 42.03, 1.11],
+        "blue": [12.75, 42.03, -1.11],
+    }
+    mechanisms: list[dict[str, Any]] = []
+    for alliance, pivot in hive_pivots.items():
+        centered_parts: list[tuple[str, Any]] = []
+        for name, source_mesh in moving_visual_parts[alliance]:
+            mesh = source_mesh.copy()
+            mesh.apply_translation([-pivot[0], -pivot[1], -pivot[2]])
+            centered_parts.append((name, mesh))
+        mechanism_path = mechanism_dir / f"{alliance}_hive.glb"
+        _path, mechanism_visual_meta = export_visual_parts_glb(
+            centered_parts,
+            mechanism_path,
+            trimesh,
+            face_target=180_000,
+        )
+        mechanism_collision = [
+            part
+            for part in collision_parts
+            if moving_hive_alliance(
+                str(part.get("id") or ""),
+                0.5 * (float(part["minIn"][0]) + float(part["maxIn"][0])),
+            )
+            == alliance
+        ]
+        mechanisms.append(
+            {
+                "id": f"{alliance}_hive",
+                "alliance": alliance,
+                "visualAsset": asset_relpath(mechanism_path),
+                "visualFaceCount": int(mechanism_visual_meta.get("faceCount") or 0),
+                "pivotIn": pivot,
+                "axis": [1.0, 0.0, 0.0],
+                "tipAngleDeg": 60.0 if alliance == "red" else -60.0,
+                "collisionParts": mechanism_collision,
+            }
+        )
+    field_block = {
+        **source_block(
+            source_url=source_url,
+            filename=filename,
+            sha256=sha256,
+            units=str(align_meta.get("unitsGuess") or tess_meta.get("sniffedUnits") or "unknown"),
+        ),
+        "transform": transform_block(align_meta),
+        "boundsIn": bounds_block(align_meta),
+        "visualAsset": asset_relpath(glb_path),
+        "visualFaceCount": int(visual_meta.get("faceCount") or 0),
+        "collisionParts": collision_parts,
+        "mechanisms": mechanisms,
+        "partCount": len(collision_parts),
+        "tolLinear": tess_meta.get("tolLinear"),
+        "tessellation": {
+            "tolLinear": tess_meta.get("tolLinear"),
+            "mergePrimitives": tess_meta.get("mergePrimitives", True),
+            "visualFaceTarget": 800_000,
+            "tileSurfaceSourceYIn": round(float(tile_surface_y), 3),
+            "visualFilter": visual_filter,
+        },
+    }
+    field_block["transform"]["translationIn"][1] = round(float(base_translation[1]) - tile_surface_y, 3)
     return {
         "glb": str(glb_path),
-        "mjcf": str(xml_path),
-        "backgroundAsset": rel_glb,
-        "collisionAsset": rel_xml,
-        "glbBytes": str(glb_path.stat().st_size),
+        "backgroundAsset": asset_relpath(glb_path),
+        "collisionDir": str(collision_dir),
+        "fieldBlock": field_block,
+        "partCount": len(collision_parts),
     }
-
-
-def try_official_step(page_url: str = DEFAULT_CAD_PAGE) -> Path | None:
-    urls = discover_step_urls(page_url)
-    if not urls:
-        return None
-    dest = cad_cache_dir() / "field.step"
-    try:
-        return download_step(urls[-1], dest)
-    except Exception:
-        return None
 
 
 def import_field_cad(
@@ -380,36 +300,129 @@ def import_field_cad(
     year_hint: str = "2026",
     step_path: Path | None = None,
     tol_linear: float | None = None,
+    step_url: str | None = None,
+    include_pieces: bool = True,
+    skip_field: bool = False,
 ) -> dict[str, Any]:
     field = load_field_json(field_path)
-    if step_path is not None:
-        staged = stage_step(Path(step_path))
-        mesh, meta = convert_step_to_trimesh(staged, tol_linear=tol_linear)
-        paths = write_step_visual_and_aabb_colliders(field, mesh, year_hint=year_hint)
-        return {
-            "ok": True,
-            "source": f"official_step:{staged.name}",
-            "step": str(staged),
-            **paths,
-            **meta,
-        }
-    step = try_official_step(page_url)
-    note = "aabb_tessellation"
-    if step is not None:
+    dest_dir = asset_dir_for(field, year_hint)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    cad_needed = mesh_required(field)
+    existing_manifest: dict[str, Any] = {}
+    existing_path = dest_dir / "cad_manifest.json"
+    if existing_path.is_file():
         try:
-            mesh, meta = convert_step_to_trimesh(step, tol_linear=tol_linear)
-            paths = write_step_visual_and_aabb_colliders(field, mesh, year_hint=year_hint)
-            return {
-                "ok": True,
-                "source": f"official_step:{step.name}",
-                "step": str(step),
-                **paths,
-                **meta,
-            }
-        except Exception as exc:
-            note = f"step_failed:{exc}"
-    paths = write_assets_from_field(field, year_hint=year_hint)
-    return {"ok": True, "source": note, **paths, "cadPage": page_url}
+            existing_manifest = json.loads(existing_path.read_text(encoding="utf-8"))
+        except Exception:
+            existing_manifest = {}
+    field_block: dict[str, Any] | None = existing_manifest.get("field") if skip_field else None
+    paths: dict[str, Any] = {}
+    source = "official_step"
+
+    if not skip_field:
+        staged: Path | None = None
+        digest = ""
+        filename = ""
+        source_url = step_url or OFFICIAL_FIELD_STEP_URL
+        if step_path is not None:
+            staged = stage_step(Path(step_path))
+            digest = sha256_file(staged)
+            expected = expected_sha256(FIELD_SOURCE)
+            if expected and digest != expected:
+                raise CadImportError(
+                    f"field STEP hash mismatch: got {digest}, expected {expected}"
+                )
+            filename = staged.name
+            source = f"official_step:{staged.name}"
+            source_url = f"file:{staged.name}"
+        else:
+            try:
+                staged, digest, filename = fetch_official_field_step(url=step_url, page_url=page_url)
+                source = f"official_step:{staged.name}"
+            except CadImportError:
+                if cad_needed:
+                    raise
+                paths = write_assets_from_field(field, dest_dir=dest_dir, year_hint=year_hint)
+                source = "aabb_tessellation"
+        if staged is not None:
+            loaded, tess_meta = load_tessellated_step(
+                staged,
+                tol_linear=tol_linear,
+                raw_glb=cad_cache_dir() / f"{staged.stem}.raw.glb",
+                merge_primitives=True,
+                piece=False,
+            )
+            aligned, align_meta = align_field_mesh(loaded, units=tess_meta.get("sniffedUnits"))
+            derived = _write_field_derived(
+                field,
+                aligned,
+                dest_dir=dest_dir,
+                sha256=digest,
+                source_url=source_url if not str(source_url).startswith("file:") else OFFICIAL_FIELD_STEP_URL,
+                filename=filename or staged.name,
+                tess_meta=tess_meta,
+                align_meta=align_meta,
+            )
+            field_block = derived.pop("fieldBlock")
+            paths.update(derived)
+            paths["step"] = str(staged)
+            paths["sha256"] = digest
+            paths.update(align_meta)
+
+    pieces: dict[str, Any] = dict(existing_manifest.get("pieces") or {}) if not include_pieces else {}
+    if include_pieces:
+        from talongym.assets.import_piece_cad import import_season_pieces
+
+        pieces = import_season_pieces(dest_dir, tol_linear=tol_linear)
+
+    notes = (
+        "Physical geometry from official STEP. Scoring volumes/zones/triggers stay in the "
+        "field preset. Collision parts are convex hulls of CAD solids (not one concave mesh). "
+        "Runtime MuJoCo assembles those convex parts plus typed free-joint piece hulls."
+    )
+    manifest = build_manifest(
+        season_slug=_season_slug(field),
+        field=field_block,
+        pieces=pieces or None,
+        notes=notes,
+    )
+    manifest_path = write_manifest(dest_dir, manifest)
+    result: dict[str, Any] = {
+        "ok": True,
+        "source": source,
+        "cadManifest": manifest_relpath(dest_dir),
+        "manifestPath": str(manifest_path),
+        "generatorVersion": CAD_GENERATOR_VERSION,
+        "pieces": {k: {"visualAsset": v.get("visualAsset"), "collisionAsset": v.get("collisionAsset")} for k, v in pieces.items()},
+        **paths,
+    }
+    if not field_block and cad_needed and not skip_field:
+        raise CadImportError(
+            "mesh_field_collision season requires official field STEP; refusing AABB fallback"
+        )
+    return result
+
+
+def verify_season_cad(
+    field_path: Path | None = None,
+    year_hint: str = "2026",
+) -> dict[str, Any]:
+    field = load_field_json(field_path)
+    rel = field.get("cadManifest")
+    if not rel:
+        if mesh_required(field):
+            raise CadImportError("mesh_field_collision season is missing cadManifest")
+        return {"ok": True, "problems": ["no cadManifest"]}
+    path = ASSETS_DIR / Path(str(rel))
+    if not path.is_file():
+        raise CadImportError(f"cadManifest not found: {rel}")
+    document = load_manifest(path)
+    problems = verify_manifest_files(document, require_field=mesh_required(field))
+    schema_problems = validate_manifest(document)
+    problems.extend(schema_problems)
+    if problems and mesh_required(field):
+        raise CadImportError("CAD assets missing or stale: " + "; ".join(problems[:12]))
+    return {"ok": not problems, "problems": problems, "cadManifest": rel}
 
 
 def main() -> None:

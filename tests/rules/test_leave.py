@@ -9,7 +9,7 @@ def test_leave_scores_at_phase_end():
     world.reset(seed=0, static_teammate=False)
     rs = world.actor()
     for _ in range(80):
-        world.step(np.array([0.0, 0.0, 1.57]), 1.0, 0, end_phase=False)
+        world.step(np.array([-24.0, 0.0, 1.57]), 1.0, 0, end_phase=False)
         rs = world.actor()
     world.step(np.array([rs.body.x, rs.body.y, rs.body.heading]), 0.2, 0, end_phase=True)
     assert world.accumulators.get("left_wall") is True

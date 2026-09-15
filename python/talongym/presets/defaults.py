@@ -4,7 +4,7 @@ import json
 from typing import Any
 
 from talongym import paths
-from talongym.presets.loader import PresetError, load_preset, preset_index
+from talongym.presets.loader import PresetError, load_json, load_preset, preset_index
 
 REPO_DEFAULTS = paths.PRESETS_DIR / "defaults.json"
 _KEYS = ("fieldId", "robotId", "scoringId", "trainingId")
@@ -31,10 +31,17 @@ def get_defaults() -> dict[str, str]:
 
 def describe_defaults() -> dict[str, Any]:
     ids = get_defaults()
-    field = load_preset("field", ids["fieldId"])
+    season = None
+    field_id = ids.get("fieldId")
+    if field_id:
+        path = preset_index()["field"].get(field_id)
+        if path is None:
+            raise PresetError(f"Unknown field preset '{field_id}'")
+        field = load_json(path)
+        season = (field.get("season") or {}).get("slug")
     return {
         **ids,
-        "season": (field.get("season") or {}).get("slug"),
+        "season": season,
     }
 
 

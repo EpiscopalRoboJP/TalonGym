@@ -5,7 +5,7 @@ Do not treat these as engine work. Until they are answered, every BIOBUZZ preset
 Official documents:
 
 - Competition Manual / Game Details: https://ftc-resources.firstinspires.org/ftc/game/manual-10
-- Field CAD/STEP: https://ftc-resources.firstinspires.org/ftc/archive/2027/field
+- Field CAD/STEP: https://ftc-resources.firstinspires.org/ftc/archive/2027/field/field-cad-step
 
 Encoded facts and remaining placeholders: [presets/seasons/biobuzz_2026/README.md](../presets/seasons/biobuzz_2026/README.md).
 
@@ -47,4 +47,4 @@ Manual extract confirmed ids 0, 7, and 38–41. Clusters 1–3, 4–6, and 42–
 
 ## Geometry freeze
 
-Replace schematic poses in `presets/seasons/biobuzz_2026/field.json` with CAD-extracted inches when the official STEP URL is reachable. Record `contentSha256` of the STEP/Onshape export. Re-run `python -m talongym import-field-cad`.
+Replace schematic scoring-volume poses in `presets/seasons/biobuzz_2026/field.json` with CAD-extracted inches when a mentor confirms figures. Physical meshes already come from the official STEP (`contentSha256` on provenance; `python -m talongym import-field-cad --verify`).

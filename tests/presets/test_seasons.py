@@ -32,3 +32,5 @@ def test_biobuzz_auto_volumes():
     assert field.get("backgroundAsset")
     assert field.get("collisionAsset")
     assert "mesh_field_collision" in field["requiredCapabilities"]
+    preloads = [s for s in field["spawns"] if s.get("heldByRobotId")]
+    assert {s["heldByRobotId"] for s in preloads} == {"red_0", "red_1", "blue_0", "blue_1"}

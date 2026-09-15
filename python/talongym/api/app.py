@@ -105,7 +105,10 @@ def compute_info() -> dict[str, Any]:
 def get_defaults_bundle() -> dict[str, Any]:
     from talongym.presets.defaults import describe_defaults
 
-    return describe_defaults()
+    try:
+        return describe_defaults()
+    except PresetError as exc:
+        raise HTTPException(422, {"error": {"code": "BAD_DEFAULTS", "message": str(exc)}}) from exc
 
 
 @app.put(f"{API}/defaults")
@@ -266,7 +269,12 @@ def export_rr(replay_id: str, body: ExportBody | None = None) -> PlainTextRespon
 
 @app.post(f"{API}/replays/demo", status_code=201)
 def demo_replay() -> dict[str, str]:
-    frames = record_policy_episode(scripted_auto, seed=4)
+    from talongym.sim.mujoco_backend import MeshFieldRequiredError
+
+    try:
+        frames = record_policy_episode(scripted_auto, seed=4)
+    except MeshFieldRequiredError as exc:
+        raise HTTPException(503, {"error": {"code": "MESH_REQUIRED", "message": str(exc)}}) from exc
     rid = db.save_replay(frames, {"source": "demo", "trueScore": frames[-1].get("trueScore") if frames else 0})
     return {"replayId": rid}
 
@@ -352,22 +360,28 @@ async def ws_run(websocket: WebSocket, run_id: str) -> None:
         nonlocal seq
         seq += 1
         payload = json.dumps({"v": 1, "seq": seq, **msg}, default=str)
-        loop.call_soon_threadsafe(outgoing.put_nowait, payload)
+        try:
+            loop.call_soon_threadsafe(outgoing.put_nowait, payload)
+        except RuntimeError:
+            # Event loop closed after the client disconnected.
+            pass
 
     jobs.subscribe(run_id, push)
     try:
         run = db.get_run(run_id)
         await websocket.send_text(
-            json.dumps({"v": 1, "seq": 0, "type": "status", "payload": run or {"state": "unknown"}})
+            json.dumps({"v": 1, "seq": 0, "type": "status", "payload": run or {"state": "unknown"}}, default=str)
         )
         if run and run.get("metrics"):
             seq = 1
-            await websocket.send_text(json.dumps({"v": 1, "seq": 1, "type": "metrics", "payload": run["metrics"]}))
+            await websocket.send_text(
+                json.dumps({"v": 1, "seq": 1, "type": "metrics", "payload": run["metrics"]}, default=str)
+            )
         for msg in jobs.latest_messages(run_id):
             if msg.get("type") not in {"rollout", "log"}:
                 continue
             seq += 1
-            await websocket.send_text(json.dumps({"v": 1, "seq": seq, **msg}))
+            await websocket.send_text(json.dumps({"v": 1, "seq": seq, **msg}, default=str))
 
         async def pump_out() -> None:
             while True:
@@ -397,8 +411,10 @@ def _asset_media(dest: Path) -> str:
     suffix = dest.suffix.lower()
     if suffix == ".glb":
         return "model/gltf-binary"
-    if suffix in {".gltf", ".json"}:
+    if suffix == ".gltf":
         return "model/gltf+json"
+    if suffix == ".json":
+        return "application/json"
     if suffix in {".xml", ".mjcf"}:
         return "application/xml"
     if suffix == ".stl":

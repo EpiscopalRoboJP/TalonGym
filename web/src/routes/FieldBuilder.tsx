@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getJson, postJson, putJson, type DefaultsBundle, type Frame, type PresetMeta } from "../api";
+import { getJson, postJson, putJson, type DefaultsBundle, type Frame, type GamePieceType, type PresetMeta } from "../api";
 import { FieldScene } from "../scene/FieldScene";
 import { theme } from "../theme";
 
@@ -11,8 +11,11 @@ type FieldDoc = {
   id: string;
   displayName?: string;
   season?: { slug?: string };
-  provenance?: { verifyAgainstManual?: boolean; manualRevision?: string };
+  provenance?: { verifyAgainstManual?: boolean; manualRevision?: string; contentSha256?: string };
   fieldSizeIn?: { width: number; depth: number };
+  backgroundAsset?: string | null;
+  cadManifest?: string | null;
+  gamePieces?: GamePieceType[];
   elements?: {
     id: string;
     type?: string;
@@ -101,6 +104,9 @@ export function FieldBuilderPage() {
       observedMatchVars: {},
       fieldSizeIn: { width: size.width, depth: size.depth },
       backgroundAsset: typeof doc.backgroundAsset === "string" ? doc.backgroundAsset : null,
+      cadManifest: typeof doc.cadManifest === "string" ? doc.cadManifest : null,
+      cadSourceSha256: typeof doc.provenance?.contentSha256 === "string" ? doc.provenance.contentSha256 : null,
+      gamePieces: Array.isArray(doc.gamePieces) ? doc.gamePieces : undefined,
       explains: [],
       queues: {},
       gate: {},

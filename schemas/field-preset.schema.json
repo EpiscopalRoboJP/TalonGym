@@ -69,11 +69,15 @@
     },
     "backgroundAsset": {
       "type": "string",
-      "description": "Render-only field image or glTF. Physics ignores this."
+      "description": "Render-only field image or glTF. Physics ignores this. For CAD seasons this is the tessellated official field GLB from cadManifest.field.visualAsset."
     },
     "collisionAsset": {
       "type": "string",
-      "description": "MuJoCo MJCF or mesh used when mesh_field_collision is required. FTC inches, Y-up (x=ftc.x, y=height, z=-ftc.y)."
+      "description": "MuJoCo MJCF currently used at runtime. CAD-derived convex parts live in cadManifest.field.collisionParts; do not load a single concave field mesh."
+    },
+    "cadManifest": {
+      "type": "string",
+      "description": "Repo-relative path under assets/ to cad-manifest.schema.json instance (source URL, SHA-256, units, transforms, bounds, convex collision parts, piece GLBs)."
     },
     "elements": {
       "type": "array",
@@ -218,6 +222,14 @@
         "massKg": { "type": "number", "exclusiveMinimum": 0 },
         "restitution": { "type": "number", "minimum": 0, "maximum": 1 },
         "color": { "type": "string" },
+        "visualAsset": {
+          "type": "string",
+          "description": "Official piece GLB (FTC inches, Y-up, origin at geometric center). Instance at the simulated pose; do not use a fixed sphere radius for CAD seasons."
+        },
+        "collisionAsset": {
+          "type": "string",
+          "description": "Convex hull (STL) for this piece type. MuJoCo must load this hull, not a concave tessellation."
+        },
         "attributes": {
           "type": "object",
           "additionalProperties": true,
@@ -238,7 +250,11 @@
           "items": { "$ref": "#/$defs/pose2" }
         },
         "patternLabel": { "type": "string", "description": "Human label such as near_GPP. Not an engine enum." },
-        "preloadEligible": { "type": "boolean" }
+        "preloadEligible": { "type": "boolean" },
+        "heldByRobotId": {
+          "type": "string",
+          "description": "Robot id that starts with these pieces held. If that robot is not in the simulated match, the pieces are omitted."
+        }
       }
     },
     "startSlot": {

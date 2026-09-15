@@ -59,7 +59,7 @@ talongym/
     training/
       biobuzz_auto_{lightweight,workstation,cloud,easy}.json
   assets/
-    seasons/biobuzz_2026/    # field.glb (Lab) + field_mjcf.xml (MuJoCo); no raw STEP
+    seasons/biobuzz_2026/    # gitignored tessellation: field.glb, collision/*.stl, pieces/, cad_manifest.json; rebuild via import-field-cad
   engine/                    # Rust crate: Rapier2D batched worlds
     Cargo.toml
     src/lib.rs
@@ -145,6 +145,7 @@ The engine implements only these capabilities. Seasons declare which they need. 
 Normative JSON Schema:
 
 - [`schemas/field-preset.schema.json`](../schemas/field-preset.schema.json)
+- [`schemas/cad-manifest.schema.json`](../schemas/cad-manifest.schema.json)
 - [`schemas/robot-preset.schema.json`](../schemas/robot-preset.schema.json)
 - [`schemas/scoring-rules-preset.schema.json`](../schemas/scoring-rules-preset.schema.json)
 - [`schemas/training-run-config.schema.json`](../schemas/training-run-config.schema.json)
@@ -170,6 +171,18 @@ Use the official FTC field coordinate system:
 - Viewer convention: MeepMeep-style **non-rotated** Cartesian. Do not store audience-rotated poses.
 
 The Red Wall definition still holds for BIOBUZZ. Document alliance-specific notes in the field preset `coordinateSystem.notes`.
+
+### Official CAD pipeline (field and pieces)
+
+BIOBUZZ physical geometry is built from official STEP, not schematic boxes.
+
+- Raw STEP stays in `var/cad/` (gitignored). Derived GLB/STL, `cad_manifest.json`, and `field_mjcf.xml` are also gitignored; rebuild with `python -m talongym import-field-cad`.
+- Official field binary endpoint: `https://ftc-resources.firstinspires.org/ftc/archive/2027/field/field-cad-step` (handles `Content-Disposition`). POLLEN / red NECTAR / blue NECTAR STEP files are the AndyMark exports pinned in `python/talongym/assets/cad_sources.py`.
+- Coordinates in derived assets: FTC inches, Y-up (`x = ftc.x`, `y = height`, `z = -ftc.y`). Piece GLBs are centered at the geometric origin for later free joints.
+- **Collision:** one convex hull per CAD solid under `collision/`. Never a single concave field mesh — MuJoCo convexifies it and would seal HIVE/CELL openings. Piece hulls are one convex STL per type. The red and blue HIVE basket assemblies are grouped into separate hinge bodies; their A-frame and pivots remain static.
+- **Semantics stay in the preset:** zones, triggers, start poses, and scoring volumes are `field.json` data. CAD does not assign game-rule meaning.
+- A `mesh_field_collision` season fails closed if the pinned SHA-256 is missing or stale (`python -m talongym import-field-cad --verify`). Do not AABB-fallback.
+- Handoff: backend loads the local CAD `collisionAsset` MJCF assembled from `cadManifest` convex parts (not `field.glb`) and per-`typeId` piece hulls. HIVE hinge angles are reported in each replay frame, and the frontend applies them to matching pivot-centered mechanism GLBs. The frontend also instances piece `visualAsset` GLBs at simulated pose/orientation and cache-busts derived assets with source hash plus generator version.
 
 ### BIOBUZZ scoring (preset data; verify)
 

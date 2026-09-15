@@ -27,6 +27,8 @@ Robot presets may include optional `intakes[]` and `launchers[]` (pose on the ro
 
 Optional CAD fields: `visualAsset` (render GLB under `var/assets/`), `collisionAsset` (hull STL), `visualOffset`, and `chassis.collisionShape: "mesh"` with `chassis.footprint` (2D hull in robot-frame inches). Shipped robots stay boxes. Upload from the Lab or `python -m talongym import-robot-cad`. Do not commit team CAD.
 
+Field presets that use official STEP set `cadManifest` (see [`schemas/cad-manifest.schema.json`](../schemas/cad-manifest.schema.json)) plus per-piece `visualAsset` / `collisionAsset`. The manifest records source URL, SHA-256, units, Y-up transform, bounds, and convex collision parts. Semantic scoring volumes stay in `elements` / `spawns`; CAD is physical geometry only. Rebuild with `python -m talongym import-field-cad` (derived meshes are gitignored). Verify with `python -m talongym import-field-cad --verify`.
+
 ## Switch the active bundle
 
 ```bash

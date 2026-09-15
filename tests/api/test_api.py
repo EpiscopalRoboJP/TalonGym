@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import threading
 import time
 
 import pytest
@@ -266,5 +268,99 @@ def test_biobuzz_frames_get_cad_background():
     }
     stamped = ensure_background_asset(frame)
     assert stamped["backgroundAsset"] == "seasons/biobuzz_2026/field.glb"
+    assert stamped["cadManifest"] == "seasons/biobuzz_2026/cad_manifest.json"
+    assert stamped["cadSourceSha256"] == "05b35961c7df847741031f00fda73ddd068537f809e92a11b1cd59a94bcc8331"
+    assert stamped["cadAssetVersion"].endswith(":1.1.0")
     kept = ensure_background_asset({**frame, "backgroundAsset": "custom.glb"})
     assert kept["backgroundAsset"] == "custom.glb"
+    assert "cadManifest" not in kept
+
+
+def test_ws_run_streams_live_metrics(monkeypatch):
+    gate = threading.Event()
+
+    def fake_train(**kwargs):
+        on_metrics = kwargs.get("on_metrics")
+        assert gate.wait(timeout=4)
+        for step in (32, 64, 96):
+            if on_metrics:
+                on_metrics(
+                    {
+                        "envSteps": step,
+                        "progressFrac": step / 96,
+                        "trueScoreMean": step / 10,
+                        "algo": "recurrent_ppo",
+                    }
+                )
+            time.sleep(0.02)
+        return {
+            "algo": "recurrent_ppo",
+            "frames": [_frame()],
+            "steps": 96,
+            "checkpoint": "mem://ckpt",
+            "metrics": {"envSteps": 96, "progressFrac": 1.0},
+        }
+
+    monkeypatch.setattr("talongym.api.jobs.train_ppo", fake_train)
+    client = TestClient(app)
+    res = client.post("/api/v1/runs", json={"demo": True, "presets": {"trainingId": "biobuzz_auto_lightweight"}})
+    assert res.status_code == 202
+    run_id = res.json()["runId"]
+    steps: list[int] = []
+    with client.websocket_connect(f"/api/v1/ws/runs/{run_id}") as ws:
+        first = json.loads(ws.receive_text())
+        assert first["type"] == "status"
+        gate.set()
+        for _ in range(20):
+            msg = json.loads(ws.receive_text())
+            if msg.get("type") == "metrics":
+                steps.append(int((msg.get("payload") or {}).get("envSteps") or 0))
+            if steps and max(steps) >= 96:
+                break
+    assert any(s >= 32 for s in steps), steps
+    assert max(steps) >= 96
+
+
+def test_old_replay_does_not_invent_piece_cad():
+    from talongym.api.cad_frames import ensure_background_asset
+
+    old = {
+        "elements": [{"id": "red_cell_up", "type": "goal", "tags": ["hive", "up_cell"]}],
+        "pieces": [{"id": "p1", "x": 4.0, "y": -8.0, "color": "Y"}],
+        "fieldSizeIn": {"width": 144, "depth": 144},
+    }
+    stamped = ensure_background_asset(old)
+    assert stamped["cadManifest"].endswith("cad_manifest.json")
+    assert "typeId" not in stamped["pieces"][0]
+    assert "visualAsset" not in stamped["pieces"][0]
+    assert "gamePieces" not in stamped
+
+
+def test_demo_frames_match_frontend_cad_contract():
+    from talongym.sim.mujoco_backend import available
+
+    if not available():
+        pytest.skip("mujoco extra not installed")
+    client = TestClient(app)
+    created = client.post("/api/v1/replays/demo")
+    if created.status_code == 503:
+        pytest.skip("mesh field unavailable")
+    assert created.status_code == 201
+    rid = created.json()["replayId"]
+    chunks = client.get(f"/api/v1/replays/{rid}/chunks", params={"fromStep": 0, "limit": 5})
+    assert chunks.status_code == 200
+    frame = chunks.json()["frames"][0]
+    assert frame["cadManifest"] == "seasons/biobuzz_2026/cad_manifest.json"
+    assert frame["cadSourceSha256"] == "05b35961c7df847741031f00fda73ddd068537f809e92a11b1cd59a94bcc8331"
+    catalog = {row["typeId"]: row for row in frame["gamePieces"]}
+    pollen = next(p for p in frame["pieces"] if p["typeId"] == "pollen")
+    assert pollen["visualAsset"] == catalog["pollen"]["visualAsset"]
+    assert pollen["radius"] == pytest.approx(catalog["pollen"]["shape"]["radius"])
+    qw, qx, qy, qz = pollen["qw"], pollen["qx"], pollen["qy"], pollen["qz"]
+    assert abs(qw ** 2 + qx ** 2 + qy ** 2 + qz ** 2 - 1.0) < 0.05
+    glb = client.get(f"/api/v1/field-assets/{pollen['visualAsset']}")
+    assert glb.status_code == 200
+    assert glb.content[:4] == b"glTF"
+    manifest = client.get("/api/v1/field-assets/seasons/biobuzz_2026/cad_manifest.json")
+    assert manifest.status_code == 200
+    assert manifest.json()["field"]["sha256"] == frame["cadSourceSha256"]

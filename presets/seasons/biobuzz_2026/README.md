@@ -1,8 +1,10 @@
 # BIOBUZZ 2026–2027 — Competition Manual V1
 
-Game: **BIOBUZZ™ presented by RTX**, FIRST CANOPY™. Preset ids `biobuzz_2026_field_v1` / `biobuzz_2026_scoring_v1`. Provenance: Competition Manual **V1** (2026-09-12). Collision volumes are `hand_authored` schematic AABBs (`field_mjcf.xml`). Lab `field.glb` is tessellated from official **am-5850** Field CAD via `python -m talongym import-field-cad --step`. Raw STEP is not committed.
+Game: **BIOBUZZ™ presented by RTX**, FIRST CANOPY™. Preset ids `biobuzz_2026_field_v1` / `biobuzz_2026_scoring_v1`. Provenance: Competition Manual **V1** (2026-09-12). Physical field and scoring-element geometry is generated from official STEP (`cadManifest`, `python -m talongym import-field-cad`). Scoring volumes remain explicit preset data. Runtime MuJoCo loads the CAD-assembled `field_mjcf.xml` (convex assembly parts + typed piece hulls), never `field.glb` or a single concave field mesh. Raw STEP and derived tessellation are not committed.
 
-GARDEN tape sits in the **same alliance corner as the LOADING ZONE** (audience-left for red).
+Official CAD registration puts the red GARDEN on the audience-side corner and
+the red LOADING ZONE on the opposite side of the red wall (blue is rotationally
+symmetric). The Lab uses these CAD-registered centers for its overlays.
 
 ## Encoded facts (§8–11, 16)
 

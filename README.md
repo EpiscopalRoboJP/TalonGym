@@ -94,7 +94,7 @@ JSON Schema files live in [`schemas/`](schemas/).
 
 Setup, PR checklist, and the steps to flip the GitHub repo from private to public: **[CONTRIBUTING.md](CONTRIBUTING.md)**. Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Security reports: [SECURITY.md](SECURITY.md).
 
-Do not commit `var/` (logs, SQLite, checkpoints), virtualenvs, or official FIRST STEP/CAD. Preset collision geometry in-repo is schematic AABBs; `python -m talongym import-field-cad --step official.step` tessellates Lab glTF from local CAD and copies the raw STEP under `var/cad/` (gitignored).
+Do not commit `var/` (logs, SQLite, checkpoints), virtualenvs, official FIRST STEP/CAD, or derived tessellation (`field.glb`, `collision/*.stl`, piece/mechanism GLBs, `cad_manifest.json`, `field_mjcf.xml`). Rebuild those with `python -m talongym import-field-cad`. That command downloads the official binary STEP endpoint, verifies hashes, and refuses AABB fallback on `mesh_field_collision` seasons. Raw STEP stays under `var/cad/` (gitignored).
 
 ## License
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import numpy as np
@@ -36,6 +36,14 @@ class Body:
     vz: float = 0.0
     kick: bool = False
     footprint: tuple[tuple[float, float], ...] | None = None
+    type_id: str = ""
+    qw: float = 1.0
+    qx: float = 0.0
+    qy: float = 0.0
+    qz: float = 0.0
+    wx: float = 0.0
+    wy: float = 0.0
+    wz: float = 0.0
 
     def aabb(self) -> AABB:
         if self.kind == "circle" and self.radius > 0:
@@ -65,6 +73,7 @@ class WorldStep:
     max_accel: float = 30.0
     max_omega: float = 1.0
     max_ang_accel: float = 1.0
+    field_mechanism_targets: dict[str, float] = field(default_factory=dict)
 
 
 class PhysicsBackend(Protocol):

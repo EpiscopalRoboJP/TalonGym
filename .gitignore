@@ -20,12 +20,22 @@ outputs/
 *.db
 *.onnx
 MUJOCO_LOG.TXT
+core
+core.*
 
 # Official FIRST CAD downloads (import writes under var/cad/)
 *.step
 *.stp
 *.STEP
 *.STP
+
+# Derived season tessellation — rebuild with `python -m talongym import-field-cad`
+assets/seasons/*/collision/
+assets/seasons/*/mechanisms/
+assets/seasons/*/pieces/
+assets/seasons/*/cad_manifest.json
+assets/seasons/*/field.glb
+assets/seasons/*/field_mjcf.xml
 
 # Secrets
 .env
@@ -35,6 +45,7 @@ MUJOCO_LOG.TXT
 # Web / Rust build
 web/node_modules/
 web/dist/
+web/.vite/
 engine/target/
 
 # OS / IDE

@@ -166,13 +166,52 @@ def validate_3d(steps: int = 40) -> None:
 def import_field_cad_cmd(
     field: Path | None = typer.Option(None, "--field", help="Field preset JSON"),
     page: str = typer.Option("https://ftc-resources.firstinspires.org/ftc/archive/2027/field", "--page"),
-    step: Path | None = typer.Option(None, "--step", help="Official STEP/STP to tessellate into Lab glTF (copied to var/cad/, not committed)"),
+    step: Path | None = typer.Option(None, "--step", help="Official field STEP/STP (copied to var/cad/, not committed)"),
+    url: str | None = typer.Option(None, "--url", help="Official field STEP URL (default: FIRST binary endpoint field-cad-step)"),
     tol_linear: float | None = typer.Option(None, "--tol-linear", help="OpenCASCADE linear deflection in STEP source units"),
+    skip_pieces: bool = typer.Option(False, "--skip-pieces", help="Do not import POLLEN/NECTAR STEP files"),
+    pieces_only: bool = typer.Option(False, "--pieces-only", help="Import scoring-element STEP files only"),
+    verify: bool = typer.Option(False, "--verify", help="Check committed CAD manifest and derived files, then exit"),
 ) -> None:
-    from talongym.assets.import_field_cad import import_field_cad
+    from talongym.assets.import_field_cad import CadImportError, import_field_cad, verify_season_cad
 
-    result = import_field_cad(field_path=field, page_url=page, step_path=step, tol_linear=tol_linear)
+    try:
+        if verify:
+            result = verify_season_cad(field_path=field)
+        else:
+            result = import_field_cad(
+                field_path=field,
+                page_url=page,
+                step_path=step,
+                step_url=url,
+                tol_linear=tol_linear,
+                include_pieces=not skip_pieces,
+                skip_field=pieces_only,
+            )
+    except CadImportError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
     typer.echo(json.dumps(result, indent=2))
+
+
+@app.command("import-piece-cad")
+def import_piece_cad_cmd(
+    piece_type: str = typer.Option(..., "--type", help="pollen, nectar_red, or nectar_blue"),
+    step: Path | None = typer.Option(None, "--step", help="Local official piece STEP (copied to var/cad/, not committed)"),
+    url: str | None = typer.Option(None, "--url", help="Override AndyMark STEP URL"),
+    field: Path | None = typer.Option(None, "--field", help="Field preset JSON (chooses destination season folder)"),
+    year_hint: str = typer.Option("2026", "--year-hint"),
+) -> None:
+    from talongym.assets.import_field_cad import CadImportError, asset_dir_for, load_field_json
+    from talongym.assets.import_piece_cad import import_piece_cad
+
+    try:
+        dest = asset_dir_for(load_field_json(field), year_hint)
+        result = import_piece_cad(piece_type, dest, step_path=step, url=url)
+    except (CadImportError, KeyError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(json.dumps({k: v for k, v in result.items() if k != "manifest"}, indent=2, default=str))
 
 
 @app.command("import-robot-cad")

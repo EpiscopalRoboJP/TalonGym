@@ -110,6 +110,7 @@
       "id": "restricted_entry",
       "enabledPhases": ["AUTO"],
       "trigger": { "kind": "volumeEnter", "volumeId": "restricted_for_red" },
+      "conditions": [{ "op": "actorInVolume", "volumeId": "restricted_for_red" }],
       "actions": [
         { "kind": "setFlag", "accumulator": "restricted_entry" },
         { "kind": "addScore", "channel": "trueScore", "points": -15, "accumulator": "true_score" }

@@ -99,6 +99,45 @@ export type PresetMeta = {
   computeProfile?: string;
 };
 
+export function robotPresetLabel(p: Pick<PresetMeta, "id" | "displayName">): string {
+  return p.displayName || p.id;
+}
+
+export type VisualOffset = {
+  x?: number;
+  y?: number;
+  z?: number;
+  /** Preferred robot-CAD yaw. Robot presets store this, not headingDeg. */
+  yawDeg?: number;
+  /** Legacy alias accepted on old snapshots; ignored when yawDeg is present. */
+  headingDeg?: number;
+  scale?: number;
+};
+
+export type RobotModelImport = {
+  visualAsset: string;
+  collisionAsset: string;
+  bbox: { lengthIn: number; widthIn: number; heightIn: number };
+  footprint: { x: number; y: number }[];
+  unitsGuess: string;
+  faceCount: number;
+};
+
+export async function uploadRobotModel(presetId: string, file: File): Promise<RobotModelImport> {
+  const path = `/presets/robot/${presetId}/model`;
+  const body = new FormData();
+  body.append("file", file);
+  const res = await fetch(`${API}${path}`, { method: "POST", body });
+  if (!res.ok) await fail(res, path);
+  return res.json() as Promise<RobotModelImport>;
+}
+
+export async function deleteRobotModel(presetId: string): Promise<void> {
+  const path = `/presets/robot/${presetId}/model`;
+  const res = await fetch(`${API}${path}`, { method: "DELETE" });
+  if (!res.ok) await fail(res, path);
+}
+
 export type PoseOnRobot = {
   x?: number;
   y?: number;
@@ -136,8 +175,39 @@ export type RobotDesign = {
   launchers?: LauncherSpec[];
   visualAsset?: string | null;
   collisionAsset?: string | null;
-  visualOffset?: PoseOnRobot;
+  visualOffset?: VisualOffset;
   collisionShape?: string;
+};
+
+export type GamePieceType = {
+  typeId: string;
+  displayName?: string;
+  shape?: { kind?: string; radius?: number; width?: number; depth?: number };
+  color?: string;
+  visualAsset?: string | null;
+  collisionAsset?: string | null;
+};
+
+export type FramePiece = {
+  id: string;
+  x: number;
+  y: number;
+  z?: number;
+  color?: string;
+  heldBy?: string | null;
+  inFlight?: boolean;
+  scored?: boolean;
+  typeId?: string;
+  radius?: number;
+  visualAsset?: string | null;
+  headingDeg?: number;
+  pitchDeg?: number;
+  rollDeg?: number;
+  /** MuJoCo/Three Y-up quaternion (w, x, y, z). Preferred when pieces rotate. */
+  qw?: number;
+  qx?: number;
+  qy?: number;
+  qz?: number;
 };
 
 export type FrameExplain = { id: string; explain: string; points: number };
@@ -149,6 +219,11 @@ export type FrameCollision = {
   collisionTimeS?: number;
   firstContactS?: number | null;
   enteredRestricted?: boolean;
+};
+
+export type FrameFieldMechanism = {
+  id: string;
+  angleRad: number;
 };
 
 export type Frame = {
@@ -165,7 +240,9 @@ export type Frame = {
     enteredRestricted?: boolean;
   }[];
   robotDesign?: RobotDesign;
-  pieces: { id: string; x: number; y: number; z?: number; color?: string; heldBy?: string | null; inFlight?: boolean; scored?: boolean }[];
+  pieces: FramePiece[];
+  gamePieces?: GamePieceType[];
+  fieldMechanisms?: FrameFieldMechanism[];
   elements: {
     id: string;
     type?: string;
@@ -180,6 +257,10 @@ export type Frame = {
   observedMatchVars: Record<string, string | null>;
   fieldSizeIn: { width: number; depth: number };
   backgroundAsset?: string | null;
+  cadManifest?: string | null;
+  /** Runtime cache-buster; prefer the CAD source SHA-256 from cad_manifest.field.sha256. */
+  cadAssetVersion?: string | null;
+  cadSourceSha256?: string | null;
   explains: FrameExplain[];
   stepExplains?: FrameExplain[];
   penalties?: FrameExplain[];

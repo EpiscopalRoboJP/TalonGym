@@ -14,12 +14,13 @@
       "gameDetails": "V1"
     },
     "sourceUrl": "https://ftc-resources.firstinspires.org/ftc/game/manual-10",
-    "cadUrl": "https://ftc-resources.firstinspires.org/ftc/archive/2027/field",
-    "cadVersion": "am-5850",
+    "cadUrl": "https://ftc-resources.firstinspires.org/ftc/archive/2027/field/field-cad-step",
+    "cadVersion": "BIOBUZZ_Full Field.20260912",
+    "contentSha256": "05b35961c7df847741031f00fda73ddd068537f809e92a11b1cd59a94bcc8331",
     "effectiveDate": "2026-09-12",
-    "geometryProvenance": "hand_authored",
+    "geometryProvenance": "official_cad",
     "verifyAgainstManual": true,
-    "notes": "GARDEN tape is in the same alliance corner as the LOADING ZONE (Figure 9-3). Lab backgroundAsset is tessellated from official am-5850 BIOBUZZ STEP (raw STEP stays in var/cad/, not committed). MuJoCo colliders remain schematic AABBs so robots can drive under the hive. VERIFY: hive x-offsets; tip threshold is scoring-side; AprilTag IDs 1–3, 4–6, 42–45 are inferred (manual extract only confirmed 0, 7, 38–41). POLLEN diameter 2.8 in per §9.8. Official field ~144 x 144 in inside perimeter. CAD general tolerance +/- 1 in."
+    "notes": "Physical field geometry is generated from official STEP (cadManifest), with embedded CAD scoring elements and alliance-area hardware removed from the static visual. The tile playing surface is z=0. Scoring volumes, zones, and triggers remain explicit preset data but their centers are registered to the official CAD. Raw STEP stays in var/cad/ (gitignored). Runtime MuJoCo loads cadManifest convex parts (not field.glb or schematic AABBs); field_mjcf.xml is the assembled MJCF. CAD collision is convex assembly parts, never one concave field mesh. VERIFY: tip threshold is scoring-side; AprilTag IDs 1–3, 4–6, 42–45 are inferred (manual extract only confirmed 0, 7, 38–41). POLLEN diameter 2.8 in per §9.8. Official field ~144 x 144 in inside perimeter. CAD general tolerance +/- 1 in."
   },
   "coordinateSystem": {
     "convention": "ftc_official_red_wall",
@@ -52,6 +53,7 @@
   ],
   "backgroundAsset": "seasons/biobuzz_2026/field.glb",
   "collisionAsset": "seasons/biobuzz_2026/field_mjcf.xml",
+  "cadManifest": "seasons/biobuzz_2026/cad_manifest.json",
   "elements": [
     {
       "id": "perimeter",
@@ -104,7 +106,7 @@
       "id": "red_loading_zone",
       "type": "tape",
       "alliance": "red",
-      "pose": { "x": -66.5, "y": -60.5, "headingDeg": 0 },
+      "pose": { "x": -65.1, "y": 35.25, "headingDeg": 0 },
       "shape": { "kind": "aabb", "width": 11, "depth": 23 },
       "isCollider": false,
       "isOccluder": false,
@@ -115,8 +117,8 @@
       "id": "red_park",
       "type": "zone",
       "alliance": "red",
-      "pose": { "x": -62, "y": -56, "headingDeg": 0 },
-      "shape": { "kind": "aabb", "width": 20, "depth": 32 },
+      "pose": { "x": -65.1, "y": 35.25, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 11, "depth": 23 },
       "isCollider": false,
       "isOccluder": false,
       "isTrigger": true,
@@ -127,7 +129,7 @@
       "id": "blue_loading_zone",
       "type": "tape",
       "alliance": "blue",
-      "pose": { "x": 66.5, "y": 60.5, "headingDeg": 0 },
+      "pose": { "x": 65.1, "y": -35.25, "headingDeg": 0 },
       "shape": { "kind": "aabb", "width": 11, "depth": 23 },
       "isCollider": false,
       "isOccluder": false,
@@ -138,8 +140,8 @@
       "id": "blue_park",
       "type": "zone",
       "alliance": "blue",
-      "pose": { "x": 62, "y": 56, "headingDeg": 0 },
-      "shape": { "kind": "aabb", "width": 20, "depth": 32 },
+      "pose": { "x": 65.1, "y": -35.25, "headingDeg": 0 },
+      "shape": { "kind": "aabb", "width": 11, "depth": 23 },
       "isCollider": false,
       "isOccluder": false,
       "isTrigger": true,
@@ -150,7 +152,7 @@
       "id": "red_garden",
       "type": "tape",
       "alliance": "red",
-      "pose": { "x": -60.5, "y": -71, "headingDeg": 0 },
+      "pose": { "x": -58.75, "y": -69.1, "headingDeg": 0 },
       "shape": { "kind": "aabb", "width": 23, "depth": 2 },
       "isCollider": false,
       "isOccluder": false,
@@ -162,7 +164,7 @@
       "id": "blue_garden",
       "type": "tape",
       "alliance": "blue",
-      "pose": { "x": 60.5, "y": 71, "headingDeg": 0 },
+      "pose": { "x": 58.75, "y": 69.1, "headingDeg": 0 },
       "shape": { "kind": "aabb", "width": 23, "depth": 2 },
       "isCollider": false,
       "isOccluder": false,
@@ -174,7 +176,7 @@
       "id": "hive_frame_west",
       "type": "hive_frame",
       "alliance": "neutral",
-      "pose": { "x": -24.73, "y": 0, "headingDeg": 0, "z": 22 },
+      "pose": { "x": -18.26, "y": 0, "headingDeg": 0, "z": 20.8 },
       "shape": { "kind": "aabb", "width": 4, "depth": 38.95 },
       "isCollider": true,
       "isOccluder": true,
@@ -185,7 +187,7 @@
       "id": "hive_frame_east",
       "type": "hive_frame",
       "alliance": "neutral",
-      "pose": { "x": 24.73, "y": 0, "headingDeg": 0, "z": 22 },
+      "pose": { "x": 18.28, "y": 0, "headingDeg": 0, "z": 20.8 },
       "shape": { "kind": "aabb", "width": 4, "depth": 38.95 },
       "isCollider": true,
       "isOccluder": true,
@@ -196,7 +198,7 @@
       "id": "red_cell_up",
       "type": "goal",
       "alliance": "red",
-      "pose": { "x": -9.4, "y": 9.4, "headingDeg": 0, "z": 36 },
+      "pose": { "x": -12.74, "y": -8.65, "headingDeg": 0, "z": 53.8 },
       "shape": { "kind": "aabb", "width": 20, "depth": 14 },
       "isCollider": false,
       "isOccluder": true,
@@ -208,7 +210,7 @@
       "id": "red_cell_down",
       "type": "cell",
       "alliance": "red",
-      "pose": { "x": -9.4, "y": -9.4, "headingDeg": 0, "z": 12 },
+      "pose": { "x": -12.74, "y": 18.23, "headingDeg": 0, "z": 38.3 },
       "shape": { "kind": "aabb", "width": 20, "depth": 14 },
       "isCollider": false,
       "isOccluder": true,
@@ -219,7 +221,7 @@
       "id": "blue_cell_up",
       "type": "goal",
       "alliance": "blue",
-      "pose": { "x": 9.4, "y": -9.4, "headingDeg": 0, "z": 36 },
+      "pose": { "x": 12.76, "y": 8.65, "headingDeg": 0, "z": 53.8 },
       "shape": { "kind": "aabb", "width": 20, "depth": 14 },
       "isCollider": false,
       "isOccluder": true,
@@ -231,7 +233,7 @@
       "id": "blue_cell_down",
       "type": "cell",
       "alliance": "blue",
-      "pose": { "x": 9.4, "y": 9.4, "headingDeg": 0, "z": 12 },
+      "pose": { "x": 12.76, "y": -18.23, "headingDeg": 0, "z": 38.3 },
       "shape": { "kind": "aabb", "width": 20, "depth": 14 },
       "isCollider": false,
       "isOccluder": true,
@@ -242,7 +244,7 @@
       "id": "flower_1",
       "type": "flower",
       "alliance": "neutral",
-      "pose": { "x": -36, "y": -69.5, "headingDeg": 0, "z": 21.5 },
+      "pose": { "x": 23.4, "y": -68.04, "headingDeg": 0, "z": 12.75 },
       "shape": { "kind": "aabb", "width": 5, "depth": 5 },
       "isCollider": true,
       "isOccluder": true,
@@ -254,7 +256,7 @@
       "id": "flower_2",
       "type": "flower",
       "alliance": "neutral",
-      "pose": { "x": 36, "y": -69.5, "headingDeg": 0, "z": 21.5 },
+      "pose": { "x": 68.04, "y": 23.39, "headingDeg": 0, "z": 12.75 },
       "shape": { "kind": "aabb", "width": 5, "depth": 5 },
       "isCollider": true,
       "isOccluder": true,
@@ -266,7 +268,7 @@
       "id": "flower_3",
       "type": "flower",
       "alliance": "neutral",
-      "pose": { "x": -36, "y": 69.5, "headingDeg": 0, "z": 21.5 },
+      "pose": { "x": -23.39, "y": 68.04, "headingDeg": 0, "z": 12.75 },
       "shape": { "kind": "aabb", "width": 5, "depth": 5 },
       "isCollider": true,
       "isOccluder": true,
@@ -278,7 +280,7 @@
       "id": "flower_4",
       "type": "flower",
       "alliance": "neutral",
-      "pose": { "x": 36, "y": 69.5, "headingDeg": 0, "z": 21.5 },
+      "pose": { "x": -68.04, "y": -23.39, "headingDeg": 0, "z": 12.75 },
       "shape": { "kind": "aabb", "width": 5, "depth": 5 },
       "isCollider": true,
       "isOccluder": true,
@@ -295,6 +297,8 @@
       "massKg": 0.05,
       "restitution": 0.35,
       "color": "yellow",
+      "visualAsset": "seasons/biobuzz_2026/pieces/pollen.glb",
+      "collisionAsset": "seasons/biobuzz_2026/pieces/pollen_hull.stl",
       "attributes": { "color": "Y" }
     },
     {
@@ -304,6 +308,8 @@
       "massKg": 0.08,
       "restitution": 0.35,
       "color": "red",
+      "visualAsset": "seasons/biobuzz_2026/pieces/nectar_red.glb",
+      "collisionAsset": "seasons/biobuzz_2026/pieces/nectar_red_hull.stl",
       "attributes": { "color": "R", "alliance": "red" }
     },
     {
@@ -313,6 +319,8 @@
       "massKg": 0.08,
       "restitution": 0.35,
       "color": "blue",
+      "visualAsset": "seasons/biobuzz_2026/pieces/nectar_blue.glb",
+      "collisionAsset": "seasons/biobuzz_2026/pieces/nectar_blue_hull.stl",
       "attributes": { "color": "B", "alliance": "blue" }
     }
   ],
@@ -321,66 +329,67 @@
       "id": "flower_1_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": -40, "y": -64, "headingDeg": 0 },
-        { "x": -38, "y": -64, "headingDeg": 0 },
-        { "x": -36, "y": -64, "headingDeg": 0 },
-        { "x": -34, "y": -64, "headingDeg": 0 }
+        { "x": 23.386, "y": -68.05, "z": 1.392, "headingDeg": 0 },
+        { "x": 23.406, "y": -68.065, "z": 4.302, "headingDeg": 0 },
+        { "x": 23.385, "y": -68.033, "z": 7.156, "headingDeg": 0 },
+        { "x": 23.407, "y": -68.038, "z": 10.105, "headingDeg": 0 }
       ]
     },
     {
       "id": "flower_2_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": 34, "y": -64, "headingDeg": 0 },
-        { "x": 36, "y": -64, "headingDeg": 0 },
-        { "x": 38, "y": -64, "headingDeg": 0 },
-        { "x": 40, "y": -64, "headingDeg": 0 }
+        { "x": 68.062, "y": 23.381, "z": 1.4, "headingDeg": 0 },
+        { "x": 68.05, "y": 23.413, "z": 4.279, "headingDeg": 0 },
+        { "x": 68.029, "y": 23.404, "z": 7.184, "headingDeg": 0 },
+        { "x": 68.038, "y": 23.398, "z": 10.067, "headingDeg": 0 }
       ]
     },
     {
       "id": "flower_3_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": -40, "y": 64, "headingDeg": 0 },
-        { "x": -38, "y": 64, "headingDeg": 0 },
-        { "x": -36, "y": 64, "headingDeg": 0 },
-        { "x": -34, "y": 64, "headingDeg": 0 }
+        { "x": -23.389, "y": 68.018, "z": 1.377, "headingDeg": 0 },
+        { "x": -23.398, "y": 68.029, "z": 4.281, "headingDeg": 0 },
+        { "x": -23.386, "y": 68.034, "z": 7.189, "headingDeg": 0 },
+        { "x": -23.36, "y": 68.061, "z": 10.049, "headingDeg": 0 }
       ]
     },
     {
       "id": "flower_4_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": 34, "y": 64, "headingDeg": 0 },
-        { "x": 36, "y": 64, "headingDeg": 0 },
-        { "x": 38, "y": 64, "headingDeg": 0 },
-        { "x": 40, "y": 64, "headingDeg": 0 }
+        { "x": -68.025, "y": -23.391, "z": 1.409, "headingDeg": 0 },
+        { "x": -68.008, "y": -23.392, "z": 4.3, "headingDeg": 0 },
+        { "x": -68.062, "y": -23.397, "z": 7.186, "headingDeg": 0 },
+        { "x": -68.016, "y": -23.399, "z": 10.089, "headingDeg": 0 }
       ]
     },
     {
       "id": "red_garden_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": -70, "y": -68, "headingDeg": 0 },
-        { "x": -66, "y": -68, "headingDeg": 0 },
-        { "x": -62, "y": -68, "headingDeg": 0 },
-        { "x": -58, "y": -68, "headingDeg": 0 }
+        { "x": -69.274, "y": -69.257, "z": 1.379, "headingDeg": 0 },
+        { "x": -66.391, "y": -69.256, "z": 1.376, "headingDeg": 0 },
+        { "x": -63.507, "y": -69.276, "z": 1.413, "headingDeg": 0 },
+        { "x": -60.594, "y": -69.26, "z": 1.406, "headingDeg": 0 }
       ]
     },
     {
       "id": "blue_garden_pollen",
       "pieceTypeId": "pollen",
       "poses": [
-        { "x": 70, "y": 68, "headingDeg": 0 },
-        { "x": 66, "y": 68, "headingDeg": 0 },
-        { "x": 62, "y": 68, "headingDeg": 0 },
-        { "x": 58, "y": 68, "headingDeg": 0 }
+        { "x": 60.572, "y": 69.257, "z": 1.384, "headingDeg": 0 },
+        { "x": 63.511, "y": 69.276, "z": 1.399, "headingDeg": 0 },
+        { "x": 66.379, "y": 69.278, "z": 1.403, "headingDeg": 0 },
+        { "x": 69.299, "y": 69.281, "z": 1.413, "headingDeg": 0 }
       ]
     },
     {
       "id": "red_0_preload",
       "pieceTypeId": "pollen",
       "preloadEligible": true,
+      "heldByRobotId": "red_0",
       "poses": [
         { "x": -52, "y": -30, "headingDeg": 0 },
         { "x": -52, "y": -26, "headingDeg": 0 },
@@ -392,6 +401,7 @@
       "id": "red_1_preload",
       "pieceTypeId": "pollen",
       "preloadEligible": true,
+      "heldByRobotId": "red_1",
       "poses": [
         { "x": -52, "y": 18, "headingDeg": 0 },
         { "x": -52, "y": 22, "headingDeg": 0 },
@@ -403,6 +413,7 @@
       "id": "blue_0_preload",
       "pieceTypeId": "pollen",
       "preloadEligible": true,
+      "heldByRobotId": "blue_0",
       "poses": [
         { "x": 52, "y": 18, "headingDeg": 0 },
         { "x": 52, "y": 22, "headingDeg": 0 },
@@ -414,6 +425,7 @@
       "id": "blue_1_preload",
       "pieceTypeId": "pollen",
       "preloadEligible": true,
+      "heldByRobotId": "blue_1",
       "poses": [
         { "x": 52, "y": -30, "headingDeg": 0 },
         { "x": 52, "y": -26, "headingDeg": 0 },
@@ -452,7 +464,7 @@
     {
       "family": "36h11",
       "tagId": 0,
-      "pose": { "x": -11.4, "y": 11.4, "headingDeg": 180, "z": 30 },
+      "pose": { "x": -14.74, "y": -12.89, "headingDeg": 180, "z": 51.67 },
       "sizeIn": 3.25,
       "onElementId": "red_cell_up",
       "role": "cell_aim"
@@ -460,7 +472,7 @@
     {
       "family": "36h11",
       "tagId": 1,
-      "pose": { "x": -7.4, "y": 11.4, "headingDeg": 180, "z": 30 },
+      "pose": { "x": -10.74, "y": -12.89, "headingDeg": 180, "z": 51.67 },
       "sizeIn": 3.25,
       "onElementId": "red_cell_up",
       "role": "cell_aim"
@@ -468,7 +480,7 @@
     {
       "family": "36h11",
       "tagId": 2,
-      "pose": { "x": -11.4, "y": 7.4, "headingDeg": 180, "z": 30 },
+      "pose": { "x": -14.74, "y": -12.89, "headingDeg": 180, "z": 47.67 },
       "sizeIn": 3.25,
       "onElementId": "red_cell_up",
       "role": "cell_aim"
@@ -476,7 +488,7 @@
     {
       "family": "36h11",
       "tagId": 3,
-      "pose": { "x": -7.4, "y": 7.4, "headingDeg": 180, "z": 30 },
+      "pose": { "x": -10.74, "y": -12.89, "headingDeg": 180, "z": 47.67 },
       "sizeIn": 3.25,
       "onElementId": "red_cell_up",
       "role": "cell_aim"
@@ -484,7 +496,7 @@
     {
       "family": "36h11",
       "tagId": 4,
-      "pose": { "x": -11.4, "y": -7.4, "headingDeg": 0, "z": 30 },
+      "pose": { "x": -14.74, "y": 11.39, "headingDeg": 0, "z": 37.65 },
       "sizeIn": 3.25,
       "onElementId": "red_cell_down",
       "role": "cell_aim"
@@ -492,7 +504,7 @@
     {
       "family": "36h11",
       "tagId": 5,
-      "pose": { "x": -7.4, "y": -7.4, "headingDeg": 0, "z": 30 },
+      "pose": { "x": -10.74, "y": 11.39, "headingDeg": 0, "z": 37.65 },
       "sizeIn": 3.25,
       "onElementId": "red_cell_down",
       "role": "cell_aim"
@@ -500,7 +512,7 @@
     {
       "family": "36h11",
       "tagId": 6,
-      "pose": { "x": -11.4, "y": -11.4, "headingDeg": 0, "z": 30 },
+      "pose": { "x": -14.74, "y": 11.39, "headingDeg": 0, "z": 33.65 },
       "sizeIn": 3.25,
       "onElementId": "red_cell_down",
       "role": "cell_aim"
@@ -508,7 +520,7 @@
     {
       "family": "36h11",
       "tagId": 7,
-      "pose": { "x": -7.4, "y": -11.4, "headingDeg": 0, "z": 30 },
+      "pose": { "x": -10.74, "y": 11.39, "headingDeg": 0, "z": 33.65 },
       "sizeIn": 3.25,
       "onElementId": "red_cell_down",
       "role": "cell_aim"
@@ -516,7 +528,7 @@
     {
       "family": "36h11",
       "tagId": 38,
-      "pose": { "x": 7.4, "y": -7.4, "headingDeg": 0, "z": 30 },
+      "pose": { "x": 10.76, "y": 12.89, "headingDeg": 0, "z": 51.67 },
       "sizeIn": 3.25,
       "onElementId": "blue_cell_up",
       "role": "cell_aim"
@@ -524,7 +536,7 @@
     {
       "family": "36h11",
       "tagId": 39,
-      "pose": { "x": 11.4, "y": -7.4, "headingDeg": 0, "z": 30 },
+      "pose": { "x": 14.76, "y": 12.89, "headingDeg": 0, "z": 51.67 },
       "sizeIn": 3.25,
       "onElementId": "blue_cell_up",
       "role": "cell_aim"
@@ -532,7 +544,7 @@
     {
       "family": "36h11",
       "tagId": 40,
-      "pose": { "x": 7.4, "y": -11.4, "headingDeg": 0, "z": 30 },
+      "pose": { "x": 10.76, "y": 12.89, "headingDeg": 0, "z": 47.67 },
       "sizeIn": 3.25,
       "onElementId": "blue_cell_up",
       "role": "cell_aim"
@@ -540,7 +552,7 @@
     {
       "family": "36h11",
       "tagId": 41,
-      "pose": { "x": 11.4, "y": -11.4, "headingDeg": 0, "z": 30 },
+      "pose": { "x": 14.76, "y": 12.89, "headingDeg": 0, "z": 47.67 },
       "sizeIn": 3.25,
       "onElementId": "blue_cell_up",
       "role": "cell_aim"
@@ -548,7 +560,7 @@
     {
       "family": "36h11",
       "tagId": 42,
-      "pose": { "x": 7.4, "y": 11.4, "headingDeg": 180, "z": 30 },
+      "pose": { "x": 10.76, "y": -11.39, "headingDeg": 180, "z": 37.65 },
       "sizeIn": 3.25,
       "onElementId": "blue_cell_down",
       "role": "cell_aim"
@@ -556,7 +568,7 @@
     {
       "family": "36h11",
       "tagId": 43,
-      "pose": { "x": 11.4, "y": 11.4, "headingDeg": 180, "z": 30 },
+      "pose": { "x": 14.76, "y": -11.39, "headingDeg": 180, "z": 37.65 },
       "sizeIn": 3.25,
       "onElementId": "blue_cell_down",
       "role": "cell_aim"
@@ -564,7 +576,7 @@
     {
       "family": "36h11",
       "tagId": 44,
-      "pose": { "x": 7.4, "y": 7.4, "headingDeg": 180, "z": 30 },
+      "pose": { "x": 10.76, "y": -11.39, "headingDeg": 180, "z": 33.65 },
       "sizeIn": 3.25,
       "onElementId": "blue_cell_down",
       "role": "cell_aim"
@@ -572,7 +584,7 @@
     {
       "family": "36h11",
       "tagId": 45,
-      "pose": { "x": 11.4, "y": 7.4, "headingDeg": 180, "z": 30 },
+      "pose": { "x": 14.76, "y": -11.39, "headingDeg": 180, "z": 33.65 },
       "sizeIn": 3.25,
       "onElementId": "blue_cell_down",
       "role": "cell_aim"

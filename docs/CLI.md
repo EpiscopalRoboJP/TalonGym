@@ -103,12 +103,28 @@ Compares planar 2D vs MuJoCo on a short chassis motion; prints pose RMSE. The ch
 ## `import-field-cad`
 
 ```bash
+python -m pip install -e ".[cad]"
 python -m talongym import-field-cad
-python -m talongym import-field-cad --page https://ftc-resources.firstinspires.org/ftc/archive/2027/field
-python -m talongym import-field-cad --step "C:\Users\242440\Downloads\am-5850 BIOBUZZ.step"
+python -m talongym import-field-cad --url https://ftc-resources.firstinspires.org/ftc/archive/2027/field/field-cad-step
+python -m talongym import-field-cad --step "C:\Users\242440\Downloads\BIOBUZZ_Full Field.20260912.step"
+python -m talongym import-field-cad --skip-pieces
+python -m talongym import-field-cad --verify
 ```
 
-Writes `assets/seasons/<slug>/field.glb` (Lab) and `field_mjcf.xml` (MuJoCo AABBs). `--step` tessellates a local official STEP with `trimesh`/`cascadio` (`pip install -e ".[cad]"`). Without `--step`, it tries the archive page; HubSpot often hides the file, in which case field preset AABBs are tessellated. Raw STEP is copied to `var/cad/` and is not committed. Physics stays AABB even when the Lab mesh is official CAD, so robots can still drive under the hive.
+Downloads the official full-field STEP from the FIRST binary endpoint (`field-cad-step`, including `Content-Disposition` filenames), plus the three AndyMark POLLEN / NECTAR STEP files. Verifies SHA-256, tessellates with `trimesh`/`cascadio`, writes Lab `field.glb`, convex collision STLs under `assets/seasons/<slug>/collision/`, piece GLB/hulls under `pieces/`, and `cad_manifest.json`. Raw STEP is copied to `var/cad/` and is not committed.
+
+Seasons that declare `mesh_field_collision` **fail** if the official STEP is missing, stale, or collapses to one concave mesh — they are never overwritten with schematic AABB boxes. MuJoCo convexifies a single mesh, which would seal HIVE/CELL openings; collision is one convex hull per CAD solid.
+
+`--verify` checks the local manifest and derived files without re-downloading. Runtime MuJoCo loads the local CAD `collisionAsset` (convex assembly parts + typed piece hulls), not `field.glb` and not schematic AABBs. Those files are gitignored; clones rebuild them with this command.
+
+## `import-piece-cad`
+
+```bash
+python -m talongym import-piece-cad --type pollen
+python -m talongym import-piece-cad --type nectar_red --step path/to/am-5852_red.STEP
+```
+
+Imports one official scoring-element STEP (`pollen`, `nectar_red`, `nectar_blue`) into `assets/seasons/<slug>/pieces/`. Checks measured diameter against 2.8 in POLLEN / 3.6 in NECTAR. Origin is the geometric center (FTC inches, Y-up) so a later free joint can instance the same mesh.
 
 ## `import-robot-cad`
 

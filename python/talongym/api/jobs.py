@@ -62,7 +62,22 @@ def ws_rollout_frames(frames: list[dict[str, Any]] | None) -> list[dict[str, Any
     """Downsample and JSON-sanitize frames so Lab WebSocket payloads stay small."""
     if not frames:
         return []
-    keep = ("t", "trueScore", "robots", "pieces", "elements", "fieldSizeIn", "vision", "aprilTags", "backgroundAsset", "robotDesign")
+    keep = (
+        "t",
+        "trueScore",
+        "robots",
+        "pieces",
+        "elements",
+        "fieldSizeIn",
+        "vision",
+        "aprilTags",
+        "backgroundAsset",
+        "robotDesign",
+        "cadManifest",
+        "cadSourceSha256",
+        "cadAssetVersion",
+        "gamePieces",
+    )
     step = max(1, len(frames) // 48)
     out: list[dict[str, Any]] = []
     for fr in frames[::step][:48]:
@@ -79,6 +94,7 @@ def emit(run_id: str, msg: dict[str, Any]) -> None:
         payload = dict(msg.get("payload") or {})
         payload["frames"] = ws_rollout_frames(payload.get("frames") or [])
         msg = {**msg, "payload": payload}
+    msg = _jsonable(msg)
     if kind:
         _latest.setdefault(run_id, {})[kind] = msg
     for fn in list(_listeners.get(run_id) or []):
@@ -158,7 +174,7 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
         emit(run_id, {"type": "log", "payload": {"level": "info", "message": msg}})
 
     def metrics(m: dict) -> None:
-        last_metrics.update(m)
+        last_metrics.update(_jsonable(m) if isinstance(m, dict) else {})
         db.save_run(run_id, config, "running", last_metrics, "\n".join(logs))
         emit(run_id, {"type": "metrics", "payload": dict(last_metrics)})
 

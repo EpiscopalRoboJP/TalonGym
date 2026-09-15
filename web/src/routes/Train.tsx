@@ -84,7 +84,7 @@ export function TrainPage() {
       if (!current) return;
       const row = list.find((r) => r.id === current.id) || (await getJson<RunRow>(`/runs/${current.id}`));
       if (row) {
-        setCurrent(row);
+        setCurrent((prev) => mergeRun(row, prev));
         const m = row.metrics as Metrics;
         pushSeries(m);
         if (m.replayId && replayLoadedRef.current !== m.replayId) {
@@ -117,6 +117,23 @@ export function TrainPage() {
     }
   }
 
+  function mergeRun(row: RunRow, live: RunRow | null): RunRow {
+    if (!live || live.id !== row.id) return row;
+    const liveSteps = Number((live.metrics as Metrics)?.envSteps || 0);
+    const rowSteps = Number((row.metrics as Metrics)?.envSteps || 0);
+    if (liveSteps <= rowSteps) return row;
+    return { ...row, metrics: { ...(row.metrics || {}), ...(live.metrics || {}) } };
+  }
+
+  function applyMetrics(id: string, payload: Metrics) {
+    pushSeries(payload);
+    setCurrent((prev) => {
+      if (prev && prev.id !== id) return prev;
+      const base = prev ?? { id, state: "running", metrics: {}, config: {} };
+      return { ...base, id, metrics: { ...(base.metrics || {}), ...payload } };
+    });
+  }
+
   function openRun(id: string) {
     if (watchingRef.current === id && wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) {
       return;
@@ -129,7 +146,7 @@ export function TrainPage() {
     setRollout([]);
     navigate(`/train/${id}`, { replace: true });
     getJson<RunRow>(`/runs/${id}`).then((row) => {
-      setCurrent(row);
+      setCurrent((prev) => mergeRun(row, prev && prev.id === id ? prev : null));
       const m = row.metrics as Metrics;
       pushSeries(m);
       if (m.replayId) {
@@ -147,13 +164,14 @@ export function TrainPage() {
       try {
         const msg = JSON.parse(ev.data);
         if (msg.type === "metrics" && msg.payload) {
-          pushSeries(msg.payload as Metrics);
-          setCurrent((prev) =>
-            prev && prev.id === id ? { ...prev, metrics: { ...(prev.metrics || {}), ...msg.payload } } : prev,
-          );
+          applyMetrics(id, msg.payload as Metrics);
         }
         if (msg.type === "status" && msg.payload) {
-          setCurrent((prev) => (prev && prev.id === id ? { ...prev, state: msg.payload.state || prev.state } : prev));
+          setCurrent((prev) => {
+            if (prev && prev.id !== id) return prev;
+            const base = prev ?? { id, state: "running", metrics: {}, config: {} };
+            return { ...base, id, state: msg.payload.state || base.state };
+          });
           if (msg.payload.state) setLog(`Run ${id} · ${msg.payload.state}`);
         }
         if (msg.type === "log" && msg.payload?.message) setLog(String(msg.payload.message));
