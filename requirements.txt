@@ -16,4 +16,4 @@
 # publishing to it, pip silently picks PyPI's CPU build on Windows instead.
 --extra-index-url https://download.pytorch.org/whl/cu130
 
--e .[dev,rl]
+-e .[dev,rl,mujoco]
