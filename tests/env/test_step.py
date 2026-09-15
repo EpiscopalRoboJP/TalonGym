@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 
 from talongym.env.ftc_auto import FTCAutoEnv
 from talongym.training.policies import scripted_auto

@@ -1,8 +1,8 @@
 # Virtualenvs and caches
 .venv/
-venv/
-env/
-ENV/
+/venv/
+/env/
+/ENV/
 __pycache__/
 *.pyc
 *.egg-info/

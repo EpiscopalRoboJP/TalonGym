@@ -15,20 +15,6 @@ def ftc_to_yup(x: float, y: float, z: float) -> tuple[float, float, float]:
 
 def _box_mesh(hx: float, hy: float, hz: float) -> tuple[list[float], list[float], list[int]]:
     """Axis-aligned box centered at origin; half-extents hx, hy (height), hz."""
-    verts = [
-        -hx, -hy, -hz,
-         hx, -hy, -hz,
-         hx,  hy, -hz,
-        -hx,  hy, -hz,
-        -hx, -hy,  hz,
-         hx, -hy,  hz,
-         hx,  hy,  hz,
-        -hx,  hy,  hz,
-    ]
-    normals = [
-        0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
-        0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1,
-    ]
     # Face-specific verts for correct normals
     faces_v = [
         # -Z

@@ -1,4 +1,4 @@
-from talongym.env.ftc_auto import BoxActionDictObsEnv, EncoderOnlyObsAssertWrapper, FTCAutoEnv, FlatBoxEnv, flatten_obs
+from talongym.env.ftc_auto import BoxActionDictObsEnv, EncoderOnlyObsAssertWrapper, FlatBoxEnv, FTCAutoEnv, flatten_obs
 from talongym.env.petting import FTCAutoParallelEnv
 
 __all__ = [

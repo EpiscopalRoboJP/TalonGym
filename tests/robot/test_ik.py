@@ -1,5 +1,5 @@
-from talongym.robot.drivetrain import clip_twist, mecanum_module_speeds
 from talongym.presets.loader import load_preset
+from talongym.robot.drivetrain import clip_twist, mecanum_module_speeds
 
 
 def test_tank_drops_strafe_and_clip():

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
-
 
 RPM_TO_RAD_S = 2.0 * math.pi / 60.0
 

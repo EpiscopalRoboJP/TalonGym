@@ -271,8 +271,8 @@ def test_robot_model_upload_and_delete(tmp_path):
 
 
 def test_biobuzz_frames_get_cad_background():
-    from talongym.assets.cad_common import CAD_GENERATOR_VERSION
     from talongym.api.cad_frames import ensure_background_asset
+    from talongym.assets.cad_common import CAD_GENERATOR_VERSION
 
     frame = {
         "elements": [{"id": "red_cell_up", "type": "goal", "tags": ["hive", "up_cell"]}],

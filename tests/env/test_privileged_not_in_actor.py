@@ -27,8 +27,8 @@ def test_privileged_wrapper_not_visible_to_encoder_assert():
 
 def test_actor_extractor_drops_privileged_key():
     pytest.importorskip("torch")
-    from gymnasium import spaces
     import numpy as np
+    from gymnasium import spaces
 
     from talongym.training.asymmetric import ActorDictExtractor, CriticDictExtractor
     from talongym.training.privileged import PRIV_DIM, PRIV_KEY

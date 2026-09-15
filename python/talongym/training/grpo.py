@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 
@@ -56,14 +57,18 @@ def train_grpo(
         import torch
         from sb3_contrib import RecurrentPPO
         from stable_baselines3.common.vec_env import DummyVecEnv
+
         from talongym.env.ftc_auto import BoxActionDictObsEnv, EncoderOnlyObsAssertWrapper
         from talongym.training.asymmetric import AsymmetricLstmPolicy
+        from talongym.training.compute import resolve_torch_device
         from talongym.training.privileged import PrivilegedObsWrapper
     except ImportError as exc:
         raise RuntimeError(
             "GRPO requires `.venv/bin/python -m pip install -e '.[rl]'` "
             f"in {sys.executable}: {exc}"
         ) from exc
+
+    device = resolve_torch_device()
 
     def make_env():
         def _init():
@@ -83,6 +88,7 @@ def train_grpo(
         AsymmetricLstmPolicy,
         venv,
         verbose=0,
+        device=device,
         n_steps=n_steps,
         batch_size=min(256, n_steps),
         learning_rate=float(algo_cfg.get("learningRate") or 3e-4),
@@ -110,6 +116,7 @@ def train_grpo(
     last_metrics: dict[str, Any] = {}
     seed0 = 1
     from stable_baselines3.common.utils import obs_as_tensor
+
     from talongym.training.privileged import PRIV_DIM, PRIV_KEY
 
     while done < total_steps:
@@ -117,7 +124,7 @@ def train_grpo(
             break
         scores: list[float] = []
         logps: list[torch.Tensor] = []
-        for k in range(group_size):
+        for _k in range(group_size):
             score, traj_obs, traj_act, _info = _episode(boxed, adapter, seed0)
             seed0 += 1
             done += max(1, len(traj_act))
@@ -140,7 +147,7 @@ def train_grpo(
         mean = float(np.mean(scores))
         adv = [s - mean for s in scores]
         loss = torch.zeros((), device=model.policy.device)
-        for a, lp in zip(adv, logps):
+        for a, lp in zip(adv, logps, strict=True):
             loss = loss + (-float(a) * lp)
         loss = loss / max(1, group_size)
         opt.zero_grad()

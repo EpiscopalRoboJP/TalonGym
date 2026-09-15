@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 import gymnasium as gym
-from gymnasium import spaces
 import numpy as np
+from gymnasium import spaces
 
 PRIV_DIM = 64
 PRIV_KEY = "_privileged"

@@ -32,12 +32,12 @@ from talongym.assets.cad_common import (
     iter_assembly_parts,
     load_tessellated_step,
     mesh_required,
+    moving_hive_alliance,
     round_xyz,
     select_field_visual_parts,
-    split_moving_hive_parts,
-    moving_hive_alliance,
     sha256_file,
     sniff_step_units,
+    split_moving_hive_parts,
     stage_step,
     write_convex_collision_parts,
 )
@@ -218,7 +218,7 @@ def _write_field_derived(
     collision_parts = write_convex_collision_parts(
         parts,
         collision_dir,
-        rel_prefix=str((dest_dir.relative_to(ASSETS_DIR) / "collision")).replace("\\", "/"),
+        rel_prefix=str(dest_dir.relative_to(ASSETS_DIR) / "collision").replace("\\", "/"),
         allow_single_concave=False,
     )
     _visual_path, visual_meta = export_visual_parts_glb(static_visual_parts, glb_path, trimesh)

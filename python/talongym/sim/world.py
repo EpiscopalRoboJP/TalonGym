@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import copy
 import json
-from dataclasses import dataclass, field
 import math
+import os
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -14,7 +15,6 @@ from talongym.robot.dynamics import MechanismDynamics
 from talongym.robot.mechanisms import chassis_moving, launcher_aim, muzzle_velocity, piece_in_intake, pose_world
 from talongym.robot.sensors import camera_world_pose, detect_tags
 from talongym.rules.engine import MECHANISM_VERBS, RuleContext, RuleEngine, TickEvent
-from talongym.sim.mujoco_backend import ftc_yaw_to_mj_quat
 from talongym.sim.geometry import (
     AABB,
     deg_to_rad,
@@ -25,7 +25,14 @@ from talongym.sim.geometry import (
     shape_from_element,
     wrap_angle,
 )
+from talongym.sim.mujoco_backend import ftc_yaw_to_mj_quat
 from talongym.sim.physics import Body, WorldStep, default_backend, perimeter_walls
+
+# A launched piece that has not scored this long after leaving the launcher counts as a miss.
+LAUNCH_SCORE_WINDOW_S = 2.0
+# Waypoint-follower routes keep the chassis this far beyond its half-width from obstacles: a square
+# chassis' corners reach 0.41 x half-width further while it rotates (3.7 in for 18 in).
+FOLLOWER_CLEARANCE_IN = 3.0
 
 
 @dataclass
@@ -90,7 +97,7 @@ class World:
         playable = self.field.get("playableBoundaryIn") or {}
         self.playable_half_w = float(playable.get("halfWidth") or fw / 2.0)
         self.playable_half_d = float(playable.get("halfDepth") or fd / 2.0)
-        self.allow_missing_mesh = allow_missing_mesh
+        self.allow_missing_mesh = allow_missing_mesh or os.environ.get("TALONGYM_ALLOW_MISSING_MESH") == "1"
         # Mesh seasons never use scripted flight or scoring teleports.
         self.ballistic_launch = True
         self.walls = perimeter_walls(fw / 2.0, fd / 2.0)
@@ -110,6 +117,7 @@ class World:
             sh = self.element_shapes.get(el["id"])
             if isinstance(sh, AABB) and sh.hx < 70 and sh.hy < 70:
                 self.obstacles.append(sh)
+        self.nav_obstacles: list[AABB] = list(self.obstacles)
         self.occluders: list[AABB] = []
         for el in self.elements:
             if el.get("isOccluder"):
@@ -208,6 +216,7 @@ class World:
         self.vision_hits: list[dict[str, Any]] = []
         self.last_events: list[TickEvent] = []
         self.pending_piece_ops: list[tuple[str, str | None, str | None]] = []
+        self.missed_launches: dict[str, int] = {}
 
     def _apply_committed_cad_version(self) -> None:
         """Cache-bust Lab assets from the shipped manifest even when MuJoCo is not installed."""
@@ -249,7 +258,12 @@ class World:
             raise MeshFieldRequiredError(
                 "This field requires mesh_field_collision; pip install -e '.[mujoco]'"
             )
-        xml, xml_path, built = self._collision_xml()
+        try:
+            xml, xml_path, built = self._collision_xml()
+        except MeshFieldRequiredError:
+            if self.allow_missing_mesh:
+                return default_backend(half_w, half_d)
+            raise
         return MujocoFieldBackend(
             xml,
             half_w,
@@ -862,8 +876,9 @@ class World:
             prev = self.prev_occupancy.get(tid, set())
             for ident in now - prev:
                 if ident in self.robots:
-                    events.append(TickEvent("volumeEnter", volume_id=tid, robot_id=ident))
-                    events.append(TickEvent("contactStart", volume_id=tid, robot_id=ident))
+                    alliance = self.robots[ident].body.alliance
+                    events.append(TickEvent("volumeEnter", volume_id=tid, robot_id=ident, robot_alliance=alliance))
+                    events.append(TickEvent("contactStart", volume_id=tid, robot_id=ident, robot_alliance=alliance))
                 elif ident in self.pieces:
                     p = self.pieces[ident]
                     events.append(
@@ -877,7 +892,14 @@ class World:
                     )
             for ident in prev - now:
                 if ident in self.robots:
-                    events.append(TickEvent("volumeExit", volume_id=tid, robot_id=ident))
+                    events.append(
+                        TickEvent(
+                            "volumeExit",
+                            volume_id=tid,
+                            robot_id=ident,
+                            robot_alliance=self.robots[ident].body.alliance,
+                        )
+                    )
                 elif ident in self.pieces:
                     p = self.pieces[ident]
                     events.append(
@@ -1129,6 +1151,7 @@ class World:
                             "contactStart",
                             volume_id=gate_el.get("triggerId") or gate_el["id"],
                             robot_id=rs.body.id,
+                            robot_alliance=rs.body.alliance,
                             fsm_id=gate_el["id"],
                         )
                     )
@@ -1200,6 +1223,8 @@ class World:
         # Galilean launch velocity: a moving robot cannot emit a world-fixed shot.
         p.vx += rs.body.vx
         p.vy += rs.body.vy
+        p.attrs["launched_at"] = self.time_s
+        p.attrs["launched_by"] = rs.body.id
 
     def _advance_ballistic(self, dt: float) -> None:
         if getattr(self.backend, "name", "") == "mujoco_field":
@@ -1367,6 +1392,7 @@ class World:
         self.wall_hit = False
         self.robot_hit = False
         self.piece_hit = False
+        self.missed_launches = {}
         for _ in range(self.substeps):
             for rid, rs in self.robots.items():
                 act = actions.get(rid) or {"target_pose": [rs.body.x, rs.body.y, rs.body.heading], "speed_frac": 0.2, "mechanism": 0}
@@ -1496,12 +1522,29 @@ class World:
         self._sense()
         rs = self.actor()
         if end_phase or self.time_s >= self.auto_s - 1e-9:
-            events.append(TickEvent("phaseEnd", phase="AUTO", robot_id=rs.body.id))
+            events.append(
+                TickEvent("phaseEnd", phase="AUTO", robot_id=rs.body.id, robot_alliance=rs.body.alliance)
+            )
         verb = MECHANISM_VERBS[int((actions.get("red_0") or {}).get("mechanism", 0)) % len(MECHANISM_VERBS)]
         delta = self._run_rules(events)
         occ = self.prev_occupancy
         self._update_contacts_and_restricted(0.0, occ)
+        self._judge_launches()
         return {"true_score_delta": delta, "verb": verb}
+
+    def _judge_launches(self) -> None:
+        """Count launches that scored nothing within LAUNCH_SCORE_WINDOW_S, once each, per launching robot."""
+        for p in self.pieces.values():
+            launched_at = p.attrs.get("launched_at")
+            if launched_at is None:
+                continue
+            if p.scored or p.held_by:
+                p.attrs.pop("launched_at", None)
+                continue
+            if self.time_s - float(launched_at) >= LAUNCH_SCORE_WINDOW_S:
+                rid = str(p.attrs.get("launched_by"))
+                self.missed_launches[rid] = self.missed_launches.get(rid, 0) + 1
+                p.attrs.pop("launched_at", None)
 
     def _snapshot_robot(
         self,

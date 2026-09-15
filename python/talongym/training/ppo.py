@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import gymnasium as gym
 import numpy as np
@@ -80,11 +81,12 @@ class CurriculumEnv(gym.Wrapper):
 
 
 def _eval_true_scores(
-    adapter: "RecurrentPolicyAdapter",
+    adapter: RecurrentPolicyAdapter,
     bundle: LoadedPresets,
     seeds: list[int],
     record_first: bool = False,
     match_setup: dict[str, Any] | None = None,
+    options: dict[str, Any] | None = None,
 ) -> tuple[list[float], list[dict[str, Any]]]:
     scores: list[float] = []
     frames: list[dict[str, Any]] = []
@@ -95,7 +97,7 @@ def _eval_true_scores(
             record=record_first and i == 0,
             match_setup=match_setup,
         )
-        obs, info = env.reset(seed=int(seed))
+        obs, info = env.reset(seed=int(seed), options=dict(options or {}))
         term = trunc = False
         while not term and not trunc:
             obs, _, term, trunc, info = env.step(adapter(obs, info))
@@ -104,6 +106,21 @@ def _eval_true_scores(
             frames = list(env.frames)
         env.close()
     return scores, frames
+
+
+# Roll back to the best checkpoint when held-out eval falls this many objective points below it.
+DEFAULT_ANCHOR_TOLERANCE = 3.0
+MIN_LEARNING_RATE = 1e-6
+
+
+def final_stage_eval_options(training: dict[str, Any] | None) -> dict[str, Any]:
+    """Reset options for the curriculum's last stage: the rules a finished policy must score under."""
+    return {
+        "full_noise": full_noise(training, 1.0),
+        "motif_known_at_t0": motif_known_at_t0(training, 1.0),
+        "teammate_policy": teammate_for(training, 1.0),
+        "opponent_policy": opponent_for(training, 1.0),
+    }
 
 
 def train_ppo(
@@ -182,9 +199,9 @@ def train_ppo(
         return _init
 
     try:
+        from sb3_contrib import RecurrentPPO
         from stable_baselines3.common.callbacks import BaseCallback
         from stable_baselines3.common.vec_env import DummyVecEnv
-        from sb3_contrib import RecurrentPPO
     except ImportError as exc:
         if allow_scripted:
             emit("stable-baselines3 not installed; using scripted AUTO baseline")
@@ -238,10 +255,20 @@ def train_ppo(
     latest = save_dir / "latest.zip"
     best_path = save_dir / "best.zip"
 
+    from talongym.training.compute import resolve_torch_device
+
+    device = resolve_torch_device()
+    emit(f"torch device: {device}")
+
     loaded = False
+    cloned = False
+    anchor_tolerance = float(algo_cfg.get("anchorTolerance", DEFAULT_ANCHOR_TOLERANCE))
+    eval_options = final_stage_eval_options(training)
+    # One fixed held-out seed set, so every checkpoint is compared on the same episodes.
+    eval_seeds = [held0 + i for i in range(eval_n)]
     if resume and latest.exists():
         try:
-            model = RecurrentPPO.load(str(latest), env=venv)
+            model = RecurrentPPO.load(str(latest), env=venv, device=device)
             saved_stamp = getattr(model, "talongym_robot_interface", None)
             if saved_stamp != interface_stamp:
                 raise RobotContractError(
@@ -260,6 +287,7 @@ def train_ppo(
             AsymmetricLstmPolicy,
             venv,
             verbose=0,
+            device=device,
             n_steps=n_steps,
             batch_size=batch,
             learning_rate=float(algo_cfg.get("learningRate") or 3e-4),
@@ -280,6 +308,7 @@ def train_ppo(
             try:
                 mse = bc_warmup(model, bundle, min(bc_steps, 4096), log=emit)
                 emit(f"BC warmup done mse={mse:.4f}")
+                cloned = True
             except Exception as exc:
                 emit(f"BC warmup skipped: {exc}")
     emit("Using sb3-contrib RecurrentPPO (AsymmetricLstmPolicy)")
@@ -290,6 +319,24 @@ def train_ppo(
     best_metric = float("-inf")
     last_improve_at = 0
     last_metrics: dict[str, Any] = {}
+    if cloned and eval_n > 0:
+        # The clone is the first candidate for best.zip, so a run whose PPO phase degrades still ends no worse.
+        try:
+            clone_scores, _ = _eval_true_scores(
+                RecurrentPolicyAdapter(model),
+                bundle,
+                eval_seeds,
+                match_setup=match_setup,
+                options=eval_options,
+            )
+            best_metric = objective_value(
+                bootstrap_ci(clone_scores, n_boot=min(400, max(40, 20 * len(clone_scores)))),
+                objective_name,
+            )
+            model.save(str(best_path))
+            emit(f"BC clone eval {objective_name}={best_metric:.2f}")
+        except Exception as exc:
+            emit(f"BC clone eval failed: {exc}")
 
     def _live_metrics(steps: int) -> dict[str, Any]:
         progress.steps = int(steps)
@@ -364,6 +411,7 @@ def train_ppo(
     done = int(getattr(model, "num_timesteps", 0) or 0) if loaded else 0
     progress.steps = done
     cancelled = False
+    rollbacks = 0
 
     def _logger_metrics() -> dict[str, Any]:
         lv = getattr(model.logger, "name_to_value", {}) or {}
@@ -396,13 +444,13 @@ def train_ppo(
             model.save(str(latest))
             if eval_n > 0:
                 adapter = RecurrentPolicyAdapter(model)
-                seeds = [held0 + i + done for i in range(eval_n)]
                 scores, eval_frames = _eval_true_scores(
                     adapter,
                     bundle,
-                    seeds,
+                    eval_seeds,
                     record_first=True,
                     match_setup=match_setup,
+                    options=eval_options,
                 )
                 report = bootstrap_ci(scores, n_boot=min(400, max(40, 20 * len(scores))))
                 metrics["evalTrueScoreMean"] = report["mean"]
@@ -411,11 +459,34 @@ def train_ppo(
                 metrics["evalP10"] = report["p10"]
                 metric = objective_value(report, objective_name)
                 metrics["bestMetric"] = metric
-                if metric >= best_metric:
+                # Strictly better only: a tie keeps the incumbent, so best.zip moves on real improvement.
+                if metric > best_metric:
                     best_metric = metric
                     last_improve_at = done
                     model.save(str(best_path))
                     metrics["bestCheckpoint"] = str(best_path)
+                elif anchor_tolerance > 0 and metric < best_metric - anchor_tolerance and best_path.exists():
+                    # Outcome anchor: the policy may act unlike the script, but not score clearly worse than
+                    # the best policy so far. Restore it and retry with smaller steps.
+                    model.set_parameters(str(best_path), exact_match=True, device=model.device)
+                    model.learning_rate = max(MIN_LEARNING_RATE, float(model.lr_schedule(1.0)) * 0.5)
+                    model._setup_lr_schedule()
+                    model.save(str(latest))
+                    rollbacks += 1
+                    emit(
+                        f"eval {objective_name}={metric:.2f} fell below best {best_metric:.2f}; "
+                        f"rolled back to best, learning rate now {model.learning_rate:.2e}"
+                    )
+                    _, eval_frames = _eval_true_scores(
+                        RecurrentPolicyAdapter(model),
+                        bundle,
+                        eval_seeds[:1],
+                        record_first=True,
+                        match_setup=match_setup,
+                        options=eval_options,
+                    )
+                metrics["anchorRollbacks"] = rollbacks
+                metrics["learningRate"] = float(model.lr_schedule(1.0))
             else:
                 last_improve_at = done
                 model.save(str(best_path))
@@ -442,7 +513,7 @@ def train_ppo(
             f"trained {done}/{total_steps} steps (recurrent_ppo) "
             f"true={metrics.get('trueScoreMean')} eval={metrics.get('evalTrueScoreMean')}"
         )
-        if early_stop and (done - last_improve_at) >= int(early_stop) and last_improve_at > 0:
+        if early_stop and (done - last_improve_at) >= int(early_stop) and best_metric > float("-inf"):
             emit("early stop: no eval improvement")
             break
         if should_stop and should_stop():
@@ -467,7 +538,7 @@ def train_ppo(
 
     adapter = RecurrentPolicyAdapter(model)
     try:
-        adapter.model = RecurrentPPO.load(str(ckpt))
+        adapter.model = RecurrentPPO.load(str(ckpt), device=device)
     except Exception:
         pass
     frames = record_policy_episode(adapter, bundle=bundle, seed=7, match_setup=match_setup)
@@ -526,10 +597,13 @@ class RecurrentPolicyAdapter:
 
 def load_trained_policy(path: str | Path) -> RecurrentPolicyAdapter:
     from sb3_contrib import RecurrentPPO
-    from talongym.training.asymmetric import AsymmetricLstmPolicy
 
+    from talongym.training.asymmetric import AsymmetricLstmPolicy
+    from talongym.training.compute import resolve_torch_device
+
+    device = resolve_torch_device()
     try:
-        model = RecurrentPPO.load(str(path), custom_objects={"AsymmetricLstmPolicy": AsymmetricLstmPolicy})
+        model = RecurrentPPO.load(str(path), device=device, custom_objects={"AsymmetricLstmPolicy": AsymmetricLstmPolicy})
     except Exception:
-        model = RecurrentPPO.load(str(path))
+        model = RecurrentPPO.load(str(path), device=device)
     return RecurrentPolicyAdapter(model)

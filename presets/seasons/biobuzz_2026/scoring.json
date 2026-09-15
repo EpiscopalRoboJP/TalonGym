@@ -155,14 +155,14 @@
       "id": "restricted_entry",
       "enabledPhases": ["AUTO"],
       "trigger": { "kind": "volumeEnter", "volumeId": "restricted_for_red" },
-      "conditions": [{ "op": "actorInVolume", "volumeId": "restricted_for_red" }],
+      "conditions": [{ "op": "robotAllianceIs", "alliance": "red" }],
       "actions": [
         { "kind": "setFlag", "accumulator": "restricted_entry" },
-        { "kind": "addScore", "channel": "trueScore", "points": -15, "accumulator": "true_score" }
+        { "kind": "addScore", "channel": "trueScore", "points": -20, "accumulator": "true_score" }
       ],
       "maxFires": 1,
       "fireScope": "actor",
-      "explain": "FOUL: AUTO restricted-volume entry (G402-style). −15 training proxy for opponent Major Foul. VERIFY AGAINST MANUAL."
+      "explain": "FOUL: AUTO restricted-volume entry, a coarse zone-entry proxy for G402 (Table 10-4 Major Foul = 20-pt credit to the opponent, confirmed in Competition Manual V1). The real rule only fouls actual opponent interference, not mere presence on the opponent's side (columns D-E-F for red) — this proxy still over-penalizes simple crossing. VERIFY design intent with a mentor; point value is manual-confirmed."
     }
   ],
   "scoreChannels": {

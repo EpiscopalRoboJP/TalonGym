@@ -1,4 +1,4 @@
-from talongym.presets.loader import load_preset, list_presets
+from talongym.presets.loader import list_presets, load_preset
 
 
 def test_only_biobuzz_field_ships():

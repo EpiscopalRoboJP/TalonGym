@@ -152,8 +152,7 @@ def calibrate(log: Path, out: Path | None = None) -> None:
 @app.command("validate-3d")
 def validate_3d(steps: int = 40) -> None:
     from talongym.sim.mujoco_backend import MujocoValidationBackend, available, pose_rmse
-    from talongym.sim.physics import Planar2DBackend, WorldStep, perimeter_walls
-    from talongym.sim.physics import Body
+    from talongym.sim.physics import Body, Planar2DBackend, WorldStep, perimeter_walls
 
     if not available():
         raise typer.BadParameter("MuJoCo extra missing; pip install -e '.[mujoco]'")

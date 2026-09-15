@@ -4,7 +4,6 @@ import pytest
 
 from talongym.assets.cad_common import (
     CadImportError,
-    check_piece_diameter,
     field_tile_surface_y,
     filename_from_content_disposition,
     iter_assembly_parts,
@@ -88,8 +87,9 @@ def test_convex_hull_mesh_is_small():
 
 
 def test_cli_import_field_cad_accepts_step():
-    from talongym.cli import app
     from typer.testing import CliRunner
+
+    from talongym.cli import app
 
     env = {"COLUMNS": "120", "TERM": "dumb"}
     result = CliRunner().invoke(app, ["import-field-cad", "--help"], env=env)

@@ -4,11 +4,12 @@ import asyncio
 import json
 import shutil
 import tempfile
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -22,15 +23,17 @@ from talongym.paths import WEB_DIST
 from talongym.presets.loader import PresetError, load_bundle, validate_document
 from talongym.sim.physics import default_backend
 from talongym.training.policies import scripted_auto
-from talongym.training.ppo import record_policy_episode, load_trained_policy
+from talongym.training.ppo import load_trained_policy, record_policy_episode
 
-app = FastAPI(title="TalonGym", version=__version__)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    db.connect()
+    db.fail_orphan_runs()
+    yield
+
+
+app = FastAPI(title="TalonGym", version=__version__, lifespan=_lifespan)
 
 API = "/api/v1"
 
@@ -81,12 +84,6 @@ class EvalBody(BaseModel):
 
 class ExportBody(BaseModel):
     dialect: str = "rr1_actions"
-
-
-@app.on_event("startup")
-def _startup() -> None:
-    db.connect()
-    db.fail_orphan_runs()
 
 
 class DefaultsBody(BaseModel):
@@ -558,7 +555,7 @@ async def upload_robot_part_model(
 
 @app.delete(f"{API}/presets/robot/{{preset_id}}/model")
 def delete_robot_model(preset_id: str) -> dict[str, bool]:
-    from talongym.assets.import_robot_cad import ROBOT_ID_RE, RobotCadError, delete_robot_assets
+    from talongym.assets.import_robot_cad import RobotCadError, delete_robot_assets
 
     try:
         delete_robot_assets(preset_id)
@@ -610,8 +607,8 @@ def mount_frontend(application: FastAPI) -> None:
         def spa(full_path: str):
             if full_path.startswith("api"):
                 raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": full_path}})
-            candidate = dist / full_path
-            if full_path and candidate.exists() and candidate.is_file():
+            candidate = (dist / full_path).resolve()
+            if full_path and candidate.is_relative_to(dist.resolve()) and candidate.is_file():
                 return FileResponse(candidate)
             return FileResponse(dist / "index.html")
 

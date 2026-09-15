@@ -5,7 +5,7 @@ import pytest
 
 from talongym.presets.loader import load_preset
 from talongym.training.curriculum import curriculum_unlocks
-from talongym.training.distill import collect_full_actions
+from talongym.training.distill import collect_episodes, collect_full_actions
 
 
 def test_biobuzz_curriculum_has_launch_stages():
@@ -22,6 +22,7 @@ def test_biobuzz_curriculum_has_launch_stages():
     assert "full_noise" in late
 
 
+@pytest.mark.require_mesh
 def test_collect_full_actions_includes_mechanism():
     from talongym.presets.loader import load_bundle
 
@@ -32,11 +33,24 @@ def test_collect_full_actions_includes_mechanism():
     assert np.isfinite(ys).all()
 
 
+@pytest.mark.require_mesh
+def test_collect_episodes_returns_whole_aligned_episodes():
+    from talongym.presets.loader import load_bundle
+
+    bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
+    obs, acts, returns, length = collect_episodes(2, bundle=bundle, seed=0)
+    assert len(obs) == acts.shape[0] == returns.shape[0] == 2 * length
+    assert acts.shape[1] == 5
+    assert np.isfinite(acts).all() and np.isfinite(returns).all()
+    assert "_privileged" in obs[0]
+
+
+@pytest.mark.require_mesh
 def test_bc_warmup_reduces_or_runs(tmp_path: Path):
     pytest.importorskip("torch")
     pytest.importorskip("sb3_contrib")
-    from stable_baselines3.common.vec_env import DummyVecEnv
     from sb3_contrib import RecurrentPPO
+    from stable_baselines3.common.vec_env import DummyVecEnv
 
     from talongym.env.ftc_auto import BoxActionDictObsEnv, EncoderOnlyObsAssertWrapper, FTCAutoEnv
     from talongym.presets.loader import load_bundle
@@ -52,6 +66,6 @@ def test_bc_warmup_reduces_or_runs(tmp_path: Path):
 
     venv = DummyVecEnv([make])
     model = RecurrentPPO(AsymmetricLstmPolicy, venv, verbose=0, n_steps=16, batch_size=16, n_epochs=1)
-    mse = bc_warmup(model, bundle, n_steps=32)
+    mse = bc_warmup(model, bundle, n_steps=32, epochs=5)
     venv.close()
     assert np.isfinite(mse)
