@@ -29,6 +29,7 @@ Optional extras (`[mujoco]`, `[cad]`, `[scale]`, `[postgres]`): [docs/INSTALL.md
 ## PR checklist
 
 - [ ] `python -m pytest` passes (skip notes in the PR if an extra was not installed)
+- [ ] Version lockstep: `python/talongym/__init__.py`, `pyproject.toml`, `web/package.json`, `web/package-lock.json` root package, `engine/Cargo.toml`, and README status stay on the same SemVer
 - [ ] New preset numbers cite the manual revision
 - [ ] No secrets, venv, `node_modules`, `var/`, or official STEP/CAD
 

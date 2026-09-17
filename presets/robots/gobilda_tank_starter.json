@@ -1,0 +1,864 @@
+{
+  "schemaVersion": "1.2.0",
+  "id": "gobilda_tank_starter",
+  "displayName": "goBILDA tank scoring starter",
+  "assembly": {
+    "rootInstanceId": "left_rail",
+    "recipe": {
+      "id": "gobilda_tank",
+      "parameters": {
+        "lengthSku": "1120-0007-0192",
+        "widthSku": "1120-0004-0120",
+        "motorSku": "5203-2402-0019",
+        "wheelSku": "3625-0202-0104",
+        "includeElectronics": true
+      }
+    },
+    "instances": [
+      {
+        "id": "left_rail",
+        "sku": "1120-0007-0192"
+      },
+      {
+        "id": "front_rail",
+        "sku": "1120-0004-0120"
+      },
+      {
+        "id": "right_rail",
+        "sku": "1120-0007-0192"
+      },
+      {
+        "id": "rear_rail",
+        "sku": "1120-0004-0120"
+      },
+      {
+        "id": "plate_center",
+        "sku": "1202-0001-0001"
+      },
+      {
+        "id": "hub_center",
+        "sku": "1310-0016-0008"
+      },
+      {
+        "id": "bracket_fl",
+        "sku": "1203-0001-0001"
+      },
+      {
+        "id": "bracket_fr",
+        "sku": "1203-0001-0001"
+      },
+      {
+        "id": "motor_fl",
+        "sku": "5203-2402-0019"
+      },
+      {
+        "id": "wheel_fl",
+        "sku": "3625-0202-0104"
+      },
+      {
+        "id": "motor_fr",
+        "sku": "5203-2402-0019"
+      },
+      {
+        "id": "wheel_fr",
+        "sku": "3625-0202-0104"
+      },
+      {
+        "id": "motor_rl",
+        "sku": "5203-2402-0019"
+      },
+      {
+        "id": "wheel_rl",
+        "sku": "3625-0202-0104"
+      },
+      {
+        "id": "motor_rr",
+        "sku": "5203-2402-0019"
+      },
+      {
+        "id": "wheel_rr",
+        "sku": "3625-0202-0104"
+      },
+      {
+        "id": "sensor_imu",
+        "sku": "3110-0001-0001"
+      },
+      {
+        "id": "servo_mount",
+        "sku": "1201-0043-0002"
+      },
+      {
+        "id": "servo_front",
+        "sku": "2000-0025-0002"
+      },
+      {
+        "id": "intake_motor",
+        "sku": "5203-2402-0019"
+      },
+      {
+        "id": "intake_wheel",
+        "sku": "3606-0014-0064"
+      },
+      {
+        "id": "conveyor_motor",
+        "sku": "5203-2402-0019"
+      },
+      {
+        "id": "conveyor_wheel",
+        "sku": "3606-0014-0064"
+      },
+      {
+        "id": "launcher_motor",
+        "sku": "5203-2402-0019"
+      },
+      {
+        "id": "flywheel_wheel",
+        "sku": "3606-0014-0120"
+      },
+      {
+        "id": "hood_plate",
+        "sku": "1202-0001-0001"
+      }
+    ],
+    "connections": [
+      {
+        "id": "front_rail",
+        "parent": {
+          "instanceId": "left_rail",
+          "mountId": "web",
+          "patternIndex": [
+            0,
+            1
+          ]
+        },
+        "child": {
+          "instanceId": "front_rail",
+          "mountId": "web",
+          "patternIndex": [
+            0,
+            1
+          ]
+        },
+        "spinDeg": 90.0
+      },
+      {
+        "id": "right_rail",
+        "parent": {
+          "instanceId": "front_rail",
+          "mountId": "web",
+          "patternIndex": [
+            14,
+            1
+          ]
+        },
+        "child": {
+          "instanceId": "right_rail",
+          "mountId": "web",
+          "patternIndex": [
+            23,
+            1
+          ]
+        },
+        "spinDeg": 180.0
+      },
+      {
+        "id": "rear_rail",
+        "parent": {
+          "instanceId": "left_rail",
+          "mountId": "web",
+          "patternIndex": [
+            23,
+            1
+          ]
+        },
+        "child": {
+          "instanceId": "rear_rail",
+          "mountId": "web",
+          "patternIndex": [
+            0,
+            1
+          ]
+        },
+        "spinDeg": 90.0
+      },
+      {
+        "id": "motor_fl",
+        "parent": {
+          "instanceId": "left_rail",
+          "mountId": "flange_a",
+          "patternIndex": [
+            3,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "motor_fl",
+          "mountId": "face",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "left_rail",
+            "mountId": "flange_a",
+            "patternIndex": [
+              5,
+              0
+            ]
+          },
+          "child": {
+            "instanceId": "motor_fl",
+            "mountId": "face",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "motor_rl",
+        "parent": {
+          "instanceId": "left_rail",
+          "mountId": "flange_a",
+          "patternIndex": [
+            18,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "motor_rl",
+          "mountId": "face",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "left_rail",
+            "mountId": "flange_a",
+            "patternIndex": [
+              20,
+              0
+            ]
+          },
+          "child": {
+            "instanceId": "motor_rl",
+            "mountId": "face",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "motor_fr",
+        "parent": {
+          "instanceId": "right_rail",
+          "mountId": "flange_a",
+          "patternIndex": [
+            3,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "motor_fr",
+          "mountId": "face",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "right_rail",
+            "mountId": "flange_a",
+            "patternIndex": [
+              5,
+              0
+            ]
+          },
+          "child": {
+            "instanceId": "motor_fr",
+            "mountId": "face",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "motor_rr",
+        "parent": {
+          "instanceId": "right_rail",
+          "mountId": "flange_a",
+          "patternIndex": [
+            18,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "motor_rr",
+          "mountId": "face",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "right_rail",
+            "mountId": "flange_a",
+            "patternIndex": [
+              20,
+              0
+            ]
+          },
+          "child": {
+            "instanceId": "motor_rr",
+            "mountId": "face",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "plate_center",
+        "parent": {
+          "instanceId": "front_rail",
+          "mountId": "web",
+          "patternIndex": [
+            7,
+            1
+          ]
+        },
+        "child": {
+          "instanceId": "plate_center",
+          "mountId": "pattern",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "front_rail",
+            "mountId": "web",
+            "patternIndex": [
+              8,
+              1
+            ]
+          },
+          "child": {
+            "instanceId": "plate_center",
+            "mountId": "pattern",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "hub_center",
+        "parent": {
+          "instanceId": "plate_center",
+          "mountId": "pattern",
+          "patternIndex": [
+            2,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "hub_center",
+          "mountId": "pattern",
+          "patternIndex": [
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "id": "bracket_fl",
+        "parent": {
+          "instanceId": "left_rail",
+          "mountId": "web",
+          "patternIndex": [
+            8,
+            1
+          ]
+        },
+        "child": {
+          "instanceId": "bracket_fl",
+          "mountId": "face_a",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "left_rail",
+            "mountId": "web",
+            "patternIndex": [
+              9,
+              1
+            ]
+          },
+          "child": {
+            "instanceId": "bracket_fl",
+            "mountId": "face_a",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "bracket_fr",
+        "parent": {
+          "instanceId": "right_rail",
+          "mountId": "web",
+          "patternIndex": [
+            8,
+            1
+          ]
+        },
+        "child": {
+          "instanceId": "bracket_fr",
+          "mountId": "face_a",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "right_rail",
+            "mountId": "web",
+            "patternIndex": [
+              9,
+              1
+            ]
+          },
+          "child": {
+            "instanceId": "bracket_fr",
+            "mountId": "face_a",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "wheel_fl",
+        "parent": {
+          "instanceId": "motor_fl",
+          "mountId": "output"
+        },
+        "child": {
+          "instanceId": "wheel_fl",
+          "mountId": "bore"
+        }
+      },
+      {
+        "id": "wheel_fr",
+        "parent": {
+          "instanceId": "motor_fr",
+          "mountId": "output"
+        },
+        "child": {
+          "instanceId": "wheel_fr",
+          "mountId": "bore"
+        }
+      },
+      {
+        "id": "wheel_rl",
+        "parent": {
+          "instanceId": "motor_rl",
+          "mountId": "output"
+        },
+        "child": {
+          "instanceId": "wheel_rl",
+          "mountId": "bore"
+        }
+      },
+      {
+        "id": "wheel_rr",
+        "parent": {
+          "instanceId": "motor_rr",
+          "mountId": "output"
+        },
+        "child": {
+          "instanceId": "wheel_rr",
+          "mountId": "bore"
+        }
+      },
+      {
+        "id": "sensor_imu",
+        "parent": {
+          "instanceId": "plate_center",
+          "mountId": "pattern",
+          "patternIndex": [
+            2,
+            2
+          ]
+        },
+        "child": {
+          "instanceId": "sensor_imu",
+          "mountId": "channel",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "plate_center",
+            "mountId": "pattern",
+            "patternIndex": [
+              3,
+              2
+            ]
+          },
+          "child": {
+            "instanceId": "sensor_imu",
+            "mountId": "channel",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "servo_mount",
+        "parent": {
+          "instanceId": "left_rail",
+          "mountId": "web",
+          "patternIndex": [
+            11,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "servo_mount",
+          "mountId": "pattern",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "left_rail",
+            "mountId": "web",
+            "patternIndex": [
+              12,
+              0
+            ]
+          },
+          "child": {
+            "instanceId": "servo_mount",
+            "mountId": "pattern",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "servo_front",
+        "parent": {
+          "instanceId": "servo_mount",
+          "mountId": "pattern",
+          "patternIndex": [
+            2,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "servo_front",
+          "mountId": "tabs",
+          "patternIndex": [
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "id": "intake_motor",
+        "parent": {
+          "instanceId": "left_rail",
+          "mountId": "flange_a",
+          "patternIndex": [
+            8,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "intake_motor",
+          "mountId": "face",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "left_rail",
+            "mountId": "flange_a",
+            "patternIndex": [
+              10,
+              0
+            ]
+          },
+          "child": {
+            "instanceId": "intake_motor",
+            "mountId": "face",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "intake_wheel",
+        "parent": {
+          "instanceId": "intake_motor",
+          "mountId": "output"
+        },
+        "child": {
+          "instanceId": "intake_wheel",
+          "mountId": "bore"
+        },
+        "jointType": "hinge"
+      },
+      {
+        "id": "conveyor_motor",
+        "parent": {
+          "instanceId": "left_rail",
+          "mountId": "flange_a",
+          "patternIndex": [
+            12,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "conveyor_motor",
+          "mountId": "face",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "left_rail",
+            "mountId": "flange_a",
+            "patternIndex": [
+              14,
+              0
+            ]
+          },
+          "child": {
+            "instanceId": "conveyor_motor",
+            "mountId": "face",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "conveyor_wheel",
+        "parent": {
+          "instanceId": "conveyor_motor",
+          "mountId": "output"
+        },
+        "child": {
+          "instanceId": "conveyor_wheel",
+          "mountId": "bore"
+        },
+        "jointType": "hinge"
+      },
+      {
+        "id": "launcher_motor",
+        "parent": {
+          "instanceId": "right_rail",
+          "mountId": "flange_a",
+          "patternIndex": [
+            8,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "launcher_motor",
+          "mountId": "face",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "right_rail",
+            "mountId": "flange_a",
+            "patternIndex": [
+              10,
+              0
+            ]
+          },
+          "child": {
+            "instanceId": "launcher_motor",
+            "mountId": "face",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "flywheel_wheel",
+        "parent": {
+          "instanceId": "launcher_motor",
+          "mountId": "output"
+        },
+        "child": {
+          "instanceId": "flywheel_wheel",
+          "mountId": "bore"
+        },
+        "jointType": "hinge"
+      },
+      {
+        "id": "hood_plate",
+        "parent": {
+          "instanceId": "front_rail",
+          "mountId": "web",
+          "patternIndex": [
+            2,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "hood_plate",
+          "mountId": "pattern",
+          "patternIndex": [
+            0,
+            0
+          ]
+        }
+      }
+    ]
+  },
+  "functionalBindings": {
+    "confirmed": true,
+    "includeScoringTopology": true,
+    "drivetrain": {
+      "type": "tank",
+      "wheelDiameterIn": 4.094,
+      "trackWidthIn": 4.409,
+      "wheelbaseIn": 4.724
+    },
+    "instanceRoles": {
+      "left_rail": "structure",
+      "front_rail": "structure",
+      "right_rail": "structure",
+      "rear_rail": "structure",
+      "plate_center": "structure",
+      "hub_center": "hub",
+      "bracket_fl": "structure",
+      "bracket_fr": "structure",
+      "motor_fl": "drive_motor",
+      "wheel_fl": "drive_wheel",
+      "motor_fr": "drive_motor",
+      "wheel_fr": "drive_wheel",
+      "motor_rl": "drive_motor",
+      "wheel_rl": "drive_wheel",
+      "motor_rr": "drive_motor",
+      "wheel_rr": "drive_wheel",
+      "sensor_imu": "sensor",
+      "servo_mount": "structure",
+      "servo_front": "servo",
+      "intake_motor": "drive_motor",
+      "intake_wheel": "intake",
+      "conveyor_motor": "drive_motor",
+      "conveyor_wheel": "intake",
+      "launcher_motor": "drive_motor",
+      "flywheel_wheel": "flywheel",
+      "hood_plate": "structure"
+    }
+  },
+  "drivetrain": {
+    "type": "tank",
+    "wheelDiameterIn": 4.094,
+    "trackWidthIn": 4.409,
+    "wheelbaseIn": 4.724
+  },
+  "chassis": {
+    "lengthIn": 18,
+    "widthIn": 18,
+    "heightIn": 14,
+    "massKg": 5.735999999999999,
+    "collisionShape": "aabb"
+  },
+  "motors": {
+    "count": 4,
+    "freeSpeedRpm": 312.0,
+    "stallTorqueNm": 2.1,
+    "currentLimitA": 20,
+    "gearRatio": 19.2,
+    "nominalVoltageV": 12
+  },
+  "constraints": {
+    "maxVelInPerS": 30,
+    "maxAccelInPerS2": 30,
+    "maxAngVelDegPerS": 60,
+    "maxAngAccelDegPerS2": 60
+  },
+  "sensors": [
+    {
+      "id": "front_camera",
+      "kind": "apriltag_camera",
+      "poseOnRobot": {
+        "x": 7,
+        "y": 0,
+        "z": 8,
+        "headingDeg": 0,
+        "pitchDeg": 0
+      },
+      "fovDeg": 70,
+      "rangeIn": 96,
+      "falseNegativeRate": 0.05,
+      "falsePositiveRate": 0.0
+    },
+    {
+      "id": "imu",
+      "kind": "imu"
+    }
+  ],
+  "mechanisms": {
+    "capacity": 4,
+    "intakeCycleTimeS": 0.4,
+    "scoreCycleTimeS": 0.6,
+    "canIntakeWhileMoving": true,
+    "canScoreWhileMoving": true,
+    "launchCapable": true,
+    "climbCapable": false,
+    "fsmId": "intake_hold_launch"
+  },
+  "defaultActionTier": "physical_actuators"
+}

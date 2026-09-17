@@ -38,6 +38,9 @@ core.*
 web/node_modules/
 web/dist/
 web/.vite/
+web/playwright-report/
+web/test-results/
+web/blob-report/
 engine/target/
 
 # OS / IDE

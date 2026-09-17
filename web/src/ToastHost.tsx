@@ -36,9 +36,9 @@ export function ToastHost() {
 
   if (!items.length) return null;
   return (
-    <div className="toasts" role="status" aria-live="polite">
+    <div className="toasts" role="status" aria-live="polite" data-testid="app-toasts">
       {items.map((t) => (
-        <div key={t.id} className={`toast ${t.kind}`}>
+        <div key={t.id} className={`toast ${t.kind}`} data-testid="app-toast">
           <div className="grow">
             {t.title && <b>{t.title}</b>}
             {t.message}

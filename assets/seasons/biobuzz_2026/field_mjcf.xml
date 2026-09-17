@@ -17,13 +17,13 @@
       <geom group="3" contype="0" conaffinity="0" density="0"/>
     </default>
     <default class="piece_pollen">
-      <geom group="2" contype="3" conaffinity="3" condim="3" friction="0.8 0.05 0.01" solref="0.02 0.850" mass="0.05000" rgba="0.93 0.78 0.16 1"/>
+      <geom group="2" contype="8" conaffinity="13" condim="3" friction="0.8 0.05 0.01" solref="0.02 0.850" mass="0.05000" rgba="0.93 0.78 0.16 1"/>
     </default>
     <default class="piece_nectar_red">
-      <geom group="2" contype="3" conaffinity="3" condim="3" friction="0.8 0.05 0.01" solref="0.02 0.850" mass="0.08000" rgba="0.82 0.18 0.16 1"/>
+      <geom group="2" contype="8" conaffinity="13" condim="3" friction="0.8 0.05 0.01" solref="0.02 0.850" mass="0.08000" rgba="0.82 0.18 0.16 1"/>
     </default>
     <default class="piece_nectar_blue">
-      <geom group="2" contype="3" conaffinity="3" condim="3" friction="0.8 0.05 0.01" solref="0.02 0.850" mass="0.08000" rgba="0.16 0.38 0.82 1"/>
+      <geom group="2" contype="8" conaffinity="13" condim="3" friction="0.8 0.05 0.01" solref="0.02 0.850" mass="0.08000" rgba="0.16 0.38 0.82 1"/>
     </default>
   </default>
   <asset>

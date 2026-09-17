@@ -99,6 +99,9 @@
                     "motif_must_sense",
                     "scripted_teammate",
                     "scripted_opponent",
+                    "spawn_at_launch",
+                    "spawn_approach",
+                    "mechanism_ready",
                     "full_noise"
                   ]
                 }

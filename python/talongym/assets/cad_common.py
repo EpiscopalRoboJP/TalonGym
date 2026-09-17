@@ -13,6 +13,8 @@ from urllib.parse import unquote, urlparse
 from talongym.paths import VAR_DIR
 
 CAD_GENERATOR_VERSION = "1.2.0"
+# Catalog cache only. Bumped independently so field cad_manifest.json stays valid.
+CATALOG_CAD_GENERATOR_VERSION = "1.4.0"
 IN_PER_M = 39.37007874015748
 MM_PER_IN = 25.4
 FIELD_SPAN_IN = 144.0

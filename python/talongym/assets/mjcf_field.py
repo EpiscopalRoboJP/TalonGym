@@ -626,163 +626,17 @@ def _robot_bodies(
     body_y: float,
     robot: dict[str, Any] | None = None,
 ) -> tuple[list[str], list[str]]:
-    robot_ids = ["red_0", "red_1", "blue_0", "blue_1"][: max(1, n_robots)]
-    bodies: list[str] = []
-    assets: list[str] = []
-    parts = {
-        str(row["id"]): row
-        for row in ((robot or {}).get("rigidParts") or [])
-        if row.get("id")
-    }
-    joints_by_child = {
-        str(row["childPartId"]): row
-        for row in ((robot or {}).get("joints") or [])
-        if row.get("childPartId")
-    }
-    children: dict[str, list[str]] = {}
-    for part_id, row in parts.items():
-        parent = row.get("parentId")
-        if parent is not None:
-            children.setdefault(str(parent), []).append(part_id)
+    from talongym.assets.mjcf_robot import emit_robot_bodies
 
-    mesh_names: dict[str, str] = {}
-    if parts:
-        from talongym.assets.import_robot_cad import resolve_robot_asset
-
-        for part_id, part in parts.items():
-            for collision_index, collision in enumerate(part.get("collision") or []):
-                if collision.get("kind") != "convex_mesh":
-                    continue
-                rel = str(collision["asset"])
-                mesh_name = _xml_name(f"robot_part_{part_id}_{collision_index}")
-                mesh_names[f"{part_id}:{collision_index}"] = mesh_name
-                path = resolve_robot_asset(rel)
-                if not path.is_file():
-                    raise FileNotFoundError(f"robot collision asset missing: {path}")
-                assets.append(
-                    f'    <mesh name="{mesh_name}" file="{escape(str(path.resolve()))}"/>'
-                )
-
-    def collision_geoms(rid: str, part_id: str, part: dict[str, Any]) -> list[str]:
-        rows: list[str] = []
-        collisions = list(part.get("collision") or [])
-        mass_each = float(part.get("massKg") or 0.1) / max(1, len(collisions))
-        for index, collision in enumerate(collisions):
-            kind = str(collision.get("kind") or "box")
-            attrs = [
-                f'name="{rid}_part_{_xml_name(part_id)}_geom_{index}"',
-                'class="robot"',
-                f'mass="{mass_each:.6f}"',
-                f'pos="{_robot_pos(collision.get("pose"))}"',
-                f'quat="{_robot_quat(collision.get("pose"))}"',
-            ]
-            friction = float(collision.get("friction") or 0.8)
-            attrs.append(f'friction="{friction:.4f} 0.05 0.01"')
-            if kind == "box":
-                size = list(collision.get("sizeIn") or [1.0, 1.0, 1.0])
-                attrs.extend(
-                    [
-                        'type="box"',
-                        f'size="{0.5 * float(size[0]):.5f} {0.5 * float(size[2]):.5f} {0.5 * float(size[1]):.5f}"',
-                    ]
-                )
-            elif kind in {"sphere", "cylinder", "capsule"}:
-                attrs.append(f'type="{kind}"')
-                radius = float(collision.get("radiusIn") or 0.5)
-                if kind == "sphere":
-                    attrs.append(f'size="{radius:.5f}"')
-                else:
-                    half_length = 0.5 * float(collision.get("lengthIn") or 0.0)
-                    attrs.append(f'size="{radius:.5f} {half_length:.5f}"')
-            elif kind == "convex_mesh":
-                attrs.extend(
-                    [
-                        'type="mesh"',
-                        f'mesh="{mesh_names[f"{part_id}:{index}"]}"',
-                    ]
-                )
-            rows.append("        <geom " + " ".join(attrs) + "/>")
-        return rows
-
-    def part_body(rid: str, part_id: str, indent: str) -> list[str]:
-        part = parts[part_id]
-        joint = joints_by_child.get(part_id)
-        body_attrs = (
-            f'name="{rid}_part_{_xml_name(part_id)}" '
-            f'pos="{_robot_pos(part.get("pose"))}" '
-            f'quat="{_robot_quat(part.get("pose"))}"'
-        )
-        rows = [f"{indent}<body {body_attrs}>"]
-        if joint is not None and joint.get("type") != "fixed":
-            joint_type = str(joint["type"])
-            anchor = joint.get("anchorIn") or {}
-            part_pose = part.get("pose") or {}
-            local_anchor = {
-                key: float(anchor.get(key) or 0.0) - float(part_pose.get(key) or 0.0)
-                for key in ("x", "y", "z")
-            }
-            limit = list(joint.get("limit") or [])
-            range_attr = ""
-            if len(limit) == 2:
-                lo, hi = float(limit[0]), float(limit[1])
-                if joint_type == "hinge":
-                    lo, hi = math.radians(lo), math.radians(hi)
-                range_attr = f' limited="true" range="{lo:.8f} {hi:.8f}"'
-            rows.append(
-                f'{indent}  <joint name="{rid}_joint_{_xml_name(str(joint["id"]))}" '
-                f'type="{joint_type}" pos="{_robot_pos(local_anchor)}" '
-                f'axis="{_robot_axis(joint.get("axis"))}" damping="{float(joint.get("damping") or 0):.6f}" '
-                f'frictionloss="{float(joint.get("frictionLoss") or 0):.6f}"{range_attr}/>'
-            )
-        rows.extend(
-            line.replace("        ", f"{indent}  ", 1)
-            for line in collision_geoms(rid, part_id, part)
-        )
-        for child in children.get(part_id, []):
-            rows.extend(part_body(rid, child, indent + "  "))
-        rows.append(f"{indent}</body>")
-        return rows
-
-    for rid in robot_ids:
-        if parts:
-            root_id = next(
-                (part_id for part_id, row in parts.items() if row.get("parentId") is None),
-                "chassis",
-            )
-            root = parts[root_id]
-            root_geoms = collision_geoms(rid, root_id, root)
-            child_rows: list[str] = []
-            for child in children.get(root_id, []):
-                child_rows.extend(part_body(rid, child, "      "))
-            mechanism_xml = "\n".join(root_geoms + child_rows)
-            bodies.append(
-                f"""    <body name="{rid}" pos="0 {body_y:.3f} 0">
-      <joint name="{rid}_sx" type="slide" axis="1 0 0" damping="2"/>
-      <joint name="{rid}_sz" type="slide" axis="0 0 1" damping="2"/>
-      <joint name="{rid}_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
-{mechanism_xml}
-    </body>"""
-            )
-            continue
-        if mesh_file:
-            geom = (
-                f'<geom name="{rid}_geom" class="robot" type="mesh" mesh="robot_hull" mass="15" '
-                f'rgba="0.9 0.8 0.6 1"/>'
-            )
-        else:
-            geom = (
-                f'<geom name="{rid}_geom" class="robot" type="box" '
-                f'size="{robot_hx:.3f} {robot_hz:.3f} {robot_hy:.3f}" '
-                f'mass="15" rgba="0.9 0.8 0.6 1"/>'
-            )
-        bodies.append(
-            f"""    <body name="{rid}" pos="0 {body_y:.3f} 0">
-      <joint name="{rid}_sx" type="slide" axis="1 0 0" damping="2"/>
-      <joint name="{rid}_sz" type="slide" axis="0 0 1" damping="2"/>
-      <joint name="{rid}_yaw" type="hinge" axis="0 1 0" damping="0.4"/>
-      {geom}
-    </body>"""
-        )
+    bodies, assets, _stats = emit_robot_bodies(
+        n_robots,
+        robot_hx,
+        robot_hy,
+        robot_hz,
+        mesh_file=mesh_file,
+        body_y=body_y,
+        robot=robot,
+    )
     return bodies, assets
 
 
@@ -814,9 +668,12 @@ def _typed_piece_bodies(
         damping = max(0.2, min(1.0, 1.2 - rest))
         rgba = _PIECE_RGBA.get(type_id, "0.85 0.85 0.85 1")
         cls = _xml_name(f"piece_{type_id}")
+        # Match class="piece" (contype 8 / conaffinity 13). Bits 0+3 hit field and
+        # other pieces; bit 1 is the robot hull. Magazine preloads spawn inside that
+        # hull, so robot-piece contacts would embed them and block physical launch.
         defaults.append(
             f'    <default class="{cls}">\n'
-            f'      <geom group="{GEOM_GROUP_PIECE}" contype="3" conaffinity="3" condim="3" '
+            f'      <geom group="{GEOM_GROUP_PIECE}" contype="8" conaffinity="13" condim="3" '
             f'friction="0.8 0.05 0.01" solref="0.02 {damping:.3f}" mass="{mass:.5f}" rgba="{rgba}"/>\n'
             f"    </default>"
         )
@@ -856,7 +713,7 @@ def _wrap_mjcf(
     meshdir: str | None = None,
 ) -> str:
     meshdir_attr = f' meshdir="{escape(meshdir)}"' if meshdir else ""
-    compiler = f'<compiler angle="radian" inertiafromgeom="true" autolimits="true"{meshdir_attr}/>'
+    compiler = f'<compiler angle="radian" inertiafromgeom="auto" autolimits="true"{meshdir_attr}/>'
     asset_block = ""
     if assets:
         asset_block = "\n  <asset>\n" + "\n".join(assets) + "\n  </asset>"

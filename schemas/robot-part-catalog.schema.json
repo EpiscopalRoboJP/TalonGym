@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://talongym.dev/schemas/robot-part-catalog.schema.json",
+  "title": "RobotPartCatalog",
+  "description": "Curated goBILDA/REV robot-part metadata. Official CAD stays on manufacturer hosts and is downloaded on demand into var/assets/robot_parts/. Only this catalog JSON is committed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "manufacturer", "displayName", "coordinateSystem", "parts"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "manufacturer": { "type": "string", "enum": ["gobilda", "rev"] },
+    "displayName": { "type": "string", "minLength": 1 },
+    "notes": { "type": "string" },
+    "coordinateSystem": {
+      "type": "string",
+      "const": "manufacturer_mm_zup",
+      "description": "Native CAD frame before visualTransform. Converted assets are FTC inches, Y-up."
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/part" }
+    }
+  },
+  "$defs": {
+    "sku": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$"
+    },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "xyz": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "transform3": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "rollDeg": { "type": "number" },
+        "pitchDeg": { "type": "number" },
+        "yawDeg": { "type": "number" }
+      }
+    },
+    "visualTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scaleToInches", "rotatedZupToYup", "translationIn"],
+      "properties": {
+        "scaleToInches": { "type": "number" },
+        "rotatedZupToYup": { "type": "boolean" },
+        "translationIn": { "$ref": "#/$defs/xyz" }
+      }
+    },
+    "collisionProxy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["box", "sphere", "cylinder", "capsule", "convex_hull"] },
+        "sizeIn": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "radiusIn": { "type": "number", "exclusiveMinimum": 0 },
+        "lengthIn": { "type": "number", "exclusiveMinimum": 0 },
+        "pose": { "$ref": "#/$defs/transform3" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "box" } }, "required": ["kind"] },
+          "then": { "required": ["sizeIn"] }
+        },
+        {
+          "if": { "properties": { "kind": { "enum": ["sphere", "cylinder", "capsule"] } }, "required": ["kind"] },
+          "then": { "required": ["radiusIn"] }
+        }
+      ]
+    },
+    "holePattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "pitchMm"],
+      "properties": {
+        "type": { "type": "string", "enum": ["grid", "linear", "circle", "single"] },
+        "pitchMm": { "type": "number", "exclusiveMinimum": 0 },
+        "countU": { "type": "integer", "minimum": 1 },
+        "countV": { "type": "integer", "minimum": 1 },
+        "count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "mount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "standard", "axis", "transform"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": {
+          "type": "string",
+          "enum": ["threaded_hole", "clearance_hole", "shaft", "hub", "bearing", "clamp", "mating_face"]
+        },
+        "standard": {
+          "type": "string",
+          "enum": [
+            "gobilda_pattern",
+            "gobilda_8mm_rex",
+            "rev_15mm",
+            "rev_m3",
+            "rev_5mm_hex",
+            "rev_maxspline",
+            "adapter_required"
+          ]
+        },
+        "diameterMm": { "type": "number", "exclusiveMinimum": 0 },
+        "spacingMm": { "type": "number", "exclusiveMinimum": 0 },
+        "axis": { "$ref": "#/$defs/xyz" },
+        "uAxis": { "$ref": "#/$defs/xyz" },
+        "depthMm": { "type": "number" },
+        "allowedHardware": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "transform": { "$ref": "#/$defs/transform3" },
+        "pattern": { "$ref": "#/$defs/holePattern" }
+      }
+    },
+    "cad": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "format", "units", "downloadEnabled", "terms"],
+      "properties": {
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "filename": { "type": "string", "minLength": 1 },
+        "format": { "type": "string", "enum": ["zip", "step", "glb", "stl"] },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "revision": { "type": "string" },
+        "units": { "type": "string", "enum": ["mm", "in", "m"] },
+        "origin": { "type": "string", "enum": ["manufacturer", "geometric_center"] },
+        "downloadEnabled": { "type": "boolean" },
+        "terms": { "type": "string", "minLength": 1 }
+      },
+      "if": { "properties": { "downloadEnabled": { "const": true } }, "required": ["downloadEnabled"] },
+      "then": { "required": ["sourceUrl"] }
+    },
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sku", "displayName", "productUrl", "cad", "massKg", "visualTransform", "collision", "tags", "mounts"],
+      "properties": {
+        "sku": { "$ref": "#/$defs/sku" },
+        "displayName": { "type": "string", "minLength": 1 },
+        "productUrl": { "type": "string", "format": "uri" },
+        "cad": { "$ref": "#/$defs/cad" },
+        "massKg": { "type": "number", "exclusiveMinimum": 0 },
+        "gearRatio": { "type": "number", "exclusiveMinimum": 0 },
+        "inertiaKgM2": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "visualTransform": { "$ref": "#/$defs/visualTransform" },
+        "collision": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/collisionProxy" }
+        },
+        "tags": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "channel",
+              "extrusion",
+              "plate",
+              "bracket",
+              "wheel_mecanum",
+              "wheel_traction",
+              "wheel_omni",
+              "wheel_compliant",
+              "motor",
+              "gearbox",
+              "hub",
+              "shaft",
+              "bearing",
+              "collar",
+              "gear",
+              "sprocket",
+              "pulley",
+              "belt",
+              "chain",
+              "servo",
+              "servo_mount",
+              "intake_roller",
+              "flywheel",
+              "sensor",
+              "control_hub",
+              "battery",
+              "electronics"
+            ]
+          }
+        },
+        "mounts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/mount" }
+        }
+      }
+    }
+  }
+}

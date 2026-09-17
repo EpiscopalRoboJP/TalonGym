@@ -374,7 +374,7 @@ The server **pushes** JSON text frames (`v`, `seq`, `type`, `payload`). Client t
 | `/replay/:replayId?` | 3D field, robots, pieces, FSM overlays, scrub, play/pause/speed. FOV cones and planned path are best-effort overlays, not a physics planner. No reward heatmap. |
 | `/train/:runId?` | Sparklines (true score vs shaping) and live scene. No score histogram, success-rate plot, or hyperparam editor panel. |
 | `/build/field` | Pose + JSON field editor (not a free-form grid CAD tool) |
-| `/build/robot` | Drivetrain, constraints, sensors, mechanisms, `defaultActionTier` including `physical_actuators` |
+| `/build/robot` | Catalog 3D assembly builder: goBILDA/REV recipes, snap, drafts; `defaultActionTier` including `physical_actuators` after confirmation |
 | `/compare` | Leaderboard of evaluations with CI whiskers; Export RR per row. No scoring graph editor. |
 
 Stale preset: list rows include `stale` when `provenance.manualRevision` differs from `LATEST_KNOWN_MANUAL[season]`. There is no blocking `PRESET_STALE` API error.

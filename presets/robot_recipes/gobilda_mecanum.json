@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "gobilda_mecanum",
+  "displayName": "goBILDA mecanum drivebase",
+  "manufacturer": "gobilda",
+  "drivetrainType": "mecanum",
+  "description": "Editable four-module goBILDA U-channel mecanum chassis. The wizard chooses rail length, cross-rail width, Yellow Jacket motor, and mecanum wheel SKUs, then instantiates a schema 1.2 assembly with physical hole-pattern connections.",
+  "parameters": {
+    "lengthSku": {
+      "label": "Side rail length",
+      "default": "1120-0007-0192",
+      "choices": [
+        "1120-0004-0120",
+        "1120-0007-0192",
+        "1120-0013-0336",
+        "1120-0017-0432"
+      ]
+    },
+    "widthSku": {
+      "label": "Cross rail length",
+      "default": "1120-0007-0192",
+      "choices": [
+        "1120-0001-0048",
+        "1120-0004-0120",
+        "1120-0007-0192",
+        "1120-0013-0336"
+      ]
+    },
+    "motorSku": {
+      "label": "Drive motor / gearbox",
+      "default": "5203-2402-0019",
+      "choices": [
+        "5203-2402-0019",
+        "5202-2402-0003"
+      ]
+    },
+    "wheelSku": {
+      "label": "Mecanum wheel",
+      "default": "3213-3606-0001",
+      "choices": [
+        "3213-3606-0001",
+        "3213-3606-0002",
+        "3213-3606-0003"
+      ]
+    },
+    "includeElectronics": {
+      "type": "boolean",
+      "label": "Optional sensor and servo mounts",
+      "default": true
+    }
+  }
+}

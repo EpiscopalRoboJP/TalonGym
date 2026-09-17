@@ -4,7 +4,7 @@
   "displayName": "BIOBUZZ AUTO lightweight CPU",
   "presets": {
     "fieldId": "biobuzz_2026_field_v1",
-    "robotId": "mecanum_biobuzz_4cap",
+    "robotId": "gobilda_mecanum_starter",
     "scoringId": "biobuzz_2026_scoring_v1",
     "teammatePolicy": "none",
     "opponentPolicy": "static"
@@ -34,13 +34,36 @@
   "domainRandomization": {
     "poseJitterIn": 1.0,
     "headingJitterDeg": 2.0,
-    "motorStrengthRange": [0.9, 1.1],
+    "motorStrengthRange": [
+      0.9,
+      1.1
+    ],
     "sensorNoiseScale": 1.0,
     "fieldBuildToleranceIn": 1.0,
     "curriculum": [
-      { "untilFrac": 0.25, "unlock": [] },
-      { "untilFrac": 0.7, "unlock": [] },
-      { "untilFrac": 1.0, "unlock": ["full_noise"] }
+      {
+        "untilFrac": 0.15,
+        "unlock": [
+          "spawn_at_launch",
+          "mechanism_ready"
+        ]
+      },
+      {
+        "untilFrac": 0.4,
+        "unlock": [
+          "spawn_approach"
+        ]
+      },
+      {
+        "untilFrac": 0.75,
+        "unlock": []
+      },
+      {
+        "untilFrac": 1.0,
+        "unlock": [
+          "full_noise"
+        ]
+      }
     ]
   },
   "budget": {

@@ -9,10 +9,15 @@ from pathlib import PurePosixPath
 from typing import Any
 
 PHYSICAL_SCHEMA_VERSION = "1.1.0"
+ASSEMBLY_SCHEMA_VERSION = "1.2.0"
 
 
 class RobotContractError(ValueError):
     """A robot preset cannot be represented by the physical simulator."""
+
+
+class AssemblyError(RobotContractError):
+    """A schema 1.2 catalog assembly cannot be compiled into the 1.1 physical contract."""
 
 
 @dataclass(frozen=True)
@@ -92,7 +97,12 @@ def compile_robot_preset(
     competitive: bool,
 ) -> CompiledRobot:
     """Validate cross-references and physical geometry omitted from JSON Schema."""
-    physical = str(preset.get("schemaVersion")) == PHYSICAL_SCHEMA_VERSION
+    version = str(preset.get("schemaVersion"))
+    if version == ASSEMBLY_SCHEMA_VERSION:
+        raise RobotContractError(
+            "schema 1.2.0 assemblies must be compiled with compile_assembly_to_preset"
+        )
+    physical = version == PHYSICAL_SCHEMA_VERSION
     if not physical:
         if competitive:
             raise RobotContractError(
@@ -155,50 +165,58 @@ def compile_robot_preset(
             raise RobotContractError(f"position actuator {ident} requires jointId")
 
     piece_path = dict(preset.get("piecePath") or {})
-    required_actuators = (
-        "intakeActuatorId",
-        "conveyorActuatorId",
-        "flywheelActuatorId",
-        "gateActuatorId",
-    )
-    for key in required_actuators:
-        if piece_path.get(key) not in actuators:
-            raise RobotContractError(f"piecePath.{key} references a missing actuator")
-    for key in ("hoodActuatorId", "turretActuatorId"):
-        if piece_path.get(key) is not None and piece_path.get(key) not in actuators:
-            raise RobotContractError(f"piecePath.{key} references a missing actuator")
-
-    slots = list(piece_path.get("storageSlots") or [])
-    capacity = int((preset.get("mechanisms") or {}).get("capacity") or 0)
-    if len(slots) < capacity:
-        raise RobotContractError(
-            f"piece path has {len(slots)} storage slots for capacity {capacity}"
+    launch_capable = bool((preset.get("mechanisms") or {}).get("launchCapable"))
+    if launch_capable or piece_path:
+        if not piece_path:
+            raise RobotContractError("launch-capable robots require piecePath")
+        required_actuators = (
+            "intakeActuatorId",
+            "conveyorActuatorId",
+            "flywheelActuatorId",
+            "gateActuatorId",
         )
-    chassis = preset.get("chassis") or {}
-    half_length = 0.5 * float(chassis.get("lengthIn") or 0)
-    half_width = 0.5 * float(chassis.get("widthIn") or 0)
-    height = float(chassis.get("heightIn") or 0)
-    piece_radius = 1.4
-    for index, slot in enumerate(slots[:capacity]):
-        if (
-            abs(float(slot.get("x") or 0)) + piece_radius > half_length
-            or abs(float(slot.get("y") or 0)) + piece_radius > half_width
-            or not piece_radius <= float(slot.get("z") or 0) <= height - piece_radius
-        ):
-            raise RobotContractError(f"storage slot {index} exceeds the legal robot envelope")
+        for key in required_actuators:
+            if piece_path.get(key) not in actuators:
+                raise RobotContractError(f"piecePath.{key} references a missing actuator")
+        for key in ("hoodActuatorId", "turretActuatorId"):
+            if piece_path.get(key) is not None and piece_path.get(key) not in actuators:
+                raise RobotContractError(f"piecePath.{key} references a missing actuator")
 
-    muzzle = piece_path.get("muzzlePose") or {}
-    muzzle_x = float(muzzle.get("x") or 0)
-    muzzle_y = float(muzzle.get("y") or 0)
-    muzzle_z = float(muzzle.get("z") or 0)
-    clearance = float(piece_path.get("muzzleClearanceIn") or 0)
-    outside_envelope = (
-        abs(muzzle_x) >= half_length + clearance
-        or abs(muzzle_y) >= half_width + clearance
-        or muzzle_z >= height + clearance
-    )
-    if not outside_envelope:
-        raise RobotContractError("muzzle plus clearance intersects the robot envelope")
+        slots = list(piece_path.get("storageSlots") or [])
+        capacity = int((preset.get("mechanisms") or {}).get("capacity") or 0)
+        if len(slots) < capacity:
+            raise RobotContractError(
+                f"piece path has {len(slots)} storage slots for capacity {capacity}"
+            )
+        chassis = preset.get("chassis") or {}
+        half_length = 0.5 * float(chassis.get("lengthIn") or 0)
+        half_width = 0.5 * float(chassis.get("widthIn") or 0)
+        height = float(chassis.get("heightIn") or 0)
+        piece_radius = 1.4
+        for index, slot in enumerate(slots[:capacity]):
+            if (
+                abs(float(slot.get("x") or 0)) + piece_radius > half_length
+                or abs(float(slot.get("y") or 0)) + piece_radius > half_width
+                or not piece_radius <= float(slot.get("z") or 0) <= height - piece_radius
+            ):
+                raise RobotContractError(f"storage slot {index} exceeds the legal robot envelope")
+
+        muzzle = piece_path.get("muzzlePose") or {}
+        muzzle_x = float(muzzle.get("x") or 0)
+        muzzle_y = float(muzzle.get("y") or 0)
+        muzzle_z = float(muzzle.get("z") or 0)
+        clearance = float(piece_path.get("muzzleClearanceIn") or 0)
+        outside_envelope = (
+            abs(muzzle_x) >= half_length + clearance
+            or abs(muzzle_y) >= half_width + clearance
+            or muzzle_z >= height + clearance
+        )
+        if not outside_envelope:
+            raise RobotContractError("muzzle plus clearance intersects the robot envelope")
+    elif competitive:
+        mechanisms = preset.get("mechanisms") or {}
+        if mechanisms.get("launchCapable") is None:
+            pass
 
     for ident, sensor in sensors.items():
         actuator_id = sensor.get("actuatorId")

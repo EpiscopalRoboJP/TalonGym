@@ -11,9 +11,7 @@ import type {
   IntakeSpec,
   LauncherSpec,
   PiecePathSpec,
-  RigidPartSpec,
   RobotDesign,
-  RobotPartTransform,
 } from "../api";
 import { API } from "../api";
 import { pickCameraSensor } from "../labHonesty";
@@ -25,7 +23,6 @@ import {
   fetchCadManifest,
   fieldAssetUrl,
   ftcToThreePosition,
-  hasYupQuaternion,
   hideSchematicSolid,
   pieceAssetUrl,
   pieceThreePose,
@@ -36,6 +33,10 @@ import {
   type CadManifest,
   type PieceCatalog,
 } from "./cadAssets";
+import { CadErrorBoundary, PartVisual, RobotCad, RobotPartActor, prepareCadScene } from "./catalogAssembly";
+import { hideChassisLump as chassisLumpHidden } from "../robotBuilder/cadVisual";
+import { composeRigidPartPoses } from "../robotBuilder/partVisual";
+import { poseEulerRad } from "../robotBuilder/transforms";
 
 export { resolveBackgroundAsset } from "./cadAssets";
 
@@ -89,26 +90,6 @@ export function launchArcPoints(
     points.push([x0 + vx * t, z, -(y0 + vy * t)]);
   }
   return points.length >= 2 ? points : [[x0, z0, -y0], [x0 + 8, z0, -y0]];
-}
-
-function partQuaternion(part: RobotPartTransform): [number, number, number, number] | undefined {
-  if (!hasYupQuaternion(part)) return undefined;
-  return [part.qx as number, part.qy as number, part.qz as number, part.qw as number];
-}
-
-function prepareCadScene(scene: Object3D) {
-  scene.traverse((obj) => {
-    if (!(obj instanceof Mesh) || !obj.material) return;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    for (const mat of mats) {
-      mat.side = DoubleSide;
-      if ("metalness" in mat) mat.metalness = Math.min(Number(mat.metalness ?? 0), 0.12);
-      if ("roughness" in mat) mat.roughness = Math.max(Number(mat.roughness ?? 0.7), 0.55);
-      if ("color" in mat && mat.color && typeof mat.color.getHex === "function" && mat.color.getHex() === 0) {
-        mat.color.set(theme.goldLight);
-      }
-    }
-  });
 }
 
 function prepareFieldCadScene(scene: Object3D) {
@@ -226,19 +207,6 @@ function ZoneOverlay({ el, fieldArea, active }: { el: El; fieldArea: number; act
   );
 }
 
-class CadErrorBoundary extends Component<{ onError?: () => void; children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  componentDidCatch() {
-    this.props.onError?.();
-  }
-  render() {
-    return this.state.failed ? null : this.props.children;
-  }
-}
-
 class SceneErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() {
@@ -312,20 +280,6 @@ function FieldMechanismActor({
   );
 }
 
-function RobotCad({ url, onReady }: { url: string; onReady?: () => void }) {
-  const gltf = useGLTF(url);
-  const scene = useMemo(() => {
-    const cloned = gltf.scene.clone(true);
-    prepareCadScene(cloned);
-    return cloned;
-  }, [gltf.scene]);
-  useEffect(() => {
-    onReady?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene]);
-  return <primitive object={scene} />;
-}
-
 function pieceColor(color?: string) {
   if (color === "Y" || color === "yellow") return "#e2c44a";
   if (color === "R" || color === "red") return "#c4453c";
@@ -369,82 +323,6 @@ function LauncherGizmo({ launcher, chassisHeight }: { launcher: LauncherSpec; ch
         <meshStandardMaterial color={theme.gold} />
       </mesh>
       <Line points={points} color={theme.goldBright} lineWidth={2} />
-    </group>
-  );
-}
-
-function CollisionPrimitive({ part }: { part: RigidPartSpec }) {
-  const pose = part.pose || {};
-  const collision = part.collision[0];
-  if (!collision) return null;
-  const roll = ((collision.pose?.rollDeg || pose.rollDeg || 0) * Math.PI) / 180;
-  const pitch = ((collision.pose?.pitchDeg || pose.pitchDeg || 0) * Math.PI) / 180;
-  const yaw = ((collision.pose?.yawDeg || pose.yawDeg || 0) * Math.PI) / 180;
-  const color = part.id === "chassis" ? theme.chassis : part.id.includes("fly") ? theme.gold : theme.intake;
-  if (collision.kind === "box") {
-    return (
-      <mesh rotation={[pitch, yaw, roll]}>
-        <boxGeometry args={collision.sizeIn} />
-        <meshStandardMaterial color={color} transparent opacity={0.72} />
-      </mesh>
-    );
-  }
-  if (collision.kind === "sphere") {
-    return (
-      <mesh>
-        <sphereGeometry args={[collision.radiusIn, 16, 16]} />
-        <meshStandardMaterial color={color} transparent opacity={0.72} />
-      </mesh>
-    );
-  }
-  if (collision.kind === "convex_mesh") {
-    return (
-      <Html center style={{ pointerEvents: "none", color: theme.cream, fontSize: "10px", whiteSpace: "nowrap" }}>
-        convex_mesh (not previewed)
-      </Html>
-    );
-  }
-  const length = collision.lengthIn || collision.radiusIn * 2;
-  return (
-    <mesh rotation={[pitch + (collision.kind === "cylinder" ? Math.PI / 2 : 0), yaw, roll]}>
-      <cylinderGeometry args={[collision.radiusIn, collision.radiusIn, length, 16]} />
-      <meshStandardMaterial color={color} transparent opacity={0.72} />
-    </mesh>
-  );
-}
-
-function RobotPartActor({
-  part,
-  design,
-}: {
-  part: RobotPartTransform;
-  design?: RobotDesign;
-}) {
-  const spec = (design?.rigidParts || []).find((row) => row.id === part.id);
-  const visualAsset = part.visualAsset || spec?.visualAsset;
-  const cadUrl = visualAsset ? `${API}/robot-assets/${visualAsset}` : null;
-  const [cadReady, setCadReady] = useState(false);
-  useEffect(() => {
-    setCadReady(false);
-    if (cadUrl) useGLTF.preload(cadUrl);
-  }, [cadUrl]);
-  const orient = partQuaternion(part);
-  return (
-    <group position={ftcToThreePosition(part.x, part.y, part.z)} quaternion={orient}>
-      {cadUrl && (
-        <CadErrorBoundary onError={() => setCadReady(false)}>
-          <Suspense fallback={null}>
-            <RobotCad url={cadUrl} onReady={() => setCadReady(true)} />
-          </Suspense>
-        </CadErrorBoundary>
-      )}
-      {(!cadUrl || !cadReady) && spec && <CollisionPrimitive part={spec} />}
-      {(!cadUrl || !cadReady) && !spec && (
-        <mesh>
-          <boxGeometry args={[3, 2, 3]} />
-          <meshStandardMaterial color={theme.chassis} transparent opacity={0.6} />
-        </mesh>
-      )}
     </group>
   );
 }
@@ -557,14 +435,16 @@ export function RobotActor({
     setCadReady(false);
     if (cadUrl) useGLTF.preload(cadUrl);
   }, [cadUrl]);
-  const showBox = !hideBody && (!cadUrl || !cadReady || showHull || Boolean(highlight));
   const chassisColor = highlight ? theme.restricted : dynamic ? theme.chassis : theme.chassisIdle;
   const emissiveIntensity = highlight === "foul" ? 0.55 : highlight === "contact" ? 0.35 : 0;
-  const previewParts = hideBody ? [] : design?.rigidParts || [];
+  const previewParts = useMemo(() => (hideBody ? [] : design?.rigidParts || []), [hideBody, design?.rigidParts]);
+  const hideChassisLump = chassisLumpHidden({ hideBody, rigidParts: previewParts });
+  const showBox = !hideChassisLump && (!cadUrl || !cadReady || showHull || Boolean(highlight));
   const camera = aprilTagCamera(design);
+  const composed = useMemo(() => composeRigidPartPoses(previewParts), [previewParts]);
   return (
     <group position={[inch(x), height / 2, inch(-y)]} rotation={[0, (headingDeg * Math.PI) / 180, 0]}>
-      {cadUrl && !hideBody && (
+      {cadUrl && !hideChassisLump && (
         <group position={[offset.x || 0, (offset.z || 0) - height / 2, -(offset.y || 0)]} rotation={[0, (visualOffsetYawDeg(offset) * Math.PI) / 180, 0]}>
           <CadErrorBoundary onError={() => setCadReady(false)}>
             <Suspense fallback={null}>
@@ -592,11 +472,21 @@ export function RobotActor({
         </>
       )}
       {!hideBody &&
-        previewParts.map((part) => (
-          <group key={part.id} position={[part.pose?.x || 0, (part.pose?.z || 0) - height / 2, -(part.pose?.y || 0)]}>
-            <CollisionPrimitive part={part} />
-          </group>
-        ))}
+        previewParts
+          .filter((part) => !hideChassisLump || part.id !== "chassis")
+          .map((part) => {
+            const pose = composed[part.id] || part.pose || {};
+            return (
+              <group
+                key={part.id}
+                userData={{ instanceId: part.id }}
+                position={ftcToThreePosition(pose.x || 0, pose.y || 0, (pose.z || 0) - height / 2)}
+                rotation={poseEulerRad(pose)}
+              >
+                <PartVisual part={part} />
+              </group>
+            );
+          })}
       {(design?.intakes || []).map((intake) => (
         <IntakeGizmo key={intake.id} intake={intake} chassisHeight={height} />
       ))}

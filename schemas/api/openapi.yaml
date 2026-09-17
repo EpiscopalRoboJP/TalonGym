@@ -39,10 +39,171 @@ paths:
   /presets/robot:
     get: {}
     post: {}
-  /presets/robot/{id}:
-    get: {}
-    put: {}
-    delete: {}
+  /presets/robot/{id}/model:
+    post:
+      summary: Upload whole-robot CAD (GLB, glTF, STL, OBJ, STEP, or ZIP)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200":
+          description: Converted visual GLB and convex collision STL
+        "400":
+          description: Bad id or format
+        "413":
+          description: File larger than 32 MB
+        "422":
+          description: CAD import failed
+        "503":
+          description: CAD extra required (trimesh/cascadio missing)
+    delete:
+      summary: Delete stored whole-robot CAD assets
+  /presets/robot/{id}/parts/{partId}/model:
+    post:
+      summary: Upload one articulated part without discarding assembly origin
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                parent_id: { type: string }
+                joint_transform_json: { type: string }
+      responses:
+        "200":
+          description: Per-part GLB/STL with originPreserved true
+        "503":
+          description: CAD extra required
+  /robot-assets/{asset_path}:
+    get:
+      summary: Serve converted robot or catalog-part assets under var/assets/
+      parameters:
+        - in: path
+          name: asset_path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: GLB, STL, or JSON
+        "400":
+          description: Path traversal
+        "404":
+          description: Missing asset
+  /catalog:
+    get:
+      summary: Search curated goBILDA/REV parts
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: manufacturer
+          schema: { type: string, enum: [gobilda, rev] }
+        - in: query
+          name: tag
+          schema: { type: string }
+      responses:
+        "200":
+          description: Matching catalog summaries and cache state
+  /catalog/cache:
+    get:
+      summary: Catalog CAD cache status under var/assets/robot_parts/
+  /catalog/cache/all:
+    get:
+      summary: Latest Cache-all CAD batch progress (idle when none)
+    post:
+      summary: Queue all downloadable uncached SKUs through bounded background jobs
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force: { type: boolean }
+                manufacturer: { type: string, enum: [gobilda, rev] }
+                skus: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: Classification only; nothing queued
+        "202":
+          description: Background batch started
+  /catalog/cache/all/{batchId}:
+    get:
+      summary: One Cache-all CAD batch snapshot
+  /catalog/cache/all/{batchId}/cancel:
+    post:
+      summary: Cancel remaining queued Cache-all items; in-flight conversions finish
+  /catalog/cache/all/{batchId}/retry:
+    post:
+      summary: Requeue failed Cache-all items without duplicate downloads
+  /catalog/jobs/{jobId}:
+    get:
+      summary: In-process catalog conversion job status
+  /catalog/parts/{sku}:
+    get:
+      summary: One catalog SKU including mounts, mass, and cache
+  /catalog/parts/{sku}/download:
+    post:
+      summary: Allowlisted manufacturer CAD download and background conversion
+      parameters:
+        - in: query
+          name: force
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Cache already ready
+        "202":
+          description: Conversion job started
+        "409":
+          description: Download disabled for this SKU
+        "503":
+          description: CAD extra required
+  /catalog/parts/{sku}/cache:
+    delete:
+      summary: Invalidate cached manufacturer CAD for one SKU
+  /catalog/recipes:
+    get:
+      summary: List the four guided goBILDA/REV drivebase recipes
+  /catalog/recipes/{recipeId}/instantiate:
+    post:
+      summary: Expand a drivebase recipe into a schema 1.2 assembly
+      responses:
+        "200":
+          description: Assembly, bindings, and recipe origin
+        "404":
+          description: Unknown recipe
+        "422":
+          description: Invalid recipe parameters or mount failure
+  /catalog/assemblies/compile:
+    post:
+      summary: Compile a schema 1.2 assembly into the 1.1 physical robot contract
+      responses:
+        "200":
+          description: Materialized 1.1 preset, inference report, and CAD warnings
+        "422":
+          description: Invalid assembly
+  /presets/robot/{id}/draft:
+    get:
+      summary: Load the working robot-builder draft
+      responses:
+        "200":
+          description: Draft document
+        "404":
+          description: No draft stored
+    put:
+      summary: Autosave an explicit working robot draft without replacing shipped presets
+    delete:
+      summary: Discard the working robot draft
   /presets/scoring:
     get: {}
     post: {}

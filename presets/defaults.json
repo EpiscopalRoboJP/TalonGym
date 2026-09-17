@@ -1,6 +1,6 @@
 {
   "fieldId": "biobuzz_2026_field_v1",
-  "robotId": "mecanum_biobuzz_4cap",
+  "robotId": "gobilda_mecanum_starter",
   "scoringId": "biobuzz_2026_scoring_v1",
   "trainingId": "biobuzz_auto_lightweight"
 }

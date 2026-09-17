@@ -13,7 +13,6 @@ from talongym import paths
 from talongym.api import db
 from talongym.api.cad_frames import ensure_background_asset
 from talongym.export.roadrunner import export_from_replay
-from talongym.presets.loader import load_bundle
 from talongym.training.policies import scripted_auto
 from talongym.training.ppo import record_policy_episode, train_ppo
 
@@ -208,7 +207,7 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
         training_id = easy_training_id(training_id)
         presets["trainingId"] = training_id
         config = {**config, "presets": presets}
-    bundle = load_bundle(
+    bundle = db.load_runtime_bundle(
         presets.get("fieldId") or None,
         presets.get("robotId") or None,
         presets.get("scoringId") or None,

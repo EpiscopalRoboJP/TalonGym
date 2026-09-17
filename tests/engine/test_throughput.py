@@ -3,10 +3,13 @@ import time
 import numpy as np
 
 from talongym.env.ftc_auto import FlatBoxEnv, FTCAutoEnv
+from talongym.presets.loader import load_bundle
 
 
 def test_throughput_smoke(capsys):
-    env = FlatBoxEnv(FTCAutoEnv(record=False, static_teammate=False))
+    # Pin the engine smoke robot so catalog scoring starters do not hide a physics-loop regression.
+    bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
+    env = FlatBoxEnv(FTCAutoEnv(bundle=bundle, record=False, static_teammate=False))
     obs, _ = env.reset(seed=0)
     n = 400
     t0 = time.perf_counter()

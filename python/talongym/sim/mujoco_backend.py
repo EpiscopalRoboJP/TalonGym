@@ -334,6 +334,10 @@ class MujocoFieldBackend:
             self._data.qpos[adr + 3 : adr + 7] = [1.0, 0.0, 0.0, 0.0]
         self._data.qvel[vel : vel + nv] = 0.0
 
+    def reseat_piece(self, piece_id: str) -> None:
+        """Allow the next write to move a live piece (magazine-to-muzzle feed)."""
+        self._owned.discard(str(piece_id))
+
     def _park_all_pieces(self) -> None:
         for i in range(len(self._piece_qpos)):
             self._park_slot(i)
@@ -558,6 +562,12 @@ class MujocoFieldBackend:
     def _contact_flags(self, robot_ids: set[str], piece_ids: set[str]) -> ContactSet:
         flags = ContactSet()
         live_robots = set(robot_ids)
+
+        def _is_live_robot(name: str) -> bool:
+            if name in live_robots:
+                return True
+            return any(name.startswith(f"{rid}_") for rid in live_robots)
+
         ncon = int(self._data.ncon)
         for i in range(ncon):
             c = self._data.contact[i]
@@ -566,13 +576,12 @@ class MujocoFieldBackend:
                 continue
             grp1, grp2 = self._geom_group(g1), self._geom_group(g2)
             b1, b2 = self._body_name(g1), self._body_name(g2)
-            names = {b1, b2}
-            hits_live_robot = bool(live_robots & names)
+            hits_live_robot = _is_live_robot(b1) or _is_live_robot(b2)
             hits_piece = GEOM_GROUP_PIECE in {grp1, grp2}
             hits_field = GEOM_GROUP_FIELD in {grp1, grp2}
             if hits_live_robot and hits_field:
                 flags.wall = True
-            if grp1 == GEOM_GROUP_ROBOT and grp2 == GEOM_GROUP_ROBOT and b1 in live_robots and b2 in live_robots and b1 != b2:
+            if grp1 == GEOM_GROUP_ROBOT and grp2 == GEOM_GROUP_ROBOT and _is_live_robot(b1) and _is_live_robot(b2) and b1 != b2:
                 flags.robot = True
             if hits_piece and (hits_field or hits_live_robot):
                 flags.piece = True
@@ -844,8 +853,10 @@ class MujocoFieldBackend:
             self._read_robot(body)
         for piece in state.pieces:
             self._read_piece(piece)
-        flags = self._contact_flags({b.id for b in state.robots}, live_piece_ids)
+        flags = self._contact_flags({b.id for b in state.robots if b.dynamic}, live_piece_ids)
         for body in state.robots:
+            if not body.dynamic:
+                continue
             w, _r = _resolve_chassis(body, state.walls, state.robots, self.hw, self.hd)
             flags.wall = flags.wall or w
         return flags

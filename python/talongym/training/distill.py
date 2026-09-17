@@ -54,6 +54,7 @@ def collect_episodes(
     gamma: float = 0.99,
     options: dict[str, Any] | None = None,
     perturb: bool = True,
+    episode_options: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, np.ndarray]], np.ndarray, np.ndarray, int]:
     """Whole scripted AUTO episodes, concatenated episode by episode and trimmed to one common length."""
     from talongym.training.privileged import PRIV_KEY, privileged_vector
@@ -63,7 +64,8 @@ def collect_episodes(
     hold_steps = max(1, round(DEMO_NOISE_HOLD_S * env.control_hz))
     episodes: list[tuple[list[dict[str, np.ndarray]], list[np.ndarray], list[float]]] = []
     for ep in range(max(1, n_episodes)):
-        obs, info = env.reset(seed=seed + ep, options=dict(options or {}))
+        opts = episode_options[ep] if episode_options and ep < len(episode_options) else options
+        obs, info = env.reset(seed=seed + ep, options=dict(opts or {}))
         varied = perturb and ep > 0
         pace = float(rng.uniform(*DEMO_PACE_RANGE)) if varied else 1.0
         pause_steps = round(float(rng.uniform(0.0, DEMO_MAX_PAUSE_S)) * env.control_hz) if varied else 0
@@ -154,12 +156,38 @@ def bc_warmup(model: Any, bundle: LoadedPresets | None, n_steps: int, log=lambda
     bundle = bundle or load_bundle()
     ep_cfg = (bundle.training or {}).get("episode") or {}
     steps_per_episode = int(float(ep_cfg.get("durationS") or 30) * float(ep_cfg.get("controlHz") or 25))
-    n_episodes = max(1, -(-int(n_steps) // steps_per_episode))
-    from talongym.training.curriculum import full_noise
+    n_episodes = max(2, -(-int(n_steps) // steps_per_episode))
+    from talongym.training.curriculum import curriculum_spawn, full_noise, mechanism_ready
 
-    stage0 = {"full_noise": full_noise(bundle.training, 0.0)}
+    stage0 = {
+        "full_noise": False,
+        "curriculum_spawn": curriculum_spawn(bundle.training, 0.0),
+        "mechanism_ready": mechanism_ready(bundle.training, 0.0),
+        "static_teammate": False,
+    }
+    legal = {
+        "full_noise": False,
+        "curriculum_spawn": "legal",
+        "mechanism_ready": False,
+        "static_teammate": False,
+    }
+    # Held-out eval is the full AUTO from a legal spawn. Launch-pose-only demos clone a
+    # fire-in-place policy that parks for LEAVE without launching.
+    episode_options: list[dict[str, Any]] = []
+    for i in range(n_episodes):
+        if i == 0:
+            episode_options.append(legal)
+        elif i == 1:
+            episode_options.append(stage0)
+        elif i == 2:
+            episode_options.append({**legal, "full_noise": bool(full_noise(bundle.training, 1.0))})
+        else:
+            episode_options.append(legal if i % 2 == 0 else stage0)
     obs_list, acts, returns, length = collect_episodes(
-        n_episodes, bundle=bundle, gamma=float(getattr(model, "gamma", 0.99)), options=stage0
+        n_episodes,
+        bundle=bundle,
+        gamma=float(getattr(model, "gamma", 0.99)),
+        episode_options=episode_options,
     )
     space = getattr(model, "observation_space", None)
     obs_space = space if isinstance(space, spaces.Dict) else None

@@ -1,0 +1,2390 @@
+{
+  "schemaVersion": "1.0.0",
+  "manufacturer": "gobilda",
+  "displayName": "goBILDA",
+  "notes": "Official CAD is downloaded from goBILDA product STEP ZIPs under /content/step_files/. URLs were HEAD-checked before downloadEnabled was set. Collision boxes are authored proxies; converted convex hulls are generated on cache. Cross-brand mounts require a real adapter.",
+  "coordinateSystem": "manufacturer_mm_zup",
+  "parts": [
+    {
+      "sku": "1120-0001-0048",
+      "displayName": "1120 Series U-Channel (48 mm)",
+      "productUrl": "https://www.gobilda.com/1120-series-u-channel",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1120-0001-0048.zip",
+        "filename": "1120-0001-0048.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.028,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.8898,
+            1.8898,
+            0.4724
+          ]
+        }
+      ],
+      "tags": [
+        "channel"
+      ],
+      "mounts": [
+        {
+          "id": "web",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "uAxis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 6,
+            "countV": 3
+          }
+        },
+        {
+          "id": "flange_a",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.9449
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 6,
+            "countV": 1
+          }
+        },
+        {
+          "id": "end_a",
+          "kind": "mating_face",
+          "standard": "gobilda_pattern",
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1120-0004-0120",
+      "displayName": "1120 Series U-Channel (120 mm)",
+      "productUrl": "https://www.gobilda.com/1120-series-u-channel",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1120-0004-0120.zip",
+        "filename": "1120-0004-0120.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.07,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            4.7244,
+            1.8898,
+            0.4724
+          ]
+        }
+      ],
+      "tags": [
+        "channel"
+      ],
+      "mounts": [
+        {
+          "id": "web",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "uAxis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 15,
+            "countV": 3
+          }
+        },
+        {
+          "id": "flange_a",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.9449
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 15,
+            "countV": 1
+          }
+        },
+        {
+          "id": "end_a",
+          "kind": "mating_face",
+          "standard": "gobilda_pattern",
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1120-0007-0192",
+      "displayName": "1120 Series U-Channel (192 mm)",
+      "productUrl": "https://www.gobilda.com/1120-series-u-channel",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1120-0007-0192.zip",
+        "filename": "1120-0007-0192.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.112,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            7.5591,
+            1.8898,
+            0.4724
+          ]
+        }
+      ],
+      "tags": [
+        "channel"
+      ],
+      "mounts": [
+        {
+          "id": "web",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "uAxis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 24,
+            "countV": 3
+          }
+        },
+        {
+          "id": "flange_a",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.9449
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 24,
+            "countV": 1
+          }
+        },
+        {
+          "id": "end_a",
+          "kind": "mating_face",
+          "standard": "gobilda_pattern",
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1120-0013-0336",
+      "displayName": "1120 Series U-Channel (336 mm)",
+      "productUrl": "https://www.gobilda.com/1120-series-u-channel",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1120-0013-0336.zip",
+        "filename": "1120-0013-0336.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.196,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            13.2283,
+            1.8898,
+            0.4724
+          ]
+        }
+      ],
+      "tags": [
+        "channel"
+      ],
+      "mounts": [
+        {
+          "id": "web",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "uAxis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 42,
+            "countV": 3
+          }
+        },
+        {
+          "id": "flange_a",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.9449
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 42,
+            "countV": 1
+          }
+        },
+        {
+          "id": "end_a",
+          "kind": "mating_face",
+          "standard": "gobilda_pattern",
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1120-0017-0432",
+      "displayName": "1120 Series U-Channel (432 mm)",
+      "productUrl": "https://www.gobilda.com/1120-series-u-channel",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1120-0017-0432.zip",
+        "filename": "1120-0017-0432.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.252,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            17.0079,
+            1.8898,
+            0.4724
+          ]
+        }
+      ],
+      "tags": [
+        "channel"
+      ],
+      "mounts": [
+        {
+          "id": "web",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "uAxis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 54,
+            "countV": 3
+          }
+        },
+        {
+          "id": "flange_a",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.9449
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 54,
+            "countV": 1
+          }
+        },
+        {
+          "id": "end_a",
+          "kind": "mating_face",
+          "standard": "gobilda_pattern",
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1121-0001-0048",
+      "displayName": "1121 Series Low-Side U-Channel (48 mm)",
+      "productUrl": "https://www.gobilda.com/1120-series-u-channel",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1121-0001-0048.zip",
+        "filename": "1121-0001-0048.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.018,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.8898,
+            1.8898,
+            0.315
+          ]
+        }
+      ],
+      "tags": [
+        "channel"
+      ],
+      "mounts": [
+        {
+          "id": "web",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "uAxis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 6,
+            "countV": 2
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1201-0043-0002",
+      "displayName": "1201 Series Quad Block Pattern Mount",
+      "productUrl": "https://www.gobilda.com/1201-series-quad-block-pattern-mount-for-dual-mode-servo/",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1201-0043-0002.zip",
+        "filename": "1201-0043-0002.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.022,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.8898,
+            1.2598,
+            0.6299
+          ]
+        }
+      ],
+      "tags": [
+        "bracket",
+        "servo_mount"
+      ],
+      "mounts": [
+        {
+          "id": "pattern",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 4,
+            "countV": 3
+          }
+        },
+        {
+          "id": "servo_spline",
+          "kind": "hub",
+          "standard": "gobilda_pattern",
+          "diameterMm": 25.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 25.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1202-0001-0001",
+      "displayName": "1202 Series Pattern Mount",
+      "productUrl": "https://www.gobilda.com/structure",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1202-0001-0001.zip",
+        "filename": "1202-0001-0001.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.016,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.2598,
+            1.2598,
+            0.315
+          ]
+        }
+      ],
+      "tags": [
+        "bracket",
+        "plate"
+      ],
+      "mounts": [
+        {
+          "id": "pattern",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 4,
+            "countV": 4
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1203-0001-0001",
+      "displayName": "1203 Series Pattern Bracket",
+      "productUrl": "https://www.gobilda.com/brackets",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1203-0001-0001.zip",
+        "filename": "1203-0001-0001.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.02,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.5748,
+            0.9449,
+            0.9449
+          ]
+        }
+      ],
+      "tags": [
+        "bracket"
+      ],
+      "mounts": [
+        {
+          "id": "face_a",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 3,
+            "countV": 2
+          }
+        },
+        {
+          "id": "face_b",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 3,
+            "countV": 2
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1207-0001-0001",
+      "displayName": "1207 Series Pattern Spacer",
+      "productUrl": "https://www.gobilda.com/structure",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1207-0001-0001.zip",
+        "filename": "1207-0001-0001.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.006,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            0.6299,
+            0.6299,
+            0.315
+          ]
+        }
+      ],
+      "tags": [
+        "plate"
+      ],
+      "mounts": [
+        {
+          "id": "pattern",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 2,
+            "countV": 2
+          }
+        }
+      ]
+    },
+    {
+      "sku": "5203-2402-0019",
+      "displayName": "5203 Series Yellow Jacket Planetary Gear Motor (19.2:1, 312 RPM, 8mm REX)",
+      "productUrl": "https://www.gobilda.com/5203-series-yellow-jacket-planetary-gear-motor-19-2-1-ratio-24mm-length-8mm-rex-shaft-312-rpm-3-3-5v-encoder/",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/5203-2402-0019.zip",
+        "filename": "5203-2402-0019.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.315,
+      "inertiaKgM2": [
+        0.00012,
+        0.00012,
+        8e-05
+      ],
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.7087,
+          "lengthIn": 4.3307
+        }
+      ],
+      "tags": [
+        "motor",
+        "gearbox"
+      ],
+      "mounts": [
+        {
+          "id": "face",
+          "kind": "threaded_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 16.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 16.0,
+            "countU": 2,
+            "countV": 2
+          }
+        },
+        {
+          "id": "output",
+          "kind": "shaft",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 20.0,
+          "allowedHardware": [
+            "8mm_rex_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "5202-2402-0003",
+      "displayName": "5202 Series Yellow Jacket Planetary Gear Motor",
+      "productUrl": "https://www.gobilda.com/5203-series-yellow-jacket-planetary-gear-motor-19-2-1-ratio-24mm-length-8mm-rex-shaft-312-rpm-3-3-5v-encoder/",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/5202-2402-0003.zip",
+        "filename": "5202-2402-0003.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.3,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.7087,
+          "lengthIn": 3.937
+        }
+      ],
+      "tags": [
+        "motor",
+        "gearbox"
+      ],
+      "mounts": [
+        {
+          "id": "face",
+          "kind": "threaded_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 16.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 16.0,
+            "countU": 2,
+            "countV": 2
+          }
+        },
+        {
+          "id": "output",
+          "kind": "shaft",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 20.0,
+          "allowedHardware": [
+            "matching_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "3213-3606-0001",
+      "displayName": "96 mm Mecanum Wheel (bearing rollers)",
+      "productUrl": "https://www.gobilda.com/mecanum-wheels",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3213-3606-0001.zip",
+        "filename": "3213-3606-0001.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.165,
+      "inertiaKgM2": [
+        0.00018,
+        0.00032,
+        0.00018
+      ],
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.8898,
+          "lengthIn": 1.4961
+        }
+      ],
+      "tags": [
+        "wheel_mecanum"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        },
+        {
+          "id": "hub_pattern",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 16.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 16.0,
+            "countU": 4,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "3213-3606-0002",
+      "displayName": "96 mm Mecanum Wheel Set (pair A)",
+      "productUrl": "https://www.gobilda.com/mecanum-wheels",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3213-3606-0002.zip",
+        "filename": "3213-3606-0002.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.33,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.8898,
+          "lengthIn": 1.4961
+        }
+      ],
+      "tags": [
+        "wheel_mecanum"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "3213-3606-0003",
+      "displayName": "96 mm Mecanum Wheel Set (pair B)",
+      "productUrl": "https://www.gobilda.com/mecanum-wheels",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3213-3606-0003.zip",
+        "filename": "3213-3606-0003.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.33,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.8898,
+          "lengthIn": 1.4961
+        }
+      ],
+      "tags": [
+        "wheel_mecanum"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "3625-0202-0104",
+      "displayName": "104 mm Traction Wheel",
+      "productUrl": "https://www.gobilda.com/mecanum-wheels",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3625-0202-0104.zip",
+        "filename": "3625-0202-0104.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.142,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 2.0472,
+          "lengthIn": 1.2598
+        }
+      ],
+      "tags": [
+        "wheel_traction"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1309-0016-0008",
+      "displayName": "1309 Series Clamping Shaft Collar (8 mm)",
+      "productUrl": "https://www.gobilda.com/motion",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1309-0016-0008.zip",
+        "filename": "1309-0016-0008.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.008,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.3937,
+          "lengthIn": 0.315
+        }
+      ],
+      "tags": [
+        "collar"
+      ],
+      "mounts": [
+        {
+          "id": "clamp",
+          "kind": "clamp",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 8.0,
+          "allowedHardware": [
+            "m3_clamp_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1309-0016-0006",
+      "displayName": "1309 Series Clamping Shaft Collar (6 mm)",
+      "productUrl": "https://www.gobilda.com/motion",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1309-0016-0006.zip",
+        "filename": "1309-0016-0006.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.007,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.3543,
+          "lengthIn": 0.315
+        }
+      ],
+      "tags": [
+        "collar"
+      ],
+      "mounts": [
+        {
+          "id": "clamp",
+          "kind": "clamp",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 6.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 8.0,
+          "allowedHardware": [
+            "m3_clamp_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 6.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "1310-0016-0008",
+      "displayName": "1310 Series Hub (8 mm bore)",
+      "productUrl": "https://www.gobilda.com/motion",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/1310-0016-0008.zip",
+        "filename": "1310-0016-0008.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.018,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.6299,
+          "lengthIn": 0.4724
+        }
+      ],
+      "tags": [
+        "hub"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        },
+        {
+          "id": "pattern",
+          "kind": "threaded_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 16.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 16.0,
+            "countU": 4,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "2302-0014-0048",
+      "displayName": "2302 Series Steel Gear (48 tooth)",
+      "productUrl": "https://www.gobilda.com/motion",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/2302-0014-0048.zip",
+        "filename": "2302-0014-0048.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.045,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.2598,
+          "lengthIn": 0.315
+        }
+      ],
+      "tags": [
+        "gear"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "2000-0025-0002",
+      "displayName": "2000 Series Dual Mode Servo (25-2)",
+      "productUrl": "https://www.gobilda.com/2000-series-dual-mode-servo-25-2-torque/",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/2000-0025-0002.zip",
+        "filename": "2000-0025-0002.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.06,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.5748,
+            0.7874,
+            1.4961
+          ]
+        }
+      ],
+      "tags": [
+        "servo"
+      ],
+      "mounts": [
+        {
+          "id": "tabs",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 10.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 10.0,
+            "countU": 2,
+            "countV": 1
+          }
+        },
+        {
+          "id": "spline",
+          "kind": "hub",
+          "standard": "gobilda_pattern",
+          "diameterMm": 25.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 25.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "2800-0003-0006",
+      "displayName": "2800 Series Servo Hub",
+      "productUrl": "https://www.gobilda.com/2000-series-dual-mode-servo-25-2-torque/",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/2800-0003-0006.zip",
+        "filename": "2800-0003-0006.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.008,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.4724,
+          "lengthIn": 0.315
+        }
+      ],
+      "tags": [
+        "hub",
+        "servo_mount"
+      ],
+      "mounts": [
+        {
+          "id": "spline",
+          "kind": "hub",
+          "standard": "gobilda_pattern",
+          "diameterMm": 25.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 25.0,
+            "countU": 1,
+            "countV": 1
+          }
+        },
+        {
+          "id": "pattern",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 4,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "3108-2827-0801",
+      "displayName": "3108 Series Servo Block",
+      "productUrl": "https://www.gobilda.com/2000-series-dual-mode-servo-25-2-torque/",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3108-2827-0801.zip",
+        "filename": "3108-2827-0801.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.024,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.8898,
+            1.2598,
+            0.7874
+          ]
+        }
+      ],
+      "tags": [
+        "servo_mount",
+        "bracket"
+      ],
+      "mounts": [
+        {
+          "id": "pattern",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 4,
+            "countV": 3
+          }
+        }
+      ]
+    },
+    {
+      "sku": "3109-0002-0001",
+      "displayName": "3109 Series Servo Mount",
+      "productUrl": "https://www.gobilda.com/2000-series-dual-mode-servo-25-2-torque/",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3109-0002-0001.zip",
+        "filename": "3109-0002-0001.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.021,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.5748,
+            1.1024,
+            0.6299
+          ]
+        }
+      ],
+      "tags": [
+        "servo_mount"
+      ],
+      "mounts": [
+        {
+          "id": "pattern",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 4,
+            "countV": 2
+          }
+        }
+      ]
+    },
+    {
+      "sku": "3112-0006-0001",
+      "displayName": "3112 Series Servo Gearbox Mount",
+      "productUrl": "https://www.gobilda.com/2000-series-dual-mode-servo-25-2-torque/",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3112-0006-0001.zip",
+        "filename": "3112-0006-0001.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.03,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.8898,
+            1.4173,
+            0.7874
+          ]
+        }
+      ],
+      "tags": [
+        "servo_mount",
+        "gearbox"
+      ],
+      "mounts": [
+        {
+          "id": "pattern",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 5,
+            "countV": 3
+          }
+        }
+      ]
+    },
+    {
+      "sku": "3110-0001-0001",
+      "displayName": "Swingarm Odometry Pod (48 mm wheel)",
+      "productUrl": "https://www.gobilda.com/swingarm-odometry-pod-48mm-wheel/",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3110-0001-0001.zip",
+        "filename": "3110-0001-0001.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.055,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            2.3622,
+            0.9449,
+            1.8898
+          ]
+        }
+      ],
+      "tags": [
+        "sensor"
+      ],
+      "mounts": [
+        {
+          "id": "channel",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 4,
+            "countV": 2
+          }
+        }
+      ]
+    },
+    {
+      "sku": "3215-0001-0003",
+      "displayName": "Stingray-3 Servo Gearbox",
+      "productUrl": "https://www.gobilda.com/stingray-3-servo-gearbox-0-50-sec-60-20rpm-1050-oz-in-torque-600-rotation/",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3215-0001-0003.zip",
+        "filename": "3215-0001-0003.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.18,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            2.8346,
+            1.8898,
+            1.5748
+          ]
+        }
+      ],
+      "tags": [
+        "servo",
+        "gearbox"
+      ],
+      "mounts": [
+        {
+          "id": "pattern",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 6,
+            "countV": 3
+          }
+        },
+        {
+          "id": "output",
+          "kind": "shaft",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 20.0,
+          "allowedHardware": [
+            "matching_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "3606-0014-0064",
+      "displayName": "64 mm Compliant Wheel",
+      "productUrl": "https://www.gobilda.com/compliant-wheels",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3606-0014-0064.zip",
+        "filename": "3606-0014-0064.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.042,
+      "inertiaKgM2": [
+        4.2e-05,
+        7.8e-05,
+        4.2e-05
+      ],
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.2598,
+          "lengthIn": 0.9843
+        }
+      ],
+      "tags": [
+        "intake_roller"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "3606-0014-0120",
+      "displayName": "120 mm Compliant Wheel",
+      "productUrl": "https://www.gobilda.com/compliant-wheels",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3606-0014-0120.zip",
+        "filename": "3606-0014-0120.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.118,
+      "inertiaKgM2": [
+        0.00016,
+        0.00028,
+        0.00016
+      ],
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 2.3622,
+          "lengthIn": 1.1811
+        }
+      ],
+      "tags": [
+        "flywheel"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    }
+  ]
+}

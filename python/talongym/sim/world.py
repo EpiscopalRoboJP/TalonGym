@@ -11,7 +11,7 @@ import numpy as np
 
 from talongym.presets.loader import LoadedPresets
 from talongym.robot.drivetrain import clip_twist
-from talongym.robot.dynamics import MechanismDynamics
+from talongym.robot.dynamics import RPM_TO_RAD_S, MechanismDynamics
 from talongym.robot.mechanisms import chassis_moving, launcher_aim, muzzle_velocity, piece_in_intake, pose_world
 from talongym.robot.sensors import camera_world_pose, detect_tags
 from talongym.rules.engine import MECHANISM_VERBS, RuleContext, RuleEngine, TickEvent
@@ -29,10 +29,11 @@ from talongym.sim.geometry import (
     wrap_angle,
 )
 from talongym.sim.mujoco_backend import ftc_yaw_to_mj_quat
-from talongym.sim.physics import Body, WorldStep, default_backend, perimeter_walls
+from talongym.sim.physics import Body, WorldStep, default_backend, gate_open_fraction, perimeter_walls
 
 # A launched piece that has not scored this long after leaving the launcher counts as a miss.
 LAUNCH_SCORE_WINDOW_S = 2.0
+FLYWHEEL_READY_FRAC = 0.8
 # FTC perimeter panels' inner face sits this far inside fieldSizeIn; spawns stay clear of it.
 PERIMETER_FACE_INSET_IN = 1.4
 # Waypoint-follower routes keep the chassis this far beyond its half-width from obstacles: a square
@@ -90,7 +91,9 @@ class World:
     def __init__(self, bundle: LoadedPresets, seed: int = 0, control_hz: int = 25, substeps: int = 2, allow_missing_mesh: bool = False) -> None:
         self.bundle = bundle
         self.field = bundle.field
-        self.robot = bundle.robot
+        from talongym.robot.assembly import materialize_sim_robot
+
+        self.robot = materialize_sim_robot(bundle.robot)
         self.scoring = bundle.scoring
         self.rng = np.random.default_rng(seed)
         self.control_hz = control_hz
@@ -223,6 +226,7 @@ class World:
         self.last_events: list[TickEvent] = []
         self.pending_piece_ops: list[tuple[str, str | None, str | None]] = []
         self.missed_launches: dict[str, int] = {}
+        self.launch_attempts = 0
 
     def _apply_committed_cad_version(self) -> None:
         """Cache-bust Lab assets from the shipped manifest even when MuJoCo is not installed."""
@@ -441,6 +445,8 @@ class World:
         full_noise: bool = True,
         ballistic_launch: bool | None = None,
         match_setup: dict[str, Any] | None = None,
+        curriculum_spawn: str | None = None,
+        mechanism_ready: bool = False,
     ) -> None:
         if seed is not None:
             self.rng = np.random.default_rng(seed)
@@ -457,6 +463,7 @@ class World:
         self.explains = []
         self.step_explains = []
         self.fire_counts = {}
+        self.launch_attempts = 0
         self.gate_state = {gid: "closed" for gid in self.gate_ids}
         self.queues = {sid: [] for sid in self.seq_accs}
         self.accumulators = self.engine.init_accumulators()
@@ -576,9 +583,14 @@ class World:
                     f"{robot_id} requires exactly {required_preload} preload pieces; got {len(piece_ids)}"
                 )
             if required_preload and self.capacity < required_preload:
-                raise ValueError(
-                    f"robot capacity {self.capacity} cannot hold required {required_preload}-piece preload"
-                )
+                launch_capable = (self.robot.get("mechanisms") or {}).get("launchCapable")
+                if launch_capable:
+                    raise ValueError(
+                        f"robot capacity {self.capacity} cannot hold required {required_preload}-piece preload"
+                    )
+                for piece_id in piece_ids:
+                    self.pieces.pop(piece_id, None)
+                continue
             storage_slots = list((self.robot.get("piecePath") or {}).get("storageSlots") or [])
             for index, piece_id in enumerate(piece_ids):
                 piece = self.pieces[piece_id]
@@ -592,10 +604,14 @@ class World:
                 piece.z = float(slot.get("z") or holder.body.z)
                 piece.vx = piece.vy = piece.vz = 0.0
                 holder.held.append(piece_id)
+        self._apply_curriculum_spawn(str(curriculum_spawn or "legal"))
         self.prev_occupancy = self._occupancy()
         self.vision_hits = []
         self.pending_piece_ops = []
+        self.launch_attempts = 0
         self.backend.reset_batch(1)
+        if mechanism_ready:
+            self._apply_mechanism_ready()
         self._sense()
 
     def spawn_nectar_in_garden(self, alliance: str, x: float, y: float) -> str:
@@ -910,6 +926,83 @@ class World:
                 self.robots[key] = self._make_robot(key, "blue", sl, dynamic_opp)
         self._validate_robot_start_separation()
 
+    def _curriculum_launch_pose(self, alliance: str, slot: int) -> tuple[float, float, float]:
+        from talongym.training.policies import LAUNCH_POSES, _mirror_for_alliance
+
+        preferred = LAUNCH_POSES[0 if slot <= 0 else min(slot, len(LAUNCH_POSES) - 1)]
+        spot = next(
+            (
+                el
+                for el in self.elements
+                if "launch_spot" in (el.get("tags") or []) and el.get("alliance") == alliance
+            ),
+            None,
+        )
+        if spot is not None and slot == 0:
+            pose = spot.get("pose") or {}
+            heading = math.radians(float(pose.get("headingDeg") or 90.0))
+            return float(pose.get("x") or preferred[0]), float(pose.get("y") or preferred[1]), heading
+        return _mirror_for_alliance(*preferred, alliance)
+
+    def _reseat_held_pieces(self, rs: RobotState) -> None:
+        storage_slots = list((self.robot.get("piecePath") or {}).get("storageSlots") or [])
+        cos_h, sin_h = math.cos(rs.body.heading), math.sin(rs.body.heading)
+        for index, piece_id in enumerate(rs.held):
+            piece = self.pieces.get(piece_id)
+            if piece is None:
+                continue
+            slot = storage_slots[index] if index < len(storage_slots) else {}
+            local_x = float(slot.get("x") or 0.0)
+            local_y = float(slot.get("y") or 0.0)
+            piece.x = rs.body.x + cos_h * local_x - sin_h * local_y
+            piece.y = rs.body.y + sin_h * local_x + cos_h * local_y
+            piece.z = float(slot.get("z") or rs.body.z)
+            piece.vx = piece.vy = piece.vz = 0.0
+            piece.held_by = rs.body.id
+            piece.in_flight = False
+            piece.ballistic = False
+
+    def _apply_curriculum_spawn(self, mode: str) -> None:
+        """Training scaffold only: move the learner after a legal G304 spawn."""
+        if mode not in {"launch", "approach"} or "red_0" not in self.robots:
+            return
+        rs = self.actor()
+        slot = 1 if rs.body.id.endswith("_1") else 0
+        lx, ly, heading = self._curriculum_launch_pose(rs.body.alliance, slot)
+        if mode == "approach":
+            rs.body.x = 0.5 * (rs.body.x + lx)
+            rs.body.y = 0.5 * (rs.body.y + ly)
+            rs.body.heading = heading
+        else:
+            rs.body.x, rs.body.y, rs.body.heading = lx, ly, heading
+        rs.body.vx = rs.body.vy = rs.body.omega = 0.0
+        self._reseat_held_pieces(rs)
+
+    def _apply_mechanism_ready(self) -> None:
+        """Training scaffold: spin the flywheel and aim the hood. Does not launch or score."""
+        rs = self.robots.get("red_0")
+        if rs is None or rs.mechanism is None:
+            return
+        path = self.robot.get("piecePath") or {}
+        flywheel_id = str(path.get("flywheelActuatorId") or "flywheel")
+        hood_id = str(path.get("hoodActuatorId") or "hood")
+        flywheel = rs.mechanism.actuators.get(flywheel_id)
+        if flywheel is not None:
+            target_rpm = float(flywheel.config.get("targetRpm") or 0.0)
+            flywheel.state.velocity_rad_s = FLYWHEEL_READY_FRAC * target_rpm * RPM_TO_RAD_S
+            flywheel.state.requested_command = 1.0
+            flywheel.state.delayed_command = 1.0
+            flywheel.state.command = 1.0
+            flywheel.state.command_queue.clear()
+        hood = rs.mechanism.actuators.get(hood_id)
+        if hood is not None:
+            travel = hood.config.get("travelLimit") or [0.0, 1.0]
+            hood.state.position = float(travel[-1] if travel else 1.0)
+            hood.state.requested_command = 1.0
+            hood.state.delayed_command = 1.0
+            hood.state.command = 1.0
+            hood.state.command_queue.clear()
+
     def _validate_robot_start_separation(self) -> None:
         rows = list(self.robots.values())
         for index, left in enumerate(rows):
@@ -1102,7 +1195,7 @@ class World:
                 actuator = rs.mechanism.actuators[flywheel_id]
                 target_rpm = float(actuator.config.get("targetRpm") or 0.0)
                 actual_rpm = abs(actuator.state.velocity_rad_s) * 60.0 / (2.0 * math.pi)
-                if actual_rpm >= 0.9 * target_rpm:
+                if actual_rpm >= FLYWHEEL_READY_FRAC * target_rpm:
                     conveyor_id = str(path.get("conveyorActuatorId") or "")
                     if conveyor_id in commands:
                         commands[conveyor_id] = 1.0
@@ -1209,23 +1302,40 @@ class World:
                 else:
                     target_rpm = float(flywheel.config.get("targetRpm") or 0.0)
                     actual_rpm = abs(flywheel.state.velocity_rad_s) * 60.0 / (2.0 * math.pi)
-                    blocked = blocked or actual_rpm < 0.9 * target_rpm
+                    blocked = blocked or actual_rpm < FLYWHEEL_READY_FRAC * target_rpm
                     rs.spinup_timer = actual_rpm / max(target_rpm, 1e-6)
             if blocked:
                 if rs.mechanism is None:
                     rs.spinup_timer = 0.0
             elif rs.mechanism is None and rs.spinup_timer < spinup:
                 rs.spinup_timer += dt
-            elif rs.mechanism is None and rs.held and rs.score_timer <= 0:
-                pid = rs.held.pop(0)
-                p = self.pieces[pid]
-                p.held_by = None
-                p.vx = p.vy = 0.0
-                p.vz = 0.0
-                p.attrs["passed_goal_top"] = False
-                p.attrs["passed_archway"] = False
-                self._launch_ballistic(rs, p, launcher)
-                rs.score_timer = cycle
+            elif rs.held and rs.score_timer <= 0:
+                ready = True
+                if rs.mechanism is not None:
+                    path = self.robot.get("piecePath") or {}
+                    gate_id = str(path.get("gateActuatorId") or "")
+                    gate = rs.mechanism.actuators.get(gate_id)
+                    ready = gate is not None and gate_open_fraction(
+                        {
+                            "position": gate.state.position,
+                            "command": gate.state.command,
+                            "travelLimit": gate.config.get("travelLimit"),
+                        }
+                    ) >= 0.5
+                    if ready:
+                        reseat = getattr(self.backend, "reseat_piece", None)
+                        if callable(reseat):
+                            reseat(rs.held[0])
+                if ready:
+                    pid = rs.held.pop(0)
+                    p = self.pieces[pid]
+                    p.held_by = None
+                    p.vx = p.vy = 0.0
+                    p.vz = 0.0
+                    p.attrs["passed_goal_top"] = False
+                    p.attrs["passed_archway"] = False
+                    self._launch_ballistic(rs, p, launcher)
+                    rs.score_timer = cycle
         if verb == "open_gate":
             gate_el = next(
                 (e for e in self.elements if e.get("type") == "gate" or "gate" in (e.get("tags") or [])),
@@ -1257,12 +1367,12 @@ class World:
                 cos_h, sin_h = math.cos(owner.body.heading), math.sin(owner.body.heading)
                 local_x = cos_h * dx + sin_h * dy
                 local_y = -sin_h * dx + cos_h * dy
+                near_muzzle = local_x >= self.robot_hx - 2.0
+                max_z = (10.0 + p.radius) if near_muzzle else (6.0 + p.radius)
                 retained = (
-                    -self.robot_hx - p.radius <= local_x <= self.robot_hx + p.radius
+                    -self.robot_hx - p.radius <= local_x <= self.robot_hx
                     and abs(local_y) <= self.robot_hy + p.radius
-                    and self.floor_y <= p.z <= 0.5 * float(
-                        (self.robot.get("chassis") or {}).get("heightIn") or 14.0
-                    ) + owner.body.z + p.radius
+                    and self.floor_y <= p.z <= max_z
                 )
                 if retained:
                     continue
@@ -1272,6 +1382,16 @@ class World:
                 speed = math.sqrt(p.vx * p.vx + p.vy * p.vy + p.vz * p.vz)
                 p.in_flight = speed > 24.0 and p.z > self.floor_y + p.radius
                 p.ballistic = p.in_flight
+                if p.in_flight and p.attrs.get("launched_by") is None:
+                    p.attrs["launched_at"] = self.time_s
+                    p.attrs["launched_by"] = owner.body.id
+                    self.launch_attempts = int(getattr(self, "launch_attempts", 0) or 0) + 1
+                    self.fire_counts[owner.body.id] = int(self.fire_counts.get(owner.body.id) or 0) + 1
+            elif p.in_flight and not p.held_by:
+                speed = math.sqrt(p.vx * p.vx + p.vy * p.vy + p.vz * p.vz)
+                if p.z <= self.floor_y + p.radius + 0.5 and speed < 24.0:
+                    p.in_flight = False
+                    p.ballistic = False
 
             if p.held_by or p.scored:
                 continue
@@ -1314,6 +1434,8 @@ class World:
         p.vy += rs.body.vy
         p.attrs["launched_at"] = self.time_s
         p.attrs["launched_by"] = rs.body.id
+        self.launch_attempts = int(getattr(self, "launch_attempts", 0) or 0) + 1
+        self.fire_counts[rs.body.id] = int(self.fire_counts.get(rs.body.id) or 0) + 1
 
     def _advance_ballistic(self, dt: float) -> None:
         if getattr(self.backend, "name", "") == "mujoco_field":
@@ -1564,28 +1686,6 @@ class World:
             read_mechanisms = getattr(self.backend, "field_mechanism_positions", None)
             if callable(read_mechanisms):
                 self.field_mechanisms.update(read_mechanisms())
-            read_robot_joints = getattr(
-                self.backend,
-                "robot_mechanism_joint_states",
-                None,
-            )
-            if callable(read_robot_joints):
-                for rid, joints in read_robot_joints().items():
-                    rs_joint = self.robots.get(rid)
-                    if rs_joint is None or rs_joint.mechanism is None:
-                        continue
-                    for actuator in rs_joint.mechanism.actuators.values():
-                        joint_id = str(actuator.config.get("jointId") or "")
-                        measured = joints.get(joint_id)
-                        if measured is None:
-                            continue
-                        actuator.state.velocity_rad_s = float(
-                            measured["velocityRadS"]
-                        )
-                        if actuator.config.get("kind") != "velocity_motor":
-                            actuator.state.position = math.degrees(
-                                float(measured["positionRad"])
-                            )
             self.wall_hit = self.wall_hit or flags.wall
             self.robot_hit = self.robot_hit or flags.robot
             self.piece_hit = self.piece_hit or flags.piece
@@ -1634,6 +1734,40 @@ class World:
                 rid = str(p.attrs.get("launched_by"))
                 self.missed_launches[rid] = self.missed_launches.get(rid, 0) + 1
                 p.attrs.pop("launched_at", None)
+
+    def _part_transforms_for_snapshot(
+        self,
+        live: dict[str, list[dict[str, Any]]] | None,
+    ) -> dict[str, list[dict[str, Any]]]:
+        from talongym.assets.mjcf_robot import kinematic_part_transforms
+
+        out = dict(live or {})
+        expected = {
+            str(part["id"])
+            for part in (self.robot.get("rigidParts") or [])
+            if part.get("id") and part.get("parentId") is not None
+        }
+        if not expected:
+            return out
+        origin_z = float(self.robot_hz) + 0.2 + float(getattr(self, "floor_y", 0.0) or 0.0)
+        for robot in self.robots.values():
+            rows = list(out.get(robot.body.id) or [])
+            present = {str(row.get("id") or "") for row in rows}
+            if expected.issubset(present):
+                continue
+            fallback = kinematic_part_transforms(
+                self.robot,
+                robot_x=float(robot.body.x),
+                robot_y=float(robot.body.y),
+                heading=float(robot.body.heading),
+                origin_z=origin_z,
+                robot_hz=float(self.robot_hz),
+            )
+            if not rows:
+                out[robot.body.id] = fallback
+                continue
+            out[robot.body.id] = rows + [row for row in fallback if row["id"] not in present]
+        return out
 
     def _snapshot_robot(
         self,
@@ -1684,7 +1818,7 @@ class World:
             "robot_mechanism_transforms",
             None,
         )
-        part_transforms = (
+        part_transforms = self._part_transforms_for_snapshot(
             read_part_transforms() if callable(read_part_transforms) else {}
         )
         physical = bool(
@@ -1705,6 +1839,8 @@ class World:
             "phase": self.phase,
             "trueScore": self.true_score,
             "physicalPieces": physical,
+            "launchAttempts": int(getattr(self, "launch_attempts", 0) or 0),
+            "missedLaunches": int(self.missed_launches.get(actor.body.id) or 0),
             "mechanismCommands": {
                 ident: float(payload.get("command") or 0.0)
                 for ident, payload in actor_actuators.items()
@@ -1755,6 +1891,8 @@ class World:
                     "storedSlot": stored_slot.get(p.id),
                     "inFlight": p.in_flight,
                     "scored": p.scored,
+                    "launchedBy": p.attrs.get("launched_by"),
+                    "launchedAt": p.attrs.get("launched_at"),
                 }
                 for p in self.pieces.values()
             ],
