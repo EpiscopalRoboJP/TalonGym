@@ -33,6 +33,12 @@ from talongym.sim.physics import Body, WorldStep, default_backend, gate_open_fra
 
 # A launched piece that has not scored this long after leaving the launcher counts as a miss.
 LAUNCH_SCORE_WINDOW_S = 2.0
+# Field MJCF for identical field+robot objects. Values are read-only after insert.
+_COLLISION_XML_CACHE: dict[tuple[int, int, float, float, float, str], tuple[str, Any, Any, str | None, str | None]] = {}
+
+
+def clear_collision_xml_cache() -> None:
+    _COLLISION_XML_CACHE.clear()
 FLYWHEEL_READY_FRAC = 0.8
 # FTC perimeter panels' inner face sits this far inside fieldSizeIn; spawns stay clear of it.
 PERIMETER_FACE_INSET_IN = 1.4
@@ -337,6 +343,16 @@ class World:
         from talongym.sim.mujoco_backend import MeshFieldRequiredError
 
         mesh = self._robot_mesh_path()
+        mesh_key = str(mesh.resolve()) if mesh is not None else ""
+        cache_key = (id(self.field), id(self.robot), self.robot_hx, self.robot_hy, self.robot_hz, mesh_key)
+        cached = _COLLISION_XML_CACHE.get(cache_key)
+        if cached is not None:
+            xml, xml_path, built, cad_sha, cad_ver = cached
+            if cad_sha:
+                self._cad_source_sha256 = cad_sha
+            if cad_ver:
+                self._cad_asset_version = cad_ver
+            return xml, xml_path, built
         try:
             committed = verify_collision_asset(self.field)
             if (
@@ -375,6 +391,13 @@ class World:
                     slot_plan=slot_plan,
                     cad=True,
                 )
+                _COLLISION_XML_CACHE[cache_key] = (
+                    xml,
+                    committed,
+                    built,
+                    self._cad_source_sha256,
+                    self._cad_asset_version,
+                )
                 return xml, committed, built
             built = build_field_mjcf(
                 self.field,
@@ -405,6 +428,13 @@ class World:
             dest = mesh.parent / "mjcf_robots.xml"
             dest.write_text(xml, encoding="utf-8")
             xml_path = dest
+        _COLLISION_XML_CACHE[cache_key] = (
+            xml,
+            xml_path,
+            built,
+            self._cad_source_sha256,
+            self._cad_asset_version,
+        )
         return xml, xml_path, built
 
     def _domain_randomization(self) -> dict[str, Any]:

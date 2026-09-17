@@ -24,6 +24,8 @@ from talongym.sim.physics import (
 )
 
 _MJ_MODEL_CACHE: dict[str, Any] = {}
+# Static joint/body indexes keyed by id(MjModel). Mutable episode state is never stored here.
+_MJ_INDEX_CACHE: dict[int, dict[str, Any]] = {}
 # Conservative world-frame radius covering chassis, intake reach, and muzzle.
 _MECHANISM_FORCE_REACH_IN = 40.0
 _MECHANISM_FORCE_REACH2 = _MECHANISM_FORCE_REACH_IN * _MECHANISM_FORCE_REACH_IN
@@ -162,6 +164,10 @@ def _compile_mj_model(xml: str, xml_path: Path | None):
     return mujoco, model
 
 
+def clear_mj_index_cache() -> None:
+    _MJ_INDEX_CACHE.clear()
+
+
 class MujocoFieldBackend:
     """3D mesh field: planar chassis joints, free CAD pieces, gravity on.
 
@@ -192,27 +198,28 @@ class MujocoFieldBackend:
         self.cad_stats = dict(cad_stats or {})
         self._mujoco, self._mj = _compile_mj_model(xml, xml_path)
         self._data = self._mujoco.MjData(self._mj)
-        self._contacts = [ContactSet()]
-        self._robot_jnt: dict[str, tuple[int, int, int]] = {}
-        self._piece_body: list[int] = []
-        self._piece_qpos: list[int] = []
-        self._piece_qvel: list[int] = []
-        self._piece_nq: list[int] = []
-        self._piece_nv: list[int] = []
-        self._piece_type: list[str] = []
-        self._pools: dict[str, list[int]] = {}
-        self._owned: set[str] = set()
-        self._id_to_slot: dict[str, int] = {}
-        self._robot_placed: set[str] = set()
-        self._robot_mechanism_placed: set[str] = set()
-        self._field_mechanism_joints: dict[str, tuple[int, int]] = {}
-        self._robot_mechanism_joints: dict[tuple[str, str], tuple[int, int]] = {}
-        self._robot_part_body: dict[tuple[str, str], int] = {}
-        self._robot_body_id: dict[str, int] = {}
-        self._robot_dof: dict[str, int] = {}
-        self._body_name_by_id: list[str] = []
+        cached = _MJ_INDEX_CACHE.get(id(self._mj))
+        if cached is not None:
+            self._apply_index_snapshot(cached)
+            self._init_episode_state()
+            self._park_all_pieces()
+            return
+        self._init_episode_state()
+        self._robot_jnt = {}
+        self._piece_body = []
+        self._piece_qpos = []
+        self._piece_qvel = []
+        self._piece_nq = []
+        self._piece_nv = []
+        self._piece_type = []
+        self._pools = {}
+        self._field_mechanism_joints = {}
+        self._robot_mechanism_joints = {}
+        self._robot_part_body = {}
+        self._robot_body_id = {}
+        self._robot_dof = {}
+        self._body_name_by_id = []
         self._floor_geom_id = -1
-        self._robot_targets: dict[str, tuple[float, float, float, float, float, float]] = {}
         mujoco = self._mujoco
         try:
             enable = int(mujoco.mjtEnableBit.mjENBL_MULTICCD)
@@ -272,7 +279,52 @@ class MujocoFieldBackend:
         self._floor_geom_id = int(floor) if int(floor) >= 0 else -1
         type_ids = [tid for tid in (slot_plan or {}) if tid]
         self._index_piece_bodies(type_ids)
+        _MJ_INDEX_CACHE[id(self._mj)] = self._index_snapshot()
         self._park_all_pieces()
+
+    def _init_episode_state(self) -> None:
+        self._contacts = [ContactSet()]
+        self._owned = set()
+        self._id_to_slot = {}
+        self._robot_placed = set()
+        self._robot_mechanism_placed = set()
+        self._robot_targets = {}
+
+    def _index_snapshot(self) -> dict[str, Any]:
+        return {
+            "robot_jnt": dict(self._robot_jnt),
+            "piece_body": list(self._piece_body),
+            "piece_qpos": list(self._piece_qpos),
+            "piece_qvel": list(self._piece_qvel),
+            "piece_nq": list(self._piece_nq),
+            "piece_nv": list(self._piece_nv),
+            "piece_type": list(self._piece_type),
+            "pools": {key: list(slots) for key, slots in self._pools.items()},
+            "field_mechanism_joints": dict(self._field_mechanism_joints),
+            "robot_mechanism_joints": dict(self._robot_mechanism_joints),
+            "robot_part_body": dict(self._robot_part_body),
+            "robot_body_id": dict(self._robot_body_id),
+            "robot_dof": dict(self._robot_dof),
+            "body_name_by_id": list(self._body_name_by_id),
+            "floor_geom_id": int(self._floor_geom_id),
+        }
+
+    def _apply_index_snapshot(self, snap: dict[str, Any]) -> None:
+        self._robot_jnt = dict(snap["robot_jnt"])
+        self._piece_body = list(snap["piece_body"])
+        self._piece_qpos = list(snap["piece_qpos"])
+        self._piece_qvel = list(snap["piece_qvel"])
+        self._piece_nq = list(snap["piece_nq"])
+        self._piece_nv = list(snap["piece_nv"])
+        self._piece_type = list(snap["piece_type"])
+        self._pools = {key: list(slots) for key, slots in snap["pools"].items()}
+        self._field_mechanism_joints = dict(snap["field_mechanism_joints"])
+        self._robot_mechanism_joints = dict(snap["robot_mechanism_joints"])
+        self._robot_part_body = dict(snap["robot_part_body"])
+        self._robot_body_id = dict(snap["robot_body_id"])
+        self._robot_dof = dict(snap["robot_dof"])
+        self._body_name_by_id = list(snap["body_name_by_id"])
+        self._floor_geom_id = int(snap["floor_geom_id"])
 
     def _index_piece_bodies(self, type_ids: list[str]) -> None:
         mujoco = self._mujoco

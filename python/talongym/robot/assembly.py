@@ -469,11 +469,25 @@ def _cad_warnings(catalog_parts: dict[str, dict[str, Any]]) -> tuple[dict[str, A
     return tuple(warnings)
 
 
+# Compiled 1.1 presets keyed by the source assembly object. Treat values as read-only.
+_MATERIALIZED_ROBOTS: dict[tuple[int, bool], dict[str, Any]] = {}
+
+
+def clear_materialize_cache() -> None:
+    _MATERIALIZED_ROBOTS.clear()
+
+
 def materialize_sim_robot(preset: dict[str, Any], *, competitive: bool = True) -> dict[str, Any]:
     """Return a 1.1 physical preset, compiling schema 1.2 assemblies when needed."""
-    if str(preset.get("schemaVersion")) == ASSEMBLY_SCHEMA_VERSION:
-        return compile_assembly_to_preset(preset, competitive=competitive).preset
-    return preset
+    if str(preset.get("schemaVersion")) != ASSEMBLY_SCHEMA_VERSION:
+        return preset
+    key = (id(preset), bool(competitive))
+    cached = _MATERIALIZED_ROBOTS.get(key)
+    if cached is not None:
+        return cached
+    compiled = compile_assembly_to_preset(preset, competitive=competitive).preset
+    _MATERIALIZED_ROBOTS[key] = compiled
+    return compiled
 
 
 def compile_assembly_to_preset(

@@ -79,3 +79,46 @@ def test_scripted_baseline_launches_and_scores_from_launch_pose():
     health = assert_scripted_baseline_scores(seed=1)
     assert health.launches >= 3
     assert health.true_score >= 3 or health.scored_pieces >= 1
+
+
+def test_scripted_baseline_stops_once_thresholds_met(monkeypatch):
+    steps = {"n": 0}
+
+    class FakeEnv:
+        def __init__(self, **kwargs):
+            self.frames = []
+
+        def reset(self, seed=None, options=None):
+            return {}, {}
+
+        def step(self, action):
+            steps["n"] += 1
+            n = steps["n"]
+            launches = min(n, 4)
+            scored = 1 if n >= 4 else 0
+            self.frames.append(
+                {
+                    "trueScore": 8 if n >= 4 else 0,
+                    "launchAttempts": launches,
+                    "t": n * 0.04,
+                    "robots": [{"id": "red_0", "lastVerb": "score", "held": [], "collisionTimeS": 0.0}],
+                    "pieces": [
+                        {"id": f"p{i}", "launchedBy": "red_0", "scored": i < scored}
+                        for i in range(launches)
+                    ],
+                }
+            )
+            return {}, 0.0, False, False, {}
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr("talongym.env.ftc_auto.FTCAutoEnv", FakeEnv)
+    monkeypatch.setattr("talongym.training.diagnostics.scripted_auto", lambda obs, info: {})
+    from talongym.training.diagnostics import assert_scripted_baseline_scores
+
+    health = assert_scripted_baseline_scores()
+    assert health.launches >= 3
+    assert health.true_score >= 3 or health.scored_pieces >= 1
+    assert steps["n"] == 4
+    assert steps["n"] < 50

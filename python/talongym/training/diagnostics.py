@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -114,24 +115,35 @@ def summarize_episode(frames: list[dict[str, Any]] | None) -> EpisodeHealth:
     )
 
 
+def baseline_thresholds_met(health: EpisodeHealth) -> bool:
+    return health.launches >= BASELINE_MIN_LAUNCHES and (
+        health.true_score >= BASELINE_MIN_SCORE or health.scored_pieces >= 1
+    )
+
+
 def record_and_summarize(
     policy,
     bundle: LoadedPresets | None = None,
     *,
     seed: int = 0,
     options: dict[str, Any] | None = None,
+    stop_when: Callable[[EpisodeHealth], bool] | None = None,
 ) -> tuple[list[dict[str, Any]], EpisodeHealth]:
     from talongym.env.ftc_auto import FTCAutoEnv
 
     env = FTCAutoEnv(bundle=bundle or load_bundle(), record=True)
     obs, info = env.reset(seed=seed, options=dict(options or {}))
     term = trunc = False
+    health = EpisodeHealth()
     while not term and not trunc:
         action = policy(obs, info)
         obs, _, term, trunc, info = env.step(action)
+        health = summarize_episode(env.frames)
+        if stop_when is not None and stop_when(health):
+            break
     frames = list(env.frames)
     env.close()
-    return frames, summarize_episode(frames)
+    return frames, health
 
 
 def assert_scripted_baseline_scores(bundle: LoadedPresets | None = None, *, seed: int = 1) -> EpisodeHealth:
@@ -142,6 +154,7 @@ def assert_scripted_baseline_scores(bundle: LoadedPresets | None = None, *, seed
         bundle,
         seed=seed,
         options={"full_noise": False, "curriculum_spawn": "launch", "static_teammate": False},
+        stop_when=baseline_thresholds_met,
     )
     if at_spot.launches < BASELINE_MIN_LAUNCHES:
         raise TrainingContractError(
