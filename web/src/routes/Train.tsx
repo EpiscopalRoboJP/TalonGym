@@ -46,7 +46,20 @@ type Metrics = {
   evalScoredPieces?: number | null;
   healthWarnings?: string[];
   bestSkippedUnhealthy?: boolean | null;
+  startupPhase?: string | null;
 };
+
+const STARTUP_PHASE_LABEL: Record<string, string> = {
+  creating_envs: "Creating envs…",
+  bc_warmup: "BC warmup…",
+  scripted_baseline: "Checking scripted baseline…",
+};
+
+function startupPhaseLabel(phase?: string | null, nEnvs?: number) {
+  if (phase === "creating_envs") return `Creating ${nEnvs ?? "—"} envs…`;
+  if (phase && STARTUP_PHASE_LABEL[phase] && phase !== "training") return STARTUP_PHASE_LABEL[phase];
+  return "";
+}
 
 const BUDGETS: Record<Profile, { label: string; blurb: string }> = {
   demo: { label: "Demo", blurb: "4,096 steps on 2 envs. Falls back to the scripted policy if RL extras are missing." },
@@ -389,6 +402,8 @@ export function TrainPage() {
   const liveFrame = rollout[rolloutI] || null;
   const busy = current?.state === "running" || current?.state === "queued";
   const progress = typeof metrics.progressFrac === "number" ? Math.max(0, Math.min(1, metrics.progressFrac)) : 0;
+  const startupNote = (metrics.envSteps ?? 0) === 0 ? startupPhaseLabel(metrics.startupPhase, metrics.nEnvs) : "";
+  const statusLine = log || startupNote;
   const presets = (current?.config?.presets || {}) as Partial<DefaultsBundle>;
   const previewFrame = useMemo(
     () => buildSetupPreview(fieldDoc, robotDoc, { robotSetup, customStarts }),
@@ -599,9 +614,13 @@ export function TrainPage() {
                 {(progress * 100).toFixed(0)}%
               </span>
             </div>
-            {log && (
-              <p className="note mono" style={{ padding: "0.35rem 1rem 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {log}
+            {statusLine && (
+              <p
+                className="note mono"
+                data-testid="train-startup-phase"
+                style={{ padding: "0.35rem 1rem 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+              >
+                {statusLine}
               </p>
             )}
             <div className="stats" style={{ marginTop: "0.4rem", borderTop: "1px solid var(--line)" }}>

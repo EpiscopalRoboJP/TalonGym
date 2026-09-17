@@ -187,6 +187,28 @@ def train_ppo(
     wall_limit = budget_cfg.get("wallClockLimitS")
     early_stop = budget_cfg.get("earlyStopNoImproveSteps")
     t0 = time.monotonic()
+    n_steps = int(algo_cfg.get("nSteps") or 128)
+    rollout_len = n_steps * n_envs
+    if total_steps < rollout_len:
+        n_envs = 1
+        n_steps = min(n_steps, max(16, total_steps))
+        rollout_len = n_steps * n_envs
+    startup_phase = "creating_envs"
+
+    def emit_startup(phase: str, message: str) -> None:
+        nonlocal startup_phase
+        startup_phase = phase
+        emit(message)
+        if on_metrics:
+            on_metrics(
+                {
+                    "envSteps": 0,
+                    "nEnvs": n_envs,
+                    "algo": algo_name,
+                    "startupPhase": phase,
+                    "progressFrac": 0.0,
+                }
+            )
 
     def make_env():
         def _init():
@@ -243,15 +265,9 @@ def train_ppo(
             f"(torch, stable-baselines3, sb3-contrib) in {sys.executable}: {exc}"
         ) from exc
 
+    emit_startup("creating_envs", f"creating {n_envs} envs")
     venv = DummyVecEnv([make_env() for _ in range(n_envs)])
-    n_steps = int(algo_cfg.get("nSteps") or 128)
-    rollout_len = n_steps * n_envs
-    if total_steps < rollout_len:
-        n_envs = 1
-        venv.close()
-        venv = DummyVecEnv([make_env()])
-        n_steps = min(n_steps, max(16, total_steps))
-        rollout_len = n_steps * n_envs
+    emit(f"created {n_envs} envs in {time.monotonic() - t0:.1f}s")
     batch = int(algo_cfg.get("batchSize") or 256)
     batch = min(batch, rollout_len)
     while batch > 1 and rollout_len % batch != 0:
@@ -316,6 +332,7 @@ def train_ppo(
         if bc_steps > 0:
             from talongym.training.distill import bc_warmup
 
+            emit_startup("bc_warmup", f"BC warmup {min(bc_steps, 4096)} steps")
             try:
                 mse = bc_warmup(model, bundle, min(bc_steps, 4096), log=emit)
                 emit(f"BC warmup done mse={mse:.4f}")
@@ -327,6 +344,7 @@ def train_ppo(
     from talongym.training.diagnostics import assert_scripted_baseline_scores, summarize_episode
 
     if total_steps >= 2048:
+        emit_startup("scripted_baseline", "checking scripted baseline")
         baseline = assert_scripted_baseline_scores(bundle)
         emit(
             f"scripted baseline launches={baseline.launches} "
@@ -339,36 +357,13 @@ def train_ppo(
     best_metric = float("-inf")
     last_improve_at = 0
     last_metrics: dict[str, Any] = {}
-    if cloned and eval_n > 0:
-        # The clone is the first candidate for best.zip, so a run whose PPO phase degrades still ends no worse.
+    if cloned:
         try:
-            clone_scores, clone_frames = _eval_true_scores(
-                RecurrentPolicyAdapter(model),
-                bundle,
-                eval_seeds,
-                record_first=True,
-                match_setup=match_setup,
-                options=eval_options,
-            )
-            clone_health = summarize_episode(clone_frames)
-            best_metric = objective_value(
-                bootstrap_ci(clone_scores, n_boot=min(400, max(40, 20 * len(clone_scores)))),
-                objective_name,
-            )
-            if clone_health.healthy:
-                model.save(str(best_path))
-                emit(
-                    f"BC clone eval {objective_name}={best_metric:.2f} "
-                    f"launches={clone_health.launches}"
-                )
-            else:
-                emit(
-                    f"BC clone eval {objective_name}={best_metric:.2f} is unhealthy "
-                    f"(launches={clone_health.launches}); waiting for a healthy checkpoint"
-                )
-                best_metric = float("-inf")
+            model.save(str(best_path))
+            emit("BC clone saved as best.zip; held-out eval waits for the first training chunk")
         except Exception as exc:
-            emit(f"BC clone eval failed: {exc}")
+            emit(f"BC clone save failed: {exc}")
+    emit_startup("training", "starting RecurrentPPO")
 
     def _live_metrics(steps: int) -> dict[str, Any]:
         progress.steps = int(steps)
@@ -384,6 +379,7 @@ def train_ppo(
             "progressFrac": progress.frac,
             "curriculumStage": stage.get("index"),
             "curriculumUnlock": stage.get("unlock"),
+            "startupPhase": startup_phase,
         }
         if elapsed > 0 and progress.steps > 0:
             packed["fps"] = float(progress.steps / elapsed)
