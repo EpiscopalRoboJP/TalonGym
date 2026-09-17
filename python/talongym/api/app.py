@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from talongym import __version__
+from talongym.license_notice import emit_license_notice
 from talongym.api import db, jobs
 from talongym.api.cad_frames import ensure_background_asset
 from talongym.eval.harness import run_trials
@@ -28,6 +29,7 @@ from talongym.training.ppo import load_trained_policy, record_policy_episode
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    emit_license_notice()
     db.connect()
     db.fail_orphan_runs()
     yield
