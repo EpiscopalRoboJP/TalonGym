@@ -16,6 +16,13 @@ from talongym.training.ppo import record_policy_episode, train_ppo
 app = typer.Typer(help="TalonGym — FTC Autonomous trainer")
 
 
+@app.callback()
+def _main() -> None:
+    from talongym.license_notice import emit_license_notice
+
+    emit_license_notice()
+
+
 @app.command()
 def lab(host: str = "127.0.0.1", port: int = 8765) -> None:
     """Serve the Lab UI and API."""
