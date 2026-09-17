@@ -34,10 +34,17 @@ def describe_defaults() -> dict[str, Any]:
     season = None
     field_id = ids.get("fieldId")
     if field_id:
+        field = None
         path = preset_index()["field"].get(field_id)
-        if path is None:
-            raise PresetError(f"Unknown field preset '{field_id}'")
-        field = load_json(path)
+        if path is not None:
+            field = load_json(path)
+        else:
+            try:
+                from talongym.api import db
+
+                field = db.load_runtime_document("field", field_id)
+            except Exception as exc:
+                raise PresetError(f"Unknown field preset '{field_id}'") from exc
         season = (field.get("season") or {}).get("slug")
     return {
         **ids,
@@ -45,17 +52,36 @@ def describe_defaults() -> dict[str, Any]:
     }
 
 
+def _known_preset(kind: str, preset_id: str) -> bool:
+    if preset_id in preset_index().get(kind, {}):
+        return True
+    try:
+        from talongym.api import db
+
+        doc = db.get_preset(preset_id)
+    except Exception:
+        return False
+    return bool(doc and doc.get("_kind") == kind)
+
+
+def _load_known(kind: str, preset_id: str) -> dict[str, Any]:
+    if preset_id in preset_index().get(kind, {}):
+        return load_preset(kind, preset_id)
+    from talongym.api import db
+
+    return db.load_runtime_document(kind, preset_id)
+
+
 def _validate_bundle(field_id: str, robot_id: str, scoring_id: str, training_id: str | None) -> None:
-    idx = preset_index()
-    if field_id not in idx["field"]:
+    if not _known_preset("field", field_id):
         raise PresetError(f"Unknown field preset '{field_id}'")
-    if robot_id not in idx["robot"]:
+    if not _known_preset("robot", robot_id):
         raise PresetError(f"Unknown robot preset '{robot_id}'")
-    if scoring_id not in idx["scoring"]:
+    if not _known_preset("scoring", scoring_id):
         raise PresetError(f"Unknown scoring preset '{scoring_id}'")
-    if training_id and training_id not in idx["training"]:
+    if training_id and not _known_preset("training", training_id):
         raise PresetError(f"Unknown training preset '{training_id}'")
-    scoring = load_preset("scoring", scoring_id)
+    scoring = _load_known("scoring", scoring_id)
     expected = scoring.get("fieldPresetId")
     if expected and expected != field_id:
         raise PresetError(f"scoring preset {scoring_id} fieldPresetId '{expected}' != field '{field_id}'")

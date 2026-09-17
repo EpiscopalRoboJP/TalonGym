@@ -46,10 +46,21 @@ def test_eval_drop_rolls_back_to_best_and_halves_learning_rate(monkeypatch, tmp_
     monkeypatch.setattr(distill, "BC_TARGET_LOSS", float("inf"))
     evals = iter([[28.0, 28.0], [3.0, 3.0]])
     seen_options = []
+    healthy_frames = [
+        {
+            "trueScore": 28,
+            "launchAttempts": 4,
+            "t": 1.0,
+            "robots": [{"id": "red_0", "lastVerb": "score", "held": [], "collisionTimeS": 0.2}],
+            "pieces": [{"id": "p1", "launchedBy": "red_0", "scored": True}],
+            "collision": {"wall": False, "collisionTimeS": 0.2},
+        }
+    ]
 
     def fake_eval(adapter, bundle, seeds, record_first=False, match_setup=None, options=None):
         seen_options.append(options)
-        return next(evals, [28.0, 28.0]), []
+        scores = next(evals, [28.0, 28.0])
+        return scores, healthy_frames
 
     monkeypatch.setattr(ppo, "_eval_true_scores", fake_eval)
     metrics: list[dict] = []

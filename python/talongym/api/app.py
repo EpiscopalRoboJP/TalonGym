@@ -18,10 +18,11 @@ from talongym import __version__
 from talongym.license_notice import emit_license_notice
 from talongym.api import db, jobs
 from talongym.api.cad_frames import ensure_background_asset
+from talongym.api.robot_catalog import router as catalog_router
 from talongym.eval.harness import run_trials
 from talongym.export.roadrunner import export_from_replay
 from talongym.paths import WEB_DIST
-from talongym.presets.loader import PresetError, load_bundle, validate_document
+from talongym.presets.loader import PresetError, is_shipped_preset, validate_document
 from talongym.sim.physics import default_backend
 from talongym.training.policies import scripted_auto
 from talongym.training.ppo import load_trained_policy, record_policy_episode
@@ -36,6 +37,7 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="TalonGym", version=__version__, lifespan=_lifespan)
+app.include_router(catalog_router)
 
 API = "/api/v1"
 
@@ -203,6 +205,34 @@ def delete_preset(kind: str, preset_id: str) -> None:
         raise HTTPException(409, {"error": {"code": "IN_USE", "message": preset_id}})
 
 
+@app.get(f"{API}/presets/robot/{{preset_id}}/draft")
+def get_robot_draft(preset_id: str) -> dict[str, Any]:
+    if is_shipped_preset("robot", preset_id):
+        db.delete_robot_draft(preset_id)
+        raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": preset_id}})
+    doc = db.get_robot_draft(preset_id)
+    if not doc:
+        raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": preset_id}})
+    return doc
+
+
+@app.put(f"{API}/presets/robot/{{preset_id}}/draft")
+def put_robot_draft(preset_id: str, document: dict[str, Any]) -> dict[str, str]:
+    if is_shipped_preset("robot", preset_id):
+        db.delete_robot_draft(preset_id)
+        raise HTTPException(
+            409,
+            {"error": {"code": "SHIPPED", "message": "Shipped presets stay immutable. Use Save as."}},
+        )
+    db.upsert_robot_draft(preset_id, document)
+    return {"id": preset_id}
+
+
+@app.delete(f"{API}/presets/robot/{{preset_id}}/draft", status_code=204)
+def delete_robot_draft(preset_id: str) -> None:
+    db.delete_robot_draft(preset_id)
+
+
 @app.post(f"{API}/runs", status_code=202)
 def start_run(body: RunBody) -> dict[str, str]:
     run_id = jobs.start_training(body.model_dump())
@@ -329,7 +359,7 @@ def start_eval(body: EvalBody) -> dict[str, Any]:
         run = db.get_run(body.runId)
         if run:
             run_presets = (run.get("config") or {}).get("presets") or {}
-            bundle = load_bundle(
+            bundle = db.load_runtime_bundle(
                 run_presets.get("fieldId"),
                 run_presets.get("robotId"),
                 run_presets.get("scoringId"),
@@ -345,7 +375,7 @@ def start_eval(body: EvalBody) -> dict[str, Any]:
             raise HTTPException(400, {"error": {"code": "NO_CHECKPOINT", "message": "No trained policy artifact"}})
         policy = load_trained_policy(path)
     if bundle is None:
-        bundle = load_bundle()
+        bundle = db.load_runtime_bundle()
     report = run_trials(
         n,
         policy,
@@ -479,6 +509,7 @@ async def upload_robot_model(preset_id: str, file: UploadFile = File(...)) -> di
         ROBOT_ID_RE,
         RobotCadError,
         import_robot_cad,
+        is_cad_extra_error,
     )
 
     if not ROBOT_ID_RE.match(preset_id):
@@ -496,7 +527,7 @@ async def upload_robot_model(preset_id: str, file: UploadFile = File(...)) -> di
         return import_robot_cad(tmp, preset_id)
     except RobotCadError as exc:
         msg = str(exc)
-        extra = "trimesh" in msg or "cascadio" in msg
+        extra = is_cad_extra_error(exc)
         raise HTTPException(
             503 if extra else 422,
             {"error": {"code": "CAD_EXTRA" if extra else "CAD_IMPORT", "message": msg}},
@@ -519,6 +550,7 @@ async def upload_robot_part_model(
         ROBOT_ID_RE,
         RobotCadError,
         import_robot_part_cad,
+        is_cad_extra_error,
     )
 
     if not ROBOT_ID_RE.match(preset_id) or not ROBOT_ID_RE.match(part_id):
@@ -547,9 +579,10 @@ async def upload_robot_part_model(
             joint_transform={str(key): float(value) for key, value in transform.items()},
         )
     except (RobotCadError, TypeError, ValueError) as exc:
+        extra = is_cad_extra_error(exc)
         raise HTTPException(
-            422,
-            {"error": {"code": "CAD_IMPORT", "message": str(exc)}},
+            503 if extra else 422,
+            {"error": {"code": "CAD_EXTRA" if extra else "CAD_IMPORT", "message": str(exc)}},
         ) from exc
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)

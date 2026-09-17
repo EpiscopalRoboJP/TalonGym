@@ -6,10 +6,22 @@ A **bundle** is field + robot + scoring, usually pinned by a training-run JSON. 
 
 ```
 presets/
-  defaults.json                 # repo default bundle ids
+  defaults.json                 # repo default bundle ids (robotId = gobilda_mecanum_starter)
   robots/
+    gobilda_mecanum_starter.json
+    gobilda_tank_starter.json
+    rev_mecanum_starter.json
+    rev_tank_starter.json
     mecanum_meepmeep_defaults.json
     mecanum_biobuzz_4cap.json
+  robot_parts/
+    gobilda.json                # schema 1.0 catalog; official CAD is downloaded, not committed
+    rev.json
+  robot_recipes/
+    gobilda_mecanum.json
+    gobilda_tank.json
+    rev_mecanum.json
+    rev_tank.json
   training/
     biobuzz_auto_{lightweight,workstation,cloud,easy}.json
   seasons/
@@ -17,15 +29,16 @@ presets/
 schemas/                        # Draft 2020-12, normative
   field-preset.schema.json
   robot-preset.schema.json
+  robot-part-catalog.schema.json
   scoring-rules-preset.schema.json
   training-run-config.schema.json
 ```
 
 Kind is inferred from JSON shape (`fieldSizeIn`, `drivetrain`, scoring `nodes`+`scoreChannels`, training `algorithm`). Ids are the document `id` field, not the filename.
 
-Robot presets may include optional `intakes[]` and `launchers[]` (pose on the robot, capture volume, muzzle speed/aim). Omitting them keeps the omnidirectional hull intake and curriculum teleport / auto-aim launch. Edit them in Lab **Robot** (`/build/robot`).
+Shipped scoring starters (`gobilda_mecanum_starter`, `gobilda_tank_starter`, `rev_mecanum_starter`, `rev_tank_starter`) are schema 1.2 catalog assemblies with confirmed drivetrain/intake/conveyor/flywheel/hood/gate bindings, `includeScoringTopology`, and compiled chassis/motor/mechanism fields so the builder can load them without crashing. Each starter compiles its own catalog parts plus the physical piece path; drivebase recipes instantiate chassis only and no longer graft a hidden 4-cap mechanism. Training presets still set `actionTier` to `high_level_waypoint`; do not omit that or PPO will follow `robot.defaultActionTier` (`physical_actuators` on the starters). Robot presets may include optional `intakes[]` and `launchers[]` (pose on the robot, capture volume, muzzle speed/aim). Schema 1.2 catalog assemblies (Lab **Robot** `/build/robot`) compile into the existing 1.1 physical contract. Incomplete launch-capable assemblies are rejected at compile time. Drafts live in the API `robot_drafts` table, not as extra shipped files.
 
-Optional CAD fields: `visualAsset` (render GLB under `var/assets/`), `collisionAsset` (hull STL), `visualOffset`, and `chassis.collisionShape: "mesh"` with `chassis.footprint` (2D hull in robot-frame inches). Shipped robots stay boxes. Upload from the Lab or `python -m talongym import-robot-cad`. Do not commit team CAD.
+Optional CAD fields: `visualAsset` (render GLB under `var/assets/`), `collisionAsset` (hull STL), `visualOffset`, and `chassis.collisionShape: "mesh"` with `chassis.footprint` (2D hull in robot-frame inches). Catalog parts render cached official GLBs when `cache.state` is `ready` (GLB + thumbnail both present). Manufacturer CAD is downloaded on demand, never committed. Upload from the Lab or `python -m talongym import-robot-cad`. Do not commit team CAD.
 
 Field presets that use official STEP set `cadManifest` (see [`schemas/cad-manifest.schema.json`](../schemas/cad-manifest.schema.json)) plus per-piece `visualAsset` / `collisionAsset`. The manifest records source URL, SHA-256, units, Y-up transform, bounds, and convex collision parts. Semantic scoring volumes stay in `elements` / `spawns`; CAD is physical geometry only. BIOBUZZ meshes ship under `assets/seasons/biobuzz_2026/`. Rebuild from a new official STEP with `python -m talongym import-field-cad`. Verify with `python -m talongym import-field-cad --verify`.
 

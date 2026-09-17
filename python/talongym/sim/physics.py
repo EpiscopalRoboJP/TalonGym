@@ -317,14 +317,17 @@ def mechanism_piece_force(
     feed_out = launch_scale > 0.2 and rpm_frac > 0.2
     if (inside or owned) and (conveyor_on or feed_out):
         tau = 0.08
-        belt = min(1.0, conveyor_rpm / conveyor_target) if conveyor_on else 0.35
+        belt = min(1.0, conveyor_rpm / conveyor_target) if conveyor_rpm > 8.0 else 0.35
         if feed_out:
             muzzle = dict(path.get("muzzlePose") or {})
-            target_x = float(muzzle.get("x") or ix) - 2.0
-            target_z = min(float(muzzle.get("z") or slot_z), slot_z + 3.0)
-            speed = 22.0 * max(belt, 0.45)
-            desired_vx = speed
-            desired_vz = (target_z - pz) * 10.0
+            target_x = float(muzzle.get("x") or ix)
+            target_z = float(muzzle.get("z") or slot_z)
+            speed = 36.0 * max(belt, 0.45)
+            desired_vx = max(speed, (target_x - px) * 12.0)
+            if px < target_x - 2.5:
+                desired_vz = (slot_z + 1.0 - pz) * 8.0
+            else:
+                desired_vz = (target_z - pz) * 12.0
         else:
             target_x = magazine_x
             target_z = slot_z

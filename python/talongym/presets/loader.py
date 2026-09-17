@@ -9,6 +9,8 @@ from jsonschema import Draft202012Validator
 
 from talongym.paths import PRESETS_DIR, SCHEMAS_DIR
 
+NON_PRESET_DIRS = frozenset({"robot_parts", "robot_recipes"})
+
 ENGINE_CAPABILITIES = frozenset(
     {
         "planar_drive",
@@ -85,6 +87,12 @@ def _index_presets() -> dict[str, dict[str, Path]]:
     index: dict[str, dict[str, Path]] = {"field": {}, "robot": {}, "scoring": {}, "training": {}}
     for path in PRESETS_DIR.rglob("*.json"):
         try:
+            rel = path.relative_to(PRESETS_DIR)
+        except ValueError:
+            continue
+        if any(part in NON_PRESET_DIRS for part in rel.parts):
+            continue
+        try:
             data = load_json(path)
         except json.JSONDecodeError:
             continue
@@ -110,6 +118,10 @@ def preset_index(refresh: bool = False) -> dict[str, dict[str, Path]]:
     if _INDEX is None or refresh:
         _INDEX = _index_presets()
     return _INDEX
+
+
+def is_shipped_preset(kind: str, preset_id: str) -> bool:
+    return preset_id in preset_index().get(kind, {})
 
 
 def list_presets(kind: str) -> list[dict[str, Any]]:

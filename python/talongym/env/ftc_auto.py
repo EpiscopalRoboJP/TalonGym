@@ -123,7 +123,7 @@ class FTCAutoEnv(gym.Env):
         field = self.bundle.field
         fw = float(field["fieldSizeIn"]["width"]) / 2.0
         fd = float(field["fieldSizeIn"]["depth"]) / 2.0
-        cap = int((self.bundle.robot.get("mechanisms") or {}).get("capacity", 3))
+        cap = int((self.world.robot.get("mechanisms") or {}).get("capacity", 3))
         self.capacity = cap
         vars_spec = list(self.bundle.scoring.get("matchVariables") or [])
         self.match_var_specs = vars_spec
@@ -131,11 +131,11 @@ class FTCAutoEnv(gym.Env):
         self.match_enums = enums or [["A", "B", "C"]]
         enum_w = max((len(e) for e in self.match_enums), default=3)
         n_vars = max(1, len(vars_spec))
-        cons = self.bundle.robot.get("constraints") or {}
+        cons = self.world.robot.get("constraints") or {}
         self._max_vel = float(cons.get("maxVelInPerS") or 30.0)
         self._max_omega = math.radians(float(cons.get("maxAngVelDegPerS") or 60.0))
-        self._actuator_ids = _actuator_ids(self.bundle.robot)
-        self._sensor_bank = MechanismSensorBank(_sensor_specs(self.bundle.robot))
+        self._actuator_ids = _actuator_ids(self.world.robot)
+        self._sensor_bank = MechanismSensorBank(_sensor_specs(self.world.robot))
         self.observation_space = spaces.Dict(
             {
                 "pose_noisy": spaces.Box(low=np.array([-fw, -fd, -np.pi], np.float32), high=np.array([fw, fd, np.pi], np.float32)),
@@ -213,6 +213,8 @@ class FTCAutoEnv(gym.Env):
             full_noise=full_noise,
             ballistic_launch=None if ballistic is None else bool(ballistic),
             match_setup=opts.get("match_setup", self.match_setup),
+            curriculum_spawn=str(opts.get("curriculum_spawn") or "legal"),
+            mechanism_ready=bool(opts.get("mechanism_ready")),
         )
         if opts.get("action_tier"):
             self.action_tier = str(opts["action_tier"])
@@ -468,7 +470,7 @@ class FTCAutoEnv(gym.Env):
             elif kind == "motor_current":
                 truths[ident] = float(row.get("currentA") or 0.0)
             elif kind == "battery_voltage":
-                truths[ident] = float(state.get("batteryVoltageV") or (self.bundle.robot.get("powerSystem") or {}).get("openCircuitVoltageV") or 12.0)
+                truths[ident] = float(state.get("batteryVoltageV") or (self.world.robot.get("powerSystem") or {}).get("openCircuitVoltageV") or 12.0)
             elif kind == "beam_break":
                 truths[ident] = self._beam_break_truth(rs, spec)
             else:
@@ -498,7 +500,7 @@ class FTCAutoEnv(gym.Env):
         c, s = math.cos(heading), math.sin(heading)
         qw = math.cos(heading / 2.0)
         qz = math.sin(heading / 2.0)
-        for row in self.bundle.robot.get("rigidParts") or []:
+        for row in self.world.robot.get("rigidParts") or []:
             if not isinstance(row, dict) or not row.get("id"):
                 continue
             pose = row.get("pose") or {}
@@ -532,7 +534,7 @@ class FTCAutoEnv(gym.Env):
         return self._fallback_parts(rs)
 
     def _enrich_snapshot(self, snap: dict[str, Any]) -> dict[str, Any]:
-        robot_preset = self.bundle.robot
+        robot_preset = self.world.robot
         design = dict(snap.get("robotDesign") or {})
         if robot_preset.get("rigidParts"):
             design["rigidParts"] = list(robot_preset.get("rigidParts") or [])

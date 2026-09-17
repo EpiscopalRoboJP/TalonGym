@@ -48,6 +48,7 @@ export function App() {
   const link = ({ isActive }: { isActive: boolean }) => (isActive ? "active" : "");
 
   return (
+    <>
     <div className="app">
       <header className="header">
         <NavLink to="/train" className="brand" aria-label="TalonGym Lab home">
@@ -78,7 +79,6 @@ export function App() {
           {state === "ok" && health?.computeProfile && <span className="status-detail">· {health.computeProfile}</span>}
         </div>
       </header>
-      <ToastHost />
       <Routes>
         <Route path="/" element={<Navigate to="/train" replace />} />
         <Route path="/replay/:replayId?" element={<ReplayPage />} />
@@ -89,5 +89,7 @@ export function App() {
         <Route path="*" element={<Navigate to="/train" replace />} />
       </Routes>
     </div>
+    <ToastHost />
+    </>
   );
 }

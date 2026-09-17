@@ -62,6 +62,7 @@ export function Panel({
   className = "",
   bodyClass = "panel-body",
   footer,
+  testId,
 }: {
   title?: ReactNode;
   sub?: ReactNode;
@@ -70,9 +71,10 @@ export function Panel({
   className?: string;
   bodyClass?: string;
   footer?: ReactNode;
+  testId?: string;
 }) {
   return (
-    <section className={`panel ${className}`}>
+    <section className={`panel ${className}`} data-testid={testId}>
       {(title || actions) && (
         <header className="panel-head">
           {title && <h2>{title}</h2>}
@@ -142,6 +144,12 @@ export function Field({ id, label, hint, children }: { id?: string; label: strin
   );
 }
 
+export function formatMeasure(value: number, digits = 3): number {
+  if (!Number.isFinite(value)) return 0;
+  const rounded = Number(value.toFixed(digits));
+  return Object.is(rounded, -0) ? 0 : rounded;
+}
+
 export function NumberField({
   id,
   label,
@@ -166,7 +174,7 @@ export function NumberField({
           id={id}
           type="number"
           step={step}
-          value={Number.isFinite(value) ? value : 0}
+          value={formatMeasure(Number.isFinite(value) ? value : 0)}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value))}
         />

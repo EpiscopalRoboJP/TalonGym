@@ -18,7 +18,7 @@ That extra set is the laptop/workstation path: tests (`dev`) plus RecurrentPPO (
 | `rl` | Training a policy | RecurrentPPO |
 | `scale` | Optional experimental Ray extra | one-shot `train --algo rllib_ppo` toy; not a production scale path |
 | `mujoco` | BIOBUZZ 3D mesh physics (and `validate-3d`) | `MujocoFieldBackend` |
-| `cad` | Official field/piece STEP *and* team robot CAD upload (STL/OBJ/GLB/STEP) | trimesh + cascadio + fast-simplification |
+| `cad` | Official field/piece STEP *and* catalog/team robot CAD (STL/OBJ/GLB/STEP) | trimesh + cascadio + fast-simplification |
 | `postgres` | Shared DB | used if `TALONGYM_DATABASE_URL` starts with `postgres` |
 
 Entry points after install: `talongym` and `python -m talongym`.
@@ -53,10 +53,11 @@ Open http://127.0.0.1:5173. Details: [LAB.md](LAB.md).
 
 | Location | Contents |
 |----------|----------|
-| `var/talongym.db` | SQLite: presets, runs, evaluations, artifacts, replays, jobs (WAL). `jobs` is a status log; training runs in-process. |
+| `var/talongym.db` | SQLite: presets, robot drafts, runs, evaluations, artifacts, replays, jobs (WAL). `jobs` is a status log; training runs in-process. |
 | `var/defaults.json` | Your active field/robot/scoring/training ids |
 | `var/ckpts/` | RecurrentPPO zips (`latest.zip`, `best.zip`, per-run folders) |
 | `var/last_replay.java` | CLI `replay` export |
+| `var/assets/robot_parts/` | On-demand manufacturer CAD cache (GLB/collision). Not in git. |
 
 `var/` is gitignored. Copy the SQLite file to share a mentor-trained run with a laptop that cannot train. BIOBUZZ tessellation under `assets/seasons/biobuzz_2026/` (`field.glb`, `collision/`, `pieces/`, `mechanisms/`, `cad_manifest.json`, `field_mjcf.xml`) is committed with the repo. Rebuild from a new official STEP with `python -m talongym import-field-cad`.
 

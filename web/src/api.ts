@@ -50,6 +50,37 @@ export async function getJson<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** GET that returns null on 404 without emitting a toast. Used for optional draft/recipe routes. */
+export async function getJsonOptional<T>(path: string): Promise<T | null> {
+  const res = await fetch(`${API}${path}`);
+  if (res.status === 404 || res.status === 501) return null;
+  if (!res.ok) await fail(res, path);
+  return res.json() as Promise<T>;
+}
+
+export async function putJsonOptional<T>(path: string, body: unknown): Promise<T | null> {
+  const res = await fetch(`${API}${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 404 || res.status === 501) return null;
+  if (!res.ok) await fail(res, path);
+  return res.json() as Promise<T>;
+}
+
+export async function postJsonOptional<T>(path: string, body: unknown = {}): Promise<T | null> {
+  const res = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
+  if (res.status === 404 || res.status === 501) return null;
+  if (!res.ok) await fail(res, path);
+  const text = await res.text();
+  return text ? (JSON.parse(text) as T) : ({} as T);
+}
+
 export async function postJson<T>(path: string, body: unknown = {}): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     method: "POST",
@@ -151,7 +182,17 @@ export type PresetMeta = {
   verifyAgainstManual?: boolean;
   stale?: boolean;
   computeProfile?: string;
+  shipped?: boolean;
 };
+
+export function presetIsShipped(preset: Pick<PresetMeta, "id" | "shipped">): boolean {
+  if (typeof preset.shipped === "boolean") return preset.shipped;
+  return (
+    preset.id === "mecanum_biobuzz_4cap" ||
+    preset.id === "mecanum_meepmeep_defaults" ||
+    preset.id.endsWith("_starter")
+  );
+}
 
 export function robotPresetLabel(p: Pick<PresetMeta, "id" | "displayName">): string {
   return p.displayName || p.id;
@@ -175,6 +216,11 @@ export type RobotModelImport = {
   footprint: { x: number; y: number }[];
   unitsGuess: string;
   faceCount: number;
+  originPreserved?: boolean;
+  sha256?: string;
+  partId?: string;
+  parentId?: string | null;
+  jointTransform?: Record<string, number>;
 };
 
 export async function uploadRobotModel(presetId: string, file: File): Promise<RobotModelImport> {
@@ -184,6 +230,359 @@ export async function uploadRobotModel(presetId: string, file: File): Promise<Ro
   const res = await fetch(`${API}${path}`, { method: "POST", body });
   if (!res.ok) await fail(res, path);
   return res.json() as Promise<RobotModelImport>;
+}
+
+export function robotPartModelPath(presetId: string, partId: string): string {
+  return `/presets/robot/${presetId}/parts/${partId}/model`;
+}
+
+export async function uploadRobotPartModel(
+  presetId: string,
+  partId: string,
+  file: File,
+  opts?: { parentId?: string | null; jointTransform?: Record<string, number> },
+): Promise<RobotModelImport> {
+  const path = robotPartModelPath(presetId, partId);
+  const body = new FormData();
+  body.append("file", file);
+  if (opts?.parentId) body.append("parent_id", opts.parentId);
+  body.append("joint_transform_json", JSON.stringify(opts?.jointTransform || {}));
+  const res = await fetch(`${API}${path}`, { method: "POST", body });
+  if (!res.ok) await fail(res, path);
+  return res.json() as Promise<RobotModelImport>;
+}
+
+export function catalogSearchPath(opts?: { q?: string; manufacturer?: string; tag?: string }): string {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set("q", opts.q);
+  if (opts?.manufacturer) params.set("manufacturer", opts.manufacturer);
+  if (opts?.tag) params.set("tag", opts.tag);
+  const query = params.toString();
+  return query ? `/catalog?${query}` : "/catalog";
+}
+
+export type CatalogCacheState = "ready" | "stale" | "incomplete" | "missing" | "invalid" | "unavailable";
+
+export type CatalogPreviewSource = "cad" | "proxy";
+
+export type CatalogPartPreview = {
+  source: CatalogPreviewSource;
+  kind: "box" | "sphere" | "cylinder" | "capsule" | "convex_hull";
+  sizeIn?: [number, number, number];
+  radiusIn?: number;
+  lengthIn?: number;
+  visualAsset?: string | null;
+  thumbnailAsset?: string | null;
+  tags?: string[];
+};
+
+export type CatalogPartSummary = {
+  sku: string;
+  manufacturer: string;
+  displayName: string;
+  productUrl?: string;
+  tags: string[];
+  massKg: number;
+  mounts?: CatalogMount[];
+  downloadEnabled: boolean;
+  cadFormat?: string;
+  preview?: CatalogPartPreview;
+  cache: {
+    state: CatalogCacheState;
+    visualAsset?: string | null;
+    collisionAsset?: string | null;
+    thumbnailAsset?: string | null;
+    sha256?: string;
+    generatorVersion?: string;
+    reason?: string;
+  };
+};
+
+export async function listCatalogParts(opts?: { q?: string; manufacturer?: string; tag?: string }): Promise<{ parts: CatalogPartSummary[]; count: number }> {
+  return getJson(catalogSearchPath(opts));
+}
+
+export type CatalogManufacturer = "gobilda" | "rev";
+export type CatalogMountKind =
+  | "threaded_hole"
+  | "clearance_hole"
+  | "shaft"
+  | "hub"
+  | "bearing"
+  | "clamp"
+  | "mating_face";
+export type CatalogMountStandard =
+  | "gobilda_pattern"
+  | "gobilda_8mm_rex"
+  | "rev_15mm"
+  | "rev_m3"
+  | "rev_5mm_hex"
+  | "rev_maxspline"
+  | "adapter_required";
+
+export type CatalogHolePattern = {
+  type: "grid" | "linear" | "circle" | "single";
+  pitchMm: number;
+  countU?: number;
+  countV?: number;
+  count?: number;
+};
+
+export type CatalogMount = {
+  id: string;
+  kind: CatalogMountKind;
+  standard: CatalogMountStandard;
+  diameterMm?: number;
+  spacingMm?: number;
+  axis: [number, number, number];
+  uAxis?: [number, number, number];
+  depthMm?: number;
+  allowedHardware?: string[];
+  transform: Transform3;
+  pattern?: CatalogHolePattern;
+};
+
+export type CatalogCollisionProxy = {
+  kind: "box" | "sphere" | "cylinder" | "capsule" | "convex_hull";
+  sizeIn?: [number, number, number];
+  radiusIn?: number;
+  lengthIn?: number;
+  pose?: Transform3;
+};
+
+export type CatalogPart = CatalogPartSummary & {
+  cad?: {
+    sourceUrl?: string;
+    filename?: string;
+    format?: string;
+    units?: string;
+    origin?: string;
+    downloadEnabled?: boolean;
+    terms?: string;
+  };
+  inertiaKgM2?: [number, number, number];
+  collision?: CatalogCollisionProxy[];
+  mounts?: CatalogMount[];
+  visualTransform?: {
+    scaleToInches: number;
+    rotatedZupToYup: boolean;
+    translationIn: [number, number, number];
+  };
+};
+
+export async function getCatalogPart(sku: string): Promise<CatalogPart> {
+  return getJson(`/catalog/parts/${encodeURIComponent(sku)}`);
+}
+
+export async function getCatalogCache(): Promise<{
+  partCount: number;
+  counts: Record<string, number>;
+  cadExtra?: boolean;
+  cadUnavailableReason?: string | null;
+  parts: CatalogPartSummary[];
+}> {
+  return getJson("/catalog/cache");
+}
+
+export async function requestCatalogDownload(sku: string, force = false): Promise<{ jobId: string | null; state: string; accepted: boolean }> {
+  const suffix = force ? "?force=true" : "";
+  const path = `/catalog/parts/${encodeURIComponent(sku)}/download${suffix}`;
+  const res = await fetch(`${API}${path}`, { method: "POST" });
+  if (!res.ok) await fail(res, path);
+  return res.json();
+}
+
+export async function getCatalogJob(jobId: string): Promise<{ id: string; state: string; sku?: string; error?: { code: string; message: string } }> {
+  return getJson(`/catalog/jobs/${encodeURIComponent(jobId)}`);
+}
+
+export type CacheBatchItemState = "queued" | "converting" | "ready" | "failed" | "skipped" | "cancelled";
+
+export type CacheBatchCounts = Record<CacheBatchItemState, number>;
+
+export type CacheBatchItem = {
+  sku: string;
+  manufacturer?: string;
+  displayName?: string;
+  state: CacheBatchItemState | string;
+  reason?: string;
+  error?: { code?: string; message?: string };
+  reused?: boolean;
+};
+
+export type CatalogCacheBatch = {
+  id: string | null;
+  state: "idle" | "queued" | "running" | "cancelling" | "cancelled" | "done" | string;
+  force?: boolean;
+  manufacturer?: string | null;
+  counts: CacheBatchCounts;
+  total: number;
+  concurrency?: number;
+  items: CacheBatchItem[];
+};
+
+export function catalogCacheAllPath(batchId?: string): string {
+  return batchId ? `/catalog/cache/all/${encodeURIComponent(batchId)}` : "/catalog/cache/all";
+}
+
+export function catalogCacheAllCancelPath(batchId: string): string {
+  return `${catalogCacheAllPath(batchId)}/cancel`;
+}
+
+export function catalogCacheAllRetryPath(batchId: string): string {
+  return `${catalogCacheAllPath(batchId)}/retry`;
+}
+
+export async function requestCatalogCacheAll(opts?: {
+  force?: boolean;
+  manufacturer?: string;
+  skus?: string[];
+}): Promise<CatalogCacheBatch> {
+  return postJson(catalogCacheAllPath(), {
+    force: Boolean(opts?.force),
+    manufacturer: opts?.manufacturer || undefined,
+    skus: opts?.skus,
+  });
+}
+
+export function emptyCatalogCacheBatch(): CatalogCacheBatch {
+  return {
+    id: null,
+    state: "idle",
+    counts: { queued: 0, converting: 0, ready: 0, failed: 0, skipped: 0, cancelled: 0 },
+    total: 0,
+    items: [],
+  };
+}
+
+export async function getCatalogCacheAll(batchId?: string): Promise<CatalogCacheBatch> {
+  if (!batchId) {
+    return (await getJsonOptional<CatalogCacheBatch>(catalogCacheAllPath())) || emptyCatalogCacheBatch();
+  }
+  return getJson(catalogCacheAllPath(batchId));
+}
+
+export async function cancelCatalogCacheAll(batchId: string): Promise<CatalogCacheBatch> {
+  return postJson(catalogCacheAllCancelPath(batchId), {});
+}
+
+export async function retryCatalogCacheAll(batchId: string): Promise<CatalogCacheBatch> {
+  return postJson(catalogCacheAllRetryPath(batchId), {});
+}
+
+export const ASSEMBLY_SCHEMA_VERSION = "1.2.0";
+export const PHYSICAL_SCHEMA_VERSION = "1.1.0";
+
+export type MountRef = {
+  instanceId: string;
+  mountId: string;
+  patternIndex?: [number, number];
+};
+
+export type AssemblyInstance = {
+  id: string;
+  sku: string;
+  pose?: Transform3;
+};
+
+export type AssemblyConnection = {
+  id: string;
+  parent: MountRef;
+  child: MountRef;
+  spinDeg?: number;
+  jointType?: "fixed" | "hinge" | "slide";
+  secondary?: { parent: MountRef; child: MountRef };
+};
+
+export type DrivebaseRecipeParameters = {
+  lengthSku?: string;
+  widthSku?: string;
+  motorSku?: string;
+  wheelSku?: string;
+  wheelSkuOpposite?: string;
+  cartridgeSku?: string;
+  includeElectronics?: boolean;
+};
+
+export type AssemblyRecipeOrigin = {
+  id: string;
+  parameters?: DrivebaseRecipeParameters;
+};
+
+export type RobotAssembly = {
+  rootInstanceId?: string;
+  recipe?: AssemblyRecipeOrigin;
+  instances: AssemblyInstance[];
+  connections: AssemblyConnection[];
+};
+
+export type FunctionalBindings = {
+  confirmed?: boolean;
+  drivetrain?: { type: string; trackWidthIn: number; wheelDiameterIn?: number; wheelbaseIn?: number };
+  instanceRoles?: Record<string, string>;
+};
+
+export type AssemblyWarning = {
+  code: string;
+  severity?: "info" | "warning";
+  message: string;
+  instanceId?: string;
+};
+
+export type DrivebaseRecipe = {
+  id: string;
+  displayName: string;
+  manufacturer: CatalogManufacturer;
+  drivetrain: "mecanum" | "tank";
+  description?: string;
+  defaultParameters: DrivebaseRecipeParameters;
+  lengthSkus: string[];
+  widthSkus: string[];
+  motorSkus: string[];
+  wheelSkus: string[];
+  cartridgeSkus?: string[];
+};
+
+export type RecipeInstantiateResult = {
+  assembly: RobotAssembly;
+  functionalBindings?: FunctionalBindings;
+  warnings?: AssemblyWarning[];
+  document?: RobotPreset;
+};
+
+export function catalogRecipesPath(): string {
+  return "/catalog/recipes";
+}
+
+export function catalogRecipeInstantiatePath(recipeId: string): string {
+  return `/catalog/recipes/${encodeURIComponent(recipeId)}/instantiate`;
+}
+
+export function catalogAssemblyCompilePath(): string {
+  return "/catalog/assemblies/compile";
+}
+
+export function robotDraftPath(presetId: string): string {
+  return `/presets/robot/${encodeURIComponent(presetId)}/draft`;
+}
+
+export async function listDrivebaseRecipes(): Promise<{ recipes: DrivebaseRecipe[] }> {
+  return getJson(catalogRecipesPath());
+}
+
+export async function instantiateDrivebaseRecipe(
+  recipeId: string,
+  parameters: DrivebaseRecipeParameters,
+): Promise<RecipeInstantiateResult> {
+  return postJson(catalogRecipeInstantiatePath(recipeId), parameters);
+}
+
+export async function loadRobotDraft<T>(presetId: string): Promise<T | null> {
+  return getJsonOptional<T>(robotDraftPath(presetId));
+}
+
+export async function saveRobotDraft<T>(presetId: string, document: unknown): Promise<T | null> {
+  return putJsonOptional<T>(robotDraftPath(presetId), document);
 }
 
 export async function deleteRobotModel(presetId: string): Promise<void> {
@@ -245,6 +644,9 @@ export type RigidPartSpec = {
   collision: CollisionShapeSpec[];
   visualAsset?: string;
   visualPose?: Transform3;
+  cacheState?: CatalogCacheState;
+  cacheReason?: string | null;
+  tags?: string[];
 };
 
 export type JointSpec = {
@@ -403,6 +805,51 @@ export type RobotDesign = {
   powerSystem?: PowerSystemSpec;
   piecePath?: PiecePathSpec;
   mechanismSensors?: MechanismSensorSpec[];
+};
+
+export type RobotPreset = RobotDesign & {
+  schemaVersion: string;
+  id: string;
+  displayName: string;
+  drivetrain: {
+    type: string;
+    trackWidthIn: number;
+    wheelDiameterIn?: number;
+    wheelbaseIn?: number;
+    strafeMultiplier?: number;
+  };
+  chassis: {
+    lengthIn: number;
+    widthIn: number;
+    heightIn?: number;
+    massKg: number;
+    collisionShape?: string;
+    footprint?: { x: number; y: number }[];
+  };
+  motors: Record<string, number>;
+  constraints: {
+    maxVelInPerS: number;
+    maxAccelInPerS2: number;
+    maxAngVelDegPerS: number;
+    maxAngAccelDegPerS2?: number;
+  };
+  mechanisms: {
+    capacity: number;
+    intakeCycleTimeS?: number;
+    scoreCycleTimeS?: number;
+    canIntakeWhileMoving?: boolean;
+    canScoreWhileMoving?: boolean;
+    launchCapable?: boolean;
+    climbCapable?: boolean;
+    fsmId?: string;
+  };
+  sensors: CameraSensorSpec[];
+  defaultActionTier?: ActionTier | string;
+  policyInterfaceVersion?: string;
+  assembly?: RobotAssembly;
+  functionalBindings?: FunctionalBindings;
+  warnings?: AssemblyWarning[];
+  [k: string]: unknown;
 };
 
 export type GamePieceType = {

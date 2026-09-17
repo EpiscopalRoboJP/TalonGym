@@ -22,7 +22,9 @@ from talongym.eval.harness import bootstrap_ci
 from talongym.presets.loader import LoadedPresets, load_bundle
 from talongym.robot.contract import RobotContractError, compile_robot_preset
 from talongym.training.curriculum import (
+    curriculum_spawn,
     full_noise,
+    mechanism_ready,
     motif_known_at_t0,
     objective_value,
     opponent_for,
@@ -76,6 +78,8 @@ class CurriculumEnv(gym.Wrapper):
         opts["teammate_policy"] = teammate_for(self._training, frac)
         opts["opponent_policy"] = opponent_for(self._training, frac)
         opts["full_noise"] = full_noise(self._training, frac)
+        opts["curriculum_spawn"] = curriculum_spawn(self._training, frac)
+        opts["mechanism_ready"] = mechanism_ready(self._training, frac)
         kwargs["options"] = opts
         return super().reset(**kwargs)
 
@@ -120,6 +124,8 @@ def final_stage_eval_options(training: dict[str, Any] | None) -> dict[str, Any]:
         "motif_known_at_t0": motif_known_at_t0(training, 1.0),
         "teammate_policy": teammate_for(training, 1.0),
         "opponent_policy": opponent_for(training, 1.0),
+        "curriculum_spawn": curriculum_spawn(training, 1.0),
+        "mechanism_ready": mechanism_ready(training, 1.0),
     }
 
 
@@ -142,11 +148,16 @@ def train_ppo(
     """Train RecurrentPPO with Dict observations and a live curriculum."""
     emit = log or (lambda m: None)
     bundle = bundle or load_bundle()
+    from talongym.robot.assembly import materialize_sim_robot
+
+    competitive = mesh_required(bundle.field) or bool(bundle.field.get("collisionAsset"))
     compiled_robot = compile_robot_preset(
-        bundle.robot,
-        competitive=mesh_required(bundle.field) or bool(bundle.field.get("collisionAsset")),
+        materialize_sim_robot(bundle.robot, competitive=competitive),
+        competitive=competitive,
     )
     interface_stamp = compiled_robot.compatibility_stamp
+    if not compiled_robot.preset.get("launchers") and not (compiled_robot.preset.get("piecePath") or {}).get("flywheelActuatorId"):
+        raise RobotContractError("training robot is missing a physical launcher/piecePath")
     algo_cfg = (bundle.training or {}).get("algorithm") or {}
     algo_name = str(algo_cfg.get("name") or "recurrent_ppo")
     if algo_name == "grpo":
@@ -313,6 +324,15 @@ def train_ppo(
                 emit(f"BC warmup skipped: {exc}")
     emit("Using sb3-contrib RecurrentPPO (AsymmetricLstmPolicy)")
 
+    from talongym.training.diagnostics import assert_scripted_baseline_scores, summarize_episode
+
+    if total_steps >= 2048:
+        baseline = assert_scripted_baseline_scores(bundle)
+        emit(
+            f"scripted baseline launches={baseline.launches} "
+            f"score={baseline.true_score:.1f} wall={baseline.wall_contact_s:.1f}s"
+        )
+
     true_hist: list[float] = []
     obj_hist: list[float] = []
     shape_hist: list[float] = []
@@ -322,19 +342,31 @@ def train_ppo(
     if cloned and eval_n > 0:
         # The clone is the first candidate for best.zip, so a run whose PPO phase degrades still ends no worse.
         try:
-            clone_scores, _ = _eval_true_scores(
+            clone_scores, clone_frames = _eval_true_scores(
                 RecurrentPolicyAdapter(model),
                 bundle,
                 eval_seeds,
+                record_first=True,
                 match_setup=match_setup,
                 options=eval_options,
             )
+            clone_health = summarize_episode(clone_frames)
             best_metric = objective_value(
                 bootstrap_ci(clone_scores, n_boot=min(400, max(40, 20 * len(clone_scores)))),
                 objective_name,
             )
-            model.save(str(best_path))
-            emit(f"BC clone eval {objective_name}={best_metric:.2f}")
+            if clone_health.healthy:
+                model.save(str(best_path))
+                emit(
+                    f"BC clone eval {objective_name}={best_metric:.2f} "
+                    f"launches={clone_health.launches}"
+                )
+            else:
+                emit(
+                    f"BC clone eval {objective_name}={best_metric:.2f} is unhealthy "
+                    f"(launches={clone_health.launches}); waiting for a healthy checkpoint"
+                )
+                best_metric = float("-inf")
         except Exception as exc:
             emit(f"BC clone eval failed: {exc}")
 
@@ -457,14 +489,26 @@ def train_ppo(
                 metrics["evalTrueScoreLo"] = report["lo"]
                 metrics["evalTrueScoreHi"] = report["hi"]
                 metrics["evalP10"] = report["p10"]
+                health = summarize_episode(eval_frames)
+                metrics.update(health.as_metrics())
+                if health.warnings:
+                    metrics["healthWarnings"] = list(health.warnings)
+                    emit("eval health: " + "; ".join(health.warnings))
                 metric = objective_value(report, objective_name)
                 metrics["bestMetric"] = metric
                 # Strictly better only: a tie keeps the incumbent, so best.zip moves on real improvement.
-                if metric > best_metric:
+                if metric > best_metric and health.healthy:
                     best_metric = metric
                     last_improve_at = done
                     model.save(str(best_path))
                     metrics["bestCheckpoint"] = str(best_path)
+                    metrics["bestCheckpointHealthy"] = True
+                elif metric > best_metric and not health.healthy:
+                    metrics["bestSkippedUnhealthy"] = True
+                    emit(
+                        f"eval {objective_name}={metric:.2f} but checkpoint is unhealthy "
+                        f"(launches={health.launches}, wall={health.wall_contact_s:.1f}s); not saving best.zip"
+                    )
                 elif anchor_tolerance > 0 and metric < best_metric - anchor_tolerance and best_path.exists():
                     # Outcome anchor: the policy may act unlike the script, but not score clearly worse than
                     # the best policy so far. Restore it and retry with smaller steps.

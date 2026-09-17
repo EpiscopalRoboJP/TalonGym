@@ -11,7 +11,15 @@ from pathlib import Path
 from typing import Any
 
 from talongym import paths
-from talongym.presets.loader import list_presets, load_json, preset_index
+from talongym.presets.loader import (
+    LoadedPresets,
+    PresetError,
+    list_presets,
+    load_json,
+    load_preset,
+    preset_index,
+    validate_document,
+)
 
 _LOCK = threading.Lock()
 _CONN: Any = None
@@ -133,6 +141,11 @@ def _init(conn: Any) -> None:
             payload TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS robot_drafts (
+            id TEXT PRIMARY KEY,
+            document TEXT NOT NULL,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         """
     if _BACKEND == "postgres":
         for stmt in script.split(";"):
@@ -165,6 +178,52 @@ def get_preset(preset_id: str) -> dict[str, Any] | None:
     return doc
 
 
+def load_runtime_document(kind: str, preset_id: str) -> dict[str, Any]:
+    """Load a Lab-saved SQLite preset, falling back to a shipped disk file."""
+    doc = get_preset(preset_id)
+    if doc and doc.get("_kind") == kind:
+        data = {key: value for key, value in doc.items() if key != "_kind"}
+        errs = validate_document(kind, data)
+        if errs:
+            raise PresetError(f"{kind} preset {preset_id} invalid: " + "; ".join(errs[:8]))
+        return data
+    return load_preset(kind, preset_id)
+
+
+def load_runtime_bundle(
+    field_id: str | None = None,
+    robot_id: str | None = None,
+    scoring_id: str | None = None,
+    training_id: str | None = None,
+) -> LoadedPresets:
+    """Resolve the field/robot/scoring/training bundle used by Lab jobs.
+
+    Catalog robots saved from the builder live in SQLite, not on disk. Disk
+    `load_bundle` cannot see them, so training would keep the shipped bot.
+    """
+    from talongym.presets.defaults import get_defaults
+
+    defaults = get_defaults()
+    field_id = field_id or defaults["fieldId"]
+    robot_id = robot_id or defaults["robotId"]
+    scoring_id = scoring_id or defaults["scoringId"]
+    training_id = training_id or defaults.get("trainingId")
+    field = load_runtime_document("field", field_id)
+    robot = load_runtime_document("robot", robot_id)
+    scoring = load_runtime_document("scoring", scoring_id)
+    training = load_runtime_document("training", training_id) if training_id else None
+    idx = preset_index()
+    return LoadedPresets(
+        field=field,
+        robot=robot,
+        scoring=scoring,
+        training=training,
+        field_path=idx["field"].get(field_id),
+        robot_path=idx["robot"].get(robot_id),
+        scoring_path=idx["scoring"].get(scoring_id),
+    )
+
+
 def upsert_preset(kind: str, document: dict[str, Any]) -> str:
     pid = document["id"]
     with _session() as conn:
@@ -174,6 +233,33 @@ def upsert_preset(kind: str, document: dict[str, Any]) -> str:
         )
         conn.commit()
     return pid
+
+
+def get_robot_draft(preset_id: str) -> dict[str, Any] | None:
+    with _session() as conn:
+        row = conn.execute("SELECT document FROM robot_drafts WHERE id=?", (preset_id,)).fetchone()
+    if not row:
+        return None
+    return json.loads(row["document"])
+
+
+def upsert_robot_draft(preset_id: str, document: dict[str, Any]) -> str:
+    payload = dict(document)
+    payload["id"] = preset_id
+    with _session() as conn:
+        conn.execute(
+            "INSERT INTO robot_drafts(id, document) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document, updated_at=CURRENT_TIMESTAMP",
+            (preset_id, json.dumps(payload)),
+        )
+        conn.commit()
+    return preset_id
+
+
+def delete_robot_draft(preset_id: str) -> bool:
+    with _session() as conn:
+        cur = conn.execute("DELETE FROM robot_drafts WHERE id=?", (preset_id,))
+        conn.commit()
+        return cur.rowcount > 0
 
 
 def delete_preset(preset_id: str) -> bool:
@@ -189,13 +275,17 @@ def delete_preset(preset_id: str) -> bool:
 def list_kind(kind: str) -> list[dict[str, Any]]:
     with _session() as conn:
         rows = conn.execute("SELECT id, document FROM presets WHERE kind=?", (kind,)).fetchall()
+    from talongym.presets.loader import LATEST_KNOWN_MANUAL
+
+    disk_ids = set(preset_index().get(kind, {}))
     out = []
     for row in rows:
         doc = json.loads(row["document"])
         season = (doc.get("season") or {}).get("slug")
         revision = (doc.get("provenance") or {}).get("manualRevision")
-        from talongym.presets.loader import LATEST_KNOWN_MANUAL
-        stale = bool(season and revision and LATEST_KNOWN_MANUAL.get(season) and revision != LATEST_KNOWN_MANUAL[season])
+        stale = bool(
+            season and revision and LATEST_KNOWN_MANUAL.get(season) and revision != LATEST_KNOWN_MANUAL[season]
+        )
         out.append(
             {
                 "id": row["id"],
@@ -205,6 +295,7 @@ def list_kind(kind: str) -> list[dict[str, Any]]:
                 "verifyAgainstManual": (doc.get("provenance") or {}).get("verifyAgainstManual", False),
                 "stale": stale,
                 "computeProfile": doc.get("computeProfile"),
+                "shipped": row["id"] in disk_ids,
             }
         )
     if not out:
@@ -285,9 +376,7 @@ def list_runs() -> list[dict[str, Any]]:
 def fail_orphan_runs() -> int:
     """In-process workers die with the Lab process; leftover rows must not block Start."""
     with _session() as conn:
-        cur = conn.execute(
-            "UPDATE runs SET state='failed' WHERE state IN ('queued','running','cancelling')"
-        )
+        cur = conn.execute("UPDATE runs SET state='failed' WHERE state IN ('queued','running','cancelling')")
         conn.commit()
         return int(cur.rowcount or 0)
 
@@ -309,12 +398,19 @@ def get_evaluation(eid: str) -> dict[str, Any] | None:
         row = conn.execute("SELECT * FROM evaluations WHERE id=?", (eid,)).fetchone()
     if not row:
         return None
-    return {"id": row["id"], "runId": row["run_id"], "createdAt": row["created_at"], "report": json.loads(row["report"])}
+    return {
+        "id": row["id"],
+        "runId": row["run_id"],
+        "createdAt": row["created_at"],
+        "report": json.loads(row["report"]),
+    }
 
 
 def list_evaluations() -> list[dict[str, Any]]:
     with _session() as conn:
-        rows = conn.execute("SELECT id, run_id, report, created_at FROM evaluations ORDER BY created_at DESC").fetchall()
+        rows = conn.execute(
+            "SELECT id, run_id, report, created_at FROM evaluations ORDER BY created_at DESC"
+        ).fetchall()
     return [
         {"id": r["id"], "runId": r["run_id"], "createdAt": r["created_at"], "report": json.loads(r["report"])}
         for r in rows

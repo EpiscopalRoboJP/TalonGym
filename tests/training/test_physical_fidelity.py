@@ -109,6 +109,9 @@ def test_mjcf_timestep_is_two_milliseconds():
     assert 'timestep="0.002"' in xml
     committed = (ASSETS_DIR / field["collisionAsset"]).read_text(encoding="utf-8")
     assert 'timestep="0.002"' in committed
+    pollen = committed.split('class="piece_pollen"', 1)[1].split("</default>", 1)[0]
+    assert 'contype="8"' in pollen
+    assert 'conaffinity="13"' in pollen
 
 
 @pytest.mark.require_cad
@@ -116,6 +119,8 @@ def test_mjcf_emits_articulated_robot_bodies_and_joints():
     field = load_preset("field", "biobuzz_2026_field_v1")
     robot = load_preset("robot", "mecanum_biobuzz_4cap")
     xml = build_field_mjcf(field, robot=robot, n_robots=1).xml
+    assert 'contype="8" conaffinity="13"' in xml
+    assert 'class="piece_pollen"' in xml
     for part in ("intake_roller", "conveyor_roller", "flywheel", "hood", "release_gate"):
         assert f'red_0_part_{part}' in xml
     for joint in ("intake_joint", "conveyor_joint", "flywheel_joint", "hood_joint", "gate_joint"):
@@ -154,3 +159,19 @@ def test_mujoco_runtime_uses_2ms_and_articulated_dofs():
         world.step(pose, 0.0, 0)
     assert list(world.actor().held) == held0
     assert all(world.pieces[pid].held_by == "red_0" for pid in held0)
+
+
+@pytest.mark.skipif(not available(), reason="mujoco extra not installed")
+def test_mechanism_ready_spins_flywheel_without_injecting_score():
+    world = World(_bundle(), seed=0)
+    world.reset(seed=0, static_teammate=False, full_noise=False, curriculum_spawn="launch", mechanism_ready=True)
+    rs = world.actor()
+    assert rs.mechanism is not None
+    fly = rs.mechanism.actuators["flywheel"]
+    target = float(fly.config.get("targetRpm") or 0.0)
+    rpm = abs(fly.state.velocity_rad_s) * 60.0 / (2.0 * math.pi)
+    assert rpm >= 0.8 * target
+    assert fly.state.command == pytest.approx(1.0)
+    assert world.true_score == 0.0
+    assert len(rs.held) == 4
+    assert all(not world.pieces[pid].in_flight for pid in rs.held)

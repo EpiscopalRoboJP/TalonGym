@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "rev_mecanum",
+  "displayName": "REV mecanum drivebase",
+  "manufacturer": "rev",
+  "drivetrainType": "mecanum",
+  "description": "Editable REV 15 mm mecanum drivebase. The wizard chooses extrusion length, UltraPlanetary or Hex motor, and left/right mecanum wheels, then instantiates rails, corner brackets, UltraPlanetary brackets, motors, and wheels as a schema 1.2 assembly.",
+  "parameters": {
+    "lengthSku": {
+      "label": "Side extrusion length",
+      "default": "REV-41-1432",
+      "choices": [
+        "REV-41-1568",
+        "REV-41-1431",
+        "REV-41-1432"
+      ]
+    },
+    "widthSku": {
+      "label": "Cross extrusion length",
+      "default": "REV-41-1431",
+      "choices": [
+        "REV-41-1568",
+        "REV-41-1431",
+        "REV-41-1432"
+      ]
+    },
+    "motorSku": {
+      "label": "Drive motor / gearbox",
+      "default": "REV-41-1600",
+      "choices": [
+        "REV-41-1600",
+        "REV-41-1300",
+        "REV-41-1301"
+      ]
+    },
+    "wheelSku": {
+      "label": "Left mecanum wheel",
+      "default": "REV-41-1656",
+      "choices": [
+        "REV-41-1656",
+        "REV-41-1657"
+      ]
+    },
+    "cartridgeSku": {
+      "label": "UltraPlanetary cartridge",
+      "default": "REV-41-1603",
+      "choices": [
+        "REV-41-1601",
+        "REV-41-1602",
+        "REV-41-1603"
+      ]
+    },
+    "wheelSkuOpposite": {
+      "label": "Right mecanum wheel",
+      "default": "REV-41-1657",
+      "choices": [
+        "REV-41-1656",
+        "REV-41-1657"
+      ]
+    },
+    "includeElectronics": {
+      "type": "boolean",
+      "label": "Optional Control Hub and SPARK mini",
+      "default": true
+    }
+  }
+}

@@ -43,7 +43,7 @@ def test_defaults_get_and_put():
     assert put.status_code == 200
     switched = put.json()
     assert switched["fieldId"] == "biobuzz_2026_field_v1"
-    assert switched["robotId"] == "mecanum_biobuzz_4cap"
+    assert switched["robotId"] == "gobilda_mecanum_starter"
     assert switched["scoringId"] == "biobuzz_2026_scoring_v1"
     assert switched["season"] == "biobuzz"
     assert switched["trainingId"] == "biobuzz_auto_easy"
@@ -221,6 +221,53 @@ def test_easy_run_uses_autodetect_training_id(monkeypatch):
     assert row["state"] == "succeeded"
     assert captured["bundle"].training["id"] == "biobuzz_auto_easy"
     assert captured["n_envs"] >= 1
+
+
+def test_start_run_uses_lab_saved_robot(monkeypatch):
+    captured: dict = {}
+
+    def fake_train(**kwargs):
+        captured["bundle"] = kwargs.get("bundle")
+        return {"algo": "recurrent_ppo", "frames": [_frame()], "steps": 8, "metrics": {"envSteps": 8}}
+
+    monkeypatch.setattr("talongym.api.jobs.train_ppo", fake_train)
+    client = TestClient(app)
+    robot = dict(client.get("/api/v1/presets/robot/mecanum_meepmeep_defaults").json())
+    robot.pop("_kind", None)
+    robot["id"] = "lab_custom_train_bot"
+    robot["displayName"] = "Lab custom train bot"
+    saved = client.put("/api/v1/presets/robot/lab_custom_train_bot", json=robot)
+    assert saved.status_code == 200, saved.text
+    listed = {row["id"] for row in client.get("/api/v1/presets/robot").json()}
+    assert "lab_custom_train_bot" in listed
+    defaults = client.put(
+        "/api/v1/defaults",
+        json={
+            "fieldId": "biobuzz_2026_field_v1",
+            "robotId": "lab_custom_train_bot",
+            "scoringId": "biobuzz_2026_scoring_v1",
+            "trainingId": "biobuzz_auto_lightweight",
+        },
+    )
+    assert defaults.status_code == 200, defaults.text
+    assert defaults.json()["robotId"] == "lab_custom_train_bot"
+    res = client.post(
+        "/api/v1/runs",
+        json={
+            "demo": True,
+            "presets": {
+                "fieldId": "biobuzz_2026_field_v1",
+                "robotId": "lab_custom_train_bot",
+                "scoringId": "biobuzz_2026_scoring_v1",
+                "trainingId": "biobuzz_auto_lightweight",
+            },
+        },
+    )
+    assert res.status_code == 202, res.text
+    run_id = res.json()["runId"]
+    row = _wait_run(client, run_id, {"succeeded", "failed"})
+    assert row["state"] == "succeeded"
+    assert captured["bundle"].robot["id"] == "lab_custom_train_bot"
 
 
 @pytest.mark.require_cad

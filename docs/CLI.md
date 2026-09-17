@@ -133,7 +133,7 @@ Imports one official scoring-element STEP (`pollen`, `nectar_red`, `nectar_blue`
 python -m talongym import-robot-cad --robot team_hood_v1 --file path/to/robot.stl
 ```
 
-Accepts GLB, glTF, STL, OBJ, or STEP (`pip install -e ".[cad]"`; STEP needs cascadio). Writes `var/assets/robots/<id>/visual.glb` and `collision.stl`, prints bbox + footprint JSON. Paste those paths onto the robot preset (`visualAsset`, `collisionAsset`, `chassis.footprint`). Lab **Robot** does the same via `POST /api/v1/presets/robot/{id}/model`.
+Accepts GLB, glTF, STL, OBJ, or STEP (`pip install -e ".[cad]"`; STEP needs cascadio). Writes `var/assets/robots/<id>/visual.glb` and `collision.stl`, prints bbox + footprint JSON. Paste those paths onto the robot preset (`visualAsset`, `collisionAsset`, `chassis.footprint`). Lab **Robot** does the same via `POST /api/v1/presets/robot/{id}/model`. Catalog SKU downloads use `POST /api/v1/catalog/parts/{sku}/download` and cache under `var/assets/robot_parts/`; **Cache all CAD** is `POST /api/v1/catalog/cache/all`. Without `[cad]` the cache reports `unavailable`.
 
 ## `distill`
 

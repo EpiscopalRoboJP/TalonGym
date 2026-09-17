@@ -34,6 +34,38 @@ def test_collect_full_actions_includes_mechanism():
 
 
 @pytest.mark.require_mesh
+def test_bc_pairs_reproduce_score_verb_from_launch_pose():
+    from talongym.presets.loader import load_bundle
+
+    bundle = load_bundle("biobuzz_2026_field_v1", "gobilda_mecanum_starter", "biobuzz_2026_scoring_v1")
+    _obs, acts, _returns, _length = collect_episodes(
+        1,
+        bundle=bundle,
+        seed=1,
+        perturb=False,
+        options={"full_noise": False, "curriculum_spawn": "launch", "static_teammate": False},
+    )
+    assert acts.shape[1] == 5
+    assert (acts[:, 4] >= 1.5).any(), "scripted AUTO must fire (mechanism 2) from the launch pose"
+
+
+@pytest.mark.require_mesh
+def test_bc_pairs_reproduce_score_verb_from_legal_spawn():
+    from talongym.presets.loader import load_bundle
+
+    bundle = load_bundle("biobuzz_2026_field_v1", "gobilda_mecanum_starter", "biobuzz_2026_scoring_v1")
+    _obs, acts, _returns, _length = collect_episodes(
+        1,
+        bundle=bundle,
+        seed=1,
+        perturb=False,
+        options={"full_noise": False, "curriculum_spawn": "legal", "static_teammate": False},
+    )
+    assert acts.shape[1] == 5
+    assert (acts[:, 4] >= 1.5).any(), "scripted AUTO must fire after driving from a legal spawn"
+
+
+@pytest.mark.require_mesh
 def test_collect_episodes_returns_whole_aligned_episodes():
     from talongym.presets.loader import load_bundle
 

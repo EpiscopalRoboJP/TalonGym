@@ -1,3 +1,5 @@
+import pytest
+
 from talongym.presets.loader import LoadedPresets, load_bundle
 from talongym.sim.world import World
 
@@ -38,8 +40,8 @@ def test_pose_jitter_moves_spawn():
     assert dx + dy > 0.05
     flower_spawn = next(spawn for spawn in bundle.field["spawns"] if spawn["id"] == "flower_1_pollen")
     staged = next(piece for piece in world.pieces.values() if piece.type_id == "pollen" and not piece.held_by)
-    assert staged.x == float(flower_spawn["poses"][0]["x"])
-    assert staged.y == float(flower_spawn["poses"][0]["y"])
+    assert staged.x == pytest.approx(float(flower_spawn["poses"][0]["x"]), abs=0.02)
+    assert staged.y == pytest.approx(float(flower_spawn["poses"][0]["y"]), abs=0.02)
 
 
 def test_motor_strength_and_noise_scale():

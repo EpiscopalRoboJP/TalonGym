@@ -54,6 +54,28 @@ def full_noise(training: dict[str, Any] | None, frac: float) -> bool:
     return "full_noise" in curriculum_unlocks(training, frac)
 
 
+def spawn_at_launch(training: dict[str, Any] | None, frac: float) -> bool:
+    return "spawn_at_launch" in curriculum_unlocks(training, frac)
+
+
+def spawn_approach(training: dict[str, Any] | None, frac: float) -> bool:
+    return "spawn_approach" in curriculum_unlocks(training, frac)
+
+
+def mechanism_ready(training: dict[str, Any] | None, frac: float) -> bool:
+    return "mechanism_ready" in curriculum_unlocks(training, frac)
+
+
+def curriculum_spawn(training: dict[str, Any] | None, frac: float) -> str:
+    """Training-only spawn scaffold. Does not change scoring physics."""
+    unlocks = curriculum_unlocks(training, frac)
+    if "spawn_at_launch" in unlocks:
+        return "launch"
+    if "spawn_approach" in unlocks:
+        return "approach"
+    return "legal"
+
+
 def objective_value(report: dict[str, Any], objective: str) -> float:
     if objective == "p10_true_score":
         return float(report.get("p10") or 0.0)

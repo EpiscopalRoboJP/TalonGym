@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FieldScene } from "../scene/FieldScene";
+import { buildSetupPreview, trainSceneFrame, type SetupFieldDoc } from "../scene/setupPreview";
 import { Sparkline } from "../Sparkline";
 import { theme } from "../theme";
 import {
@@ -16,6 +17,7 @@ import {
   type Frame,
   type MatchRobotSetup,
   type PresetMeta,
+  type RobotPreset,
   type RunRow,
   type StartSlot,
 } from "../api";
@@ -38,6 +40,12 @@ type Metrics = {
   curriculumStage?: number | string | null;
   curriculumUnlock?: string[];
   fps?: number | null;
+  evalLaunchCount?: number | null;
+  evalWallContactS?: number | null;
+  evalCheckpointHealthy?: boolean | null;
+  evalScoredPieces?: number | null;
+  healthWarnings?: string[];
+  bestSkippedUnhealthy?: boolean | null;
 };
 
 const BUDGETS: Record<Profile, { label: string; blurb: string }> = {
@@ -58,16 +66,43 @@ function fmtSteps(n: unknown) {
   return String(n);
 }
 
-function PresetSelect({ id, label, value, onChange, options }: { id: string; label: string; value: string; onChange: (v: string) => void; options: PresetMeta[] }) {
+function PresetSelect({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+  compact = false,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: PresetMeta[];
+  compact?: boolean;
+}) {
+  const known = options.some((p) => p.id === value);
+  const select = (
+    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} data-testid={id}>
+      {!known && value && <option value={value}>{value}</option>}
+      {options.map((p) => (
+        <option key={p.id} value={p.id}>
+          {robotPresetLabel(p)}
+        </option>
+      ))}
+    </select>
+  );
+  if (compact) {
+    return (
+      <label className="train-scene-select" htmlFor={id}>
+        <span>{label}</span>
+        {select}
+      </label>
+    );
+  }
   return (
     <Field id={id} label={label}>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
-        {options.map((p) => (
-          <option key={p.id} value={p.id}>
-            {robotPresetLabel(p)}
-          </option>
-        ))}
-      </select>
+      {select}
     </Field>
   );
 }
@@ -122,6 +157,8 @@ export function TrainPage() {
   const [profile, setProfile] = useState<Profile>("demo");
   const [customStarts, setCustomStarts] = useState(false);
   const [startSlots, setStartSlots] = useState<StartSlot[]>([]);
+  const [fieldDoc, setFieldDoc] = useState<SetupFieldDoc | null>(null);
+  const [robotDoc, setRobotDoc] = useState<RobotPreset | null>(null);
   const [robotSetup, setRobotSetup] = useState<MatchRobotSetup[]>(ROBOT_IDS.map(defaultRobotSetup));
   const [compute, setCompute] = useState<ComputeInfo | null>(null);
   const [trueSeries, setTrueSeries] = useState<number[]>([]);
@@ -170,10 +207,22 @@ export function TrainPage() {
   }, [runId]);
 
   useEffect(() => {
-    getJson<{ startSlots?: StartSlot[] }>(`/presets/field/${fieldId}`)
-      .then((field) => setStartSlots(field.startSlots || []))
-      .catch(() => setStartSlots([]));
+    getJson<SetupFieldDoc>(`/presets/field/${fieldId}`)
+      .then((field) => {
+        setFieldDoc(field);
+        setStartSlots(field.startSlots || []);
+      })
+      .catch(() => {
+        setFieldDoc(null);
+        setStartSlots([]);
+      });
   }, [fieldId]);
+
+  useEffect(() => {
+    getJson<RobotPreset>(`/presets/robot/${robotId}`)
+      .then(setRobotDoc)
+      .catch(() => setRobotDoc(null));
+  }, [robotId]);
 
   useEffect(() => {
     const id = window.setInterval(async () => {
@@ -341,6 +390,20 @@ export function TrainPage() {
   const busy = current?.state === "running" || current?.state === "queued";
   const progress = typeof metrics.progressFrac === "number" ? Math.max(0, Math.min(1, metrics.progressFrac)) : 0;
   const presets = (current?.config?.presets || {}) as Partial<DefaultsBundle>;
+  const previewFrame = useMemo(
+    () => buildSetupPreview(fieldDoc, robotDoc, { robotSetup, customStarts }),
+    [fieldDoc, robotDoc, robotSetup, customStarts],
+  );
+  const sceneFrame = trainSceneFrame({
+    liveFrame,
+    previewFrame,
+    runPresets: presets,
+    fieldId,
+    robotId,
+  });
+  const showingLive = Boolean(sceneFrame && liveFrame && sceneFrame === liveFrame);
+  const robotLabel = robotPresetLabel(robots.find((p) => p.id === robotId) || { id: robotId, displayName: robotDoc?.displayName || robotId });
+  const fieldLabel = robotPresetLabel(fields.find((p) => p.id === fieldId) || { id: fieldId, displayName: fieldDoc?.displayName || fieldId });
 
   const easyBlurb = compute
     ? `Detected ${compute.profile}: ${compute.hardware.cpuCount} cores${compute.hardware.ramGb != null ? `, ${compute.hardware.ramGb.toFixed(0)} GB RAM` : ""}${compute.hardware.cuda ? ", CUDA" : ""}. Runs ${compute.nEnvs} envs with the season's easy config.`
@@ -501,12 +564,8 @@ export function TrainPage() {
         </Panel>
       </div>
 
-      {!current ? (
-        <Panel className="grow">
-          <Empty title="No run selected">Configure a run on the left and press Start, or pick a past run.</Empty>
-        </Panel>
-      ) : (
-        <div className="train-main">
+      <div className="train-main">
+        {current ? (
           <section className="panel">
             <header className="panel-head">
               <h2 className="mono">{current.id}</h2>
@@ -514,6 +573,7 @@ export function TrainPage() {
               <span className="sub">
                 {String(metrics.algo || "—")}
                 {presets.robotId ? ` · ${presets.robotId}` : ""}
+                {presets.fieldId ? ` · ${presets.fieldId}` : ""}
                 {presets.trainingId ? ` · ${presets.trainingId}` : ""}
               </span>
               <span className="spacer" />
@@ -568,6 +628,19 @@ export function TrainPage() {
                 </span>
               </div>
               <div className="stat">
+                <span className="label">Launches / wall</span>
+                <span className="value sm" data-testid="train-eval-health">
+                  {fmt(metrics.evalLaunchCount, 0)} / {fmt(metrics.evalWallContactS, 1)}s
+                </span>
+                <span className="hint">
+                  {metrics.evalCheckpointHealthy === false
+                    ? "unhealthy checkpoint skipped"
+                    : metrics.evalCheckpointHealthy
+                      ? "checkpoint healthy"
+                      : "physical eval"}
+                </span>
+              </div>
+              <div className="stat">
                 <span className="label">Entropy / KL</span>
                 <span className="value sm">
                   {fmt(metrics.entropy)} / {fmt(metrics.approxKl, 4)}
@@ -575,47 +648,77 @@ export function TrainPage() {
                 <span className="hint">policy health</span>
               </div>
             </div>
+            {metrics.healthWarnings?.length || metrics.bestSkippedUnhealthy ? (
+              <p className="note" data-testid="train-health-warnings" role="status">
+                {metrics.bestSkippedUnhealthy ? "Best checkpoint not updated: eval was unhealthy. " : ""}
+                {(metrics.healthWarnings || []).join("; ")}
+              </p>
+            ) : null}
           </section>
+        ) : (
+          <section className="panel">
+            <header className="panel-head">
+              <h2>Setup preview</h2>
+              <span className="sub">
+                {robotLabel} on {fieldLabel}
+              </span>
+            </header>
+            <div className="panel-body">
+              <Empty title="No run selected">Change the robot or field below, then press Start, or pick a past run.</Empty>
+            </div>
+          </section>
+        )}
 
-          <div className="train-split">
-            <Panel title="Rollout" sub="latest policy episode, looping" bodyClass="viewport" className="grow">
-              {liveFrame ? (
-                <FieldScene frame={liveFrame} showFov={false} />
-              ) : (
-                <Empty dark title="No rollout yet">
-                  Frames appear once the run records an episode.
-                </Empty>
-              )}
-            </Panel>
-            <Panel title="Learning curves" bodyClass="panel-body scroll" className="grow">
-              <div className="chart-block">
-                <div className="chart-head">
-                  <span className="label">True score</span>
-                  <span className="num">{fmt(metrics.trueScoreMean)}</span>
-                </div>
-                <Sparkline values={trueSeries} label="True score mean over time" color={theme.brand} />
+        <div className="train-split">
+          <Panel
+            title="Display"
+            sub={showingLive ? "latest policy episode, looping" : `setup preview · ${robotLabel}`}
+            bodyClass="viewport"
+            className="grow"
+            testId="train-scene"
+            actions={
+              <div className="train-scene-controls">
+                <PresetSelect id="train-scene-robot" label="Robot" value={robotId} onChange={setRobotId} options={robots} compact />
+                <PresetSelect id="train-scene-field" label="Field" value={fieldId} onChange={setFieldId} options={fields} compact />
               </div>
-              <div className="chart-block">
-                <div className="chart-head">
-                  <span className="label">Held-out eval</span>
-                  <span className="num">{fmt(metrics.evalTrueScoreMean)}</span>
-                </div>
-                <Sparkline values={evalSeries} label="Eval true score mean over time" color={theme.goldDark} />
+            }
+          >
+            {sceneFrame ? (
+              <FieldScene frame={sceneFrame} showFov={false} />
+            ) : (
+              <Empty dark title="Loading field">
+                Choose a robot and field to preview the match setup.
+              </Empty>
+            )}
+          </Panel>
+          <Panel title="Learning curves" bodyClass="panel-body scroll" className="grow">
+            <div className="chart-block">
+              <div className="chart-head">
+                <span className="label">True score</span>
+                <span className="num">{fmt(metrics.trueScoreMean)}</span>
               </div>
-              <div className="chart-block">
-                <div className="chart-head">
-                  <span className="label">Shaping reward</span>
-                  <span className="num">{fmt(metrics.shapingMean)}</span>
-                </div>
-                <Sparkline values={shapeSeries} label="Shaping mean over time" color={theme.muted} />
-                <p className="note" style={{ marginTop: "0.35rem" }}>
-                  Training signal only. Never used for ranking.
-                </p>
+              <Sparkline values={trueSeries} label="True score mean over time" color={theme.brand} />
+            </div>
+            <div className="chart-block">
+              <div className="chart-head">
+                <span className="label">Held-out eval</span>
+                <span className="num">{fmt(metrics.evalTrueScoreMean)}</span>
               </div>
-            </Panel>
-          </div>
+              <Sparkline values={evalSeries} label="Eval true score mean over time" color={theme.goldDark} />
+            </div>
+            <div className="chart-block">
+              <div className="chart-head">
+                <span className="label">Shaping reward</span>
+                <span className="num">{fmt(metrics.shapingMean)}</span>
+              </div>
+              <Sparkline values={shapeSeries} label="Shaping mean over time" color={theme.muted} />
+              <p className="note" style={{ marginTop: "0.35rem" }}>
+                Training signal only. Never used for ranking.
+              </p>
+            </div>
+          </Panel>
         </div>
-      )}
+      </div>
     </main>
   );
 }

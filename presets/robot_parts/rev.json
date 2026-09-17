@@ -1,0 +1,2159 @@
+{
+  "schemaVersion": "1.0.0",
+  "manufacturer": "rev",
+  "displayName": "REV Robotics",
+  "notes": "Official CAD is downloaded from REV /content/cad/ STEP or ZIP files listed on product pages. Control Hub has no listed public STEP, so download stays disabled. Cross-brand mounts require a real adapter.",
+  "coordinateSystem": "manufacturer_mm_zup",
+  "parts": [
+    {
+      "sku": "REV-41-1432",
+      "displayName": "15 mm Extrusion (420 mm, 90\u00b0 ends)",
+      "productUrl": "https://www.revrobotics.com/15mm-extrusions/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1432.STEP",
+        "filename": "REV-41-1432.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.095,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            16.5354,
+            0.5906,
+            0.5906
+          ]
+        }
+      ],
+      "tags": [
+        "extrusion"
+      ],
+      "mounts": [
+        {
+          "id": "slot",
+          "kind": "mating_face",
+          "standard": "rev_15mm",
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "depthMm": 420.0,
+          "allowedHardware": [
+            "m3_t_nut"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "linear",
+            "pitchMm": 8.0,
+            "countU": 52,
+            "countV": 1
+          }
+        },
+        {
+          "id": "ends",
+          "kind": "threaded_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.0,
+          "spacingMm": 15.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 15.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1431",
+      "displayName": "15 mm Extrusion (225 mm, 90\u00b0 ends)",
+      "productUrl": "https://www.revrobotics.com/15mm-extrusions/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1431.STEP",
+        "filename": "REV-41-1431.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.051,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            8.8583,
+            0.5906,
+            0.5906
+          ]
+        }
+      ],
+      "tags": [
+        "extrusion"
+      ],
+      "mounts": [
+        {
+          "id": "slot",
+          "kind": "mating_face",
+          "standard": "rev_15mm",
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "depthMm": 225.0,
+          "allowedHardware": [
+            "m3_t_nut"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "linear",
+            "pitchMm": 8.0,
+            "countU": 28,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1568",
+      "displayName": "15 mm Extrusion (120 mm, 90\u00b0 ends)",
+      "productUrl": "https://www.revrobotics.com/15mm-extrusions/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1568.STEP",
+        "filename": "REV-41-1568.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.027,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            4.7244,
+            0.5906,
+            0.5906
+          ]
+        }
+      ],
+      "tags": [
+        "extrusion"
+      ],
+      "mounts": [
+        {
+          "id": "slot",
+          "kind": "mating_face",
+          "standard": "rev_15mm",
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "depthMm": 120.0,
+          "allowedHardware": [
+            "m3_t_nut"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "linear",
+            "pitchMm": 8.0,
+            "countU": 15,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1480",
+      "displayName": "15 mm Metal 90\u00b0 Bracket V2",
+      "productUrl": "https://www.revrobotics.com/15mm-metal-brackets/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1480.STEP",
+        "filename": "REV-41-1480.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.012,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.1811,
+            1.1811,
+            0.5906
+          ]
+        }
+      ],
+      "tags": [
+        "bracket"
+      ],
+      "mounts": [
+        {
+          "id": "face_a",
+          "kind": "clearance_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.5,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 2,
+            "countV": 2
+          }
+        },
+        {
+          "id": "face_b",
+          "kind": "clearance_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.5,
+          "spacingMm": 8.0,
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 2,
+            "countV": 2
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1305",
+      "displayName": "15 mm Plastic 90\u00b0 Bracket",
+      "productUrl": "https://www.revrobotics.com/15mm-Plastic-Brackets/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1305.STEP",
+        "filename": "REV-41-1305.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.006,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.1811,
+            1.1811,
+            0.5906
+          ]
+        }
+      ],
+      "tags": [
+        "bracket"
+      ],
+      "mounts": [
+        {
+          "id": "face_a",
+          "kind": "clearance_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.5,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 2,
+            "countV": 2
+          }
+        },
+        {
+          "id": "face_b",
+          "kind": "clearance_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.5,
+          "spacingMm": 8.0,
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 2,
+            "countV": 2
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1600",
+      "displayName": "UltraPlanetary Gearbox Kit and HD Hex Motor",
+      "productUrl": "https://www.revrobotics.com/rev-41-1600/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1600-ALL-PARTS.zip",
+        "filename": "REV-41-1600-ALL-PARTS.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.255,
+      "inertiaKgM2": [
+        0.0001,
+        0.0001,
+        7e-05
+      ],
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.8661,
+          "lengthIn": 3.5433,
+          "pose": {
+            "z": 1.77165
+          }
+        }
+      ],
+      "tags": [
+        "motor",
+        "gearbox"
+      ],
+      "mounts": [
+        {
+          "id": "face",
+          "kind": "threaded_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.0,
+          "spacingMm": 16.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 16.0,
+            "countU": 2,
+            "countV": 2
+          }
+        },
+        {
+          "id": "output",
+          "kind": "shaft",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 20.0,
+          "allowedHardware": [
+            "5mm_hex_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1603",
+      "displayName": "UltraPlanetary Cartridge 5:1",
+      "productUrl": "https://www.revrobotics.com/rev-41-1603/",
+      "gearRatio": 5.0,
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1603.STEP",
+        "filename": "REV-41-1603.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.04,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.8661,
+          "lengthIn": 0.7087
+        }
+      ],
+      "tags": [
+        "gearbox"
+      ],
+      "mounts": [
+        {
+          "id": "input",
+          "kind": "hub",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "id": "output",
+          "kind": "shaft",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "id": "stack",
+          "kind": "mating_face",
+          "standard": "rev_5mm_hex",
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1601",
+      "displayName": "UltraPlanetary Cartridge 3:1",
+      "productUrl": "https://www.revrobotics.com/rev-41-1601/",
+      "gearRatio": 3.0,
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1601.STEP",
+        "filename": "REV-41-1601.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.04,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.8661,
+          "lengthIn": 0.7087
+        }
+      ],
+      "tags": [
+        "gearbox"
+      ],
+      "mounts": [
+        {
+          "id": "input",
+          "kind": "hub",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "id": "output",
+          "kind": "shaft",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "id": "stack",
+          "kind": "mating_face",
+          "standard": "rev_5mm_hex",
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1602",
+      "displayName": "UltraPlanetary Cartridge 4:1",
+      "productUrl": "https://www.revrobotics.com/rev-41-1602/",
+      "gearRatio": 4.0,
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1602.STEP",
+        "filename": "REV-41-1602.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.04,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.8661,
+          "lengthIn": 0.7087
+        }
+      ],
+      "tags": [
+        "gearbox"
+      ],
+      "mounts": [
+        {
+          "id": "input",
+          "kind": "hub",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "id": "output",
+          "kind": "shaft",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "id": "stack",
+          "kind": "mating_face",
+          "standard": "rev_5mm_hex",
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1300",
+      "displayName": "Core Hex Motor",
+      "productUrl": "https://www.revrobotics.com/rev-41-1300/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1300.STEP",
+        "filename": "REV-41-1300.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.21,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.7874,
+          "lengthIn": 3.1496,
+          "pose": {
+            "z": 1.5748
+          }
+        }
+      ],
+      "tags": [
+        "motor"
+      ],
+      "mounts": [
+        {
+          "id": "face",
+          "kind": "threaded_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.0,
+          "spacingMm": 16.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 16.0,
+            "countU": 2,
+            "countV": 2
+          }
+        },
+        {
+          "id": "output",
+          "kind": "shaft",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 20.0,
+          "allowedHardware": [
+            "matching_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1301",
+      "displayName": "HD Hex Motor",
+      "productUrl": "https://www.revrobotics.com/rev-41-1301/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1301.STEP",
+        "filename": "REV-41-1301.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.215,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.7874,
+          "lengthIn": 3.1496,
+          "pose": {
+            "z": 1.5748
+          }
+        }
+      ],
+      "tags": [
+        "motor"
+      ],
+      "mounts": [
+        {
+          "id": "face",
+          "kind": "threaded_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.0,
+          "spacingMm": 16.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 16.0,
+            "countU": 2,
+            "countV": 2
+          }
+        },
+        {
+          "id": "output",
+          "kind": "shaft",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 20.0,
+          "allowedHardware": [
+            "matching_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1656",
+      "displayName": "75 mm Mecanum Wheel (left)",
+      "productUrl": "https://www.revrobotics.com/rev-45-1655/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1656.STEP",
+        "filename": "REV-41-1656.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.095,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.4764,
+          "lengthIn": 1.1811
+        }
+      ],
+      "tags": [
+        "wheel_mecanum"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1657",
+      "displayName": "75 mm Mecanum Wheel (right)",
+      "productUrl": "https://www.revrobotics.com/rev-45-1655/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1657.STEP",
+        "filename": "REV-41-1657.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.095,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.4764,
+          "lengthIn": 1.1811
+        }
+      ],
+      "tags": [
+        "wheel_mecanum"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1350",
+      "displayName": "90 mm Traction Wheel",
+      "productUrl": "https://www.revrobotics.com/DUO-Traction-Wheels/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1350.STEP",
+        "filename": "REV-41-1350.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.088,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.7717,
+          "lengthIn": 0.9843
+        }
+      ],
+      "tags": [
+        "wheel_traction"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1190",
+      "displayName": "90 mm Omni Wheel",
+      "productUrl": "https://www.revrobotics.com/DUO-Omni-Wheels/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1190.STEP",
+        "filename": "REV-41-1190.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.072,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.7717,
+          "lengthIn": 0.8661
+        }
+      ],
+      "tags": [
+        "wheel_omni"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1160",
+      "displayName": "60 mm Omni Wheel",
+      "productUrl": "https://www.revrobotics.com/DUO-Omni-Wheels/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1160.STEP",
+        "filename": "REV-41-1160.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.04,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.1811,
+          "lengthIn": 0.7087
+        }
+      ],
+      "tags": [
+        "wheel_omni"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1347",
+      "displayName": "5 mm Hex Shaft (75 mm)",
+      "productUrl": "https://www.revrobotics.com/5mm-Hex-Shafts/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1347.STEP",
+        "filename": "REV-41-1347.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.012,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.0984,
+          "lengthIn": 2.9528
+        }
+      ],
+      "tags": [
+        "shaft"
+      ],
+      "mounts": [
+        {
+          "id": "shaft",
+          "kind": "shaft",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 20.0,
+          "allowedHardware": [
+            "5mm_hex_hub",
+            "shaft_collar",
+            "through_bore_bearing"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1348",
+      "displayName": "5 mm Hex Shaft (90 mm)",
+      "productUrl": "https://www.revrobotics.com/5mm-Hex-Shafts/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1348.STEP",
+        "filename": "REV-41-1348.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.014,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.0984,
+          "lengthIn": 3.5433
+        }
+      ],
+      "tags": [
+        "shaft"
+      ],
+      "mounts": [
+        {
+          "id": "shaft",
+          "kind": "shaft",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 20.0,
+          "allowedHardware": [
+            "5mm_hex_hub",
+            "shaft_collar",
+            "through_bore_bearing"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1326",
+      "displayName": "Through Bore Bearing (short)",
+      "productUrl": "https://www.revrobotics.com/Through-Bore-Bearings/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1326.STEP",
+        "filename": "REV-41-1326.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.006,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.315,
+          "lengthIn": 0.2362
+        }
+      ],
+      "tags": [
+        "bearing"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "bearing",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 6.0,
+          "allowedHardware": [
+            "5mm_hex_shaft"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1327",
+      "displayName": "Shaft Collar",
+      "productUrl": "https://www.revrobotics.com/rev-41-1327-pk10/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1327.STEP",
+        "filename": "REV-41-1327.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.004,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.2756,
+          "lengthIn": 0.2362
+        }
+      ],
+      "tags": [
+        "collar"
+      ],
+      "mounts": [
+        {
+          "id": "clamp",
+          "kind": "clamp",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 6.0,
+          "allowedHardware": [
+            "m3_clamp_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1338",
+      "displayName": "10 Tooth #25 Sprocket",
+      "productUrl": "https://www.revrobotics.com/DUO-Plastic-25-Sprockets/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1338.STEP",
+        "filename": "REV-41-1338.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.01,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.5512,
+          "lengthIn": 0.315
+        }
+      ],
+      "tags": [
+        "sprocket"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1621",
+      "displayName": "UltraPlanetary Outside Mounting Bracket",
+      "productUrl": "https://www.revrobotics.com/UltraPlanetary-Brackets/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1621.STEP",
+        "filename": "REV-41-1621.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.018,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.8898,
+            1.2598,
+            0.315
+          ]
+        }
+      ],
+      "tags": [
+        "bracket",
+        "gearbox"
+      ],
+      "mounts": [
+        {
+          "id": "extrusion",
+          "kind": "clearance_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.5,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 4,
+            "countV": 2
+          }
+        },
+        {
+          "id": "motor_face",
+          "kind": "clearance_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.5,
+          "spacingMm": 16.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 16.0,
+            "countU": 2,
+            "countV": 2
+          }
+        },
+        {
+          "id": "gearbox",
+          "kind": "mating_face",
+          "standard": "rev_5mm_hex",
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-45-1507",
+      "displayName": "15 mm Linear Motion Kit V2",
+      "productUrl": "https://www.revrobotics.com/rev-45-1507/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-45-1507.STEP",
+        "filename": "REV-45-1507.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.085,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            3.1496,
+            1.1811,
+            0.7874
+          ]
+        }
+      ],
+      "tags": [
+        "bracket"
+      ],
+      "mounts": [
+        {
+          "id": "slide",
+          "kind": "mating_face",
+          "standard": "rev_15mm",
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-11-1271",
+      "displayName": "SPARK Mini Motor Controller",
+      "productUrl": "https://www.revrobotics.com/rev-11-1271/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-11-1271.STEP",
+        "filename": "REV-11-1271.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.024,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.9685,
+            1.5748,
+            0.4724
+          ]
+        }
+      ],
+      "tags": [
+        "electronics"
+      ],
+      "mounts": [
+        {
+          "id": "case",
+          "kind": "clearance_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.5,
+          "spacingMm": 20.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 20.0,
+            "countU": 2,
+            "countV": 2
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-31-1302",
+      "displayName": "12V Slim Battery",
+      "productUrl": "https://www.revrobotics.com/rev-31-1302/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-31-1302.STEP",
+        "filename": "REV-31-1302.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.365,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            4.3307,
+            2.7559,
+            0.7874
+          ]
+        }
+      ],
+      "tags": [
+        "battery",
+        "electronics"
+      ],
+      "mounts": [
+        {
+          "id": "pack",
+          "kind": "mating_face",
+          "standard": "rev_m3",
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-31-1595",
+      "displayName": "Control Hub",
+      "productUrl": "https://www.revrobotics.com/REV-31-1595/",
+      "cad": {
+        "filename": "REV-31-1595.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": false,
+        "terms": "Optional electronics geometry only. No official public STEP was listed on the product page at catalog time; do not download from an unlisted host."
+      },
+      "massKg": 0.272,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            5.7087,
+            4.0551,
+            1.5748
+          ]
+        }
+      ],
+      "tags": [
+        "control_hub",
+        "electronics"
+      ],
+      "mounts": [
+        {
+          "id": "case",
+          "kind": "clearance_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.5,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 4,
+            "countV": 2
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1631",
+      "displayName": "2 in Compliant Wheel",
+      "productUrl": "https://www.revrobotics.com/rev-41-1631/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1631.STEP",
+        "filename": "REV-41-1631.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.028,
+      "inertiaKgM2": [
+        1.8e-05,
+        3.2e-05,
+        1.8e-05
+      ],
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.0,
+          "lengthIn": 0.9843
+        }
+      ],
+      "tags": [
+        "intake_roller"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-2473",
+      "displayName": "4 in Compliant Wheel",
+      "productUrl": "https://www.revrobotics.com/rev-41-2473/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-2473.STEP",
+        "filename": "REV-41-2473.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.086,
+      "inertiaKgM2": [
+        0.00012,
+        0.00022,
+        0.00012
+      ],
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 2.0,
+          "lengthIn": 1.1811
+        }
+      ],
+      "tags": [
+        "flywheel"
+      ],
+      "mounts": [
+        {
+          "id": "bore",
+          "kind": "hub",
+          "standard": "rev_5mm_hex",
+          "diameterMm": 5.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw",
+            "clamping_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 5.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "REV-41-1097",
+      "displayName": "Smart Robot Servo",
+      "productUrl": "https://www.revrobotics.com/rev-41-1097/",
+      "cad": {
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1097.STEP",
+        "filename": "REV-41-1097.STEP",
+        "format": "step",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.058,
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.5748,
+            0.7874,
+            1.4961
+          ]
+        }
+      ],
+      "tags": [
+        "servo"
+      ],
+      "mounts": [
+        {
+          "id": "tabs",
+          "kind": "clearance_hole",
+          "standard": "rev_m3",
+          "diameterMm": 3.5,
+          "spacingMm": 10.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m3_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 10.0,
+            "countU": 2,
+            "countV": 1
+          }
+        },
+        {
+          "id": "spline",
+          "kind": "hub",
+          "standard": "rev_m3",
+          "diameterMm": 25.0,
+          "axis": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "depthMm": 10.0,
+          "allowedHardware": [
+            "set_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 25.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    }
+  ]
+}
