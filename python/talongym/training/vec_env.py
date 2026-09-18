@@ -246,10 +246,10 @@ class ChunkedSubprocVecEnv(VecEnv):
             offsets.append(cursor)
             cursor += size
         ctx = mp_context()
-        self.remotes, self.work_remotes = zip(*[ctx.Pipe() for _ in sizes])
+        self.remotes, self.work_remotes = zip(*[ctx.Pipe() for _ in sizes], strict=True)
         self.processes = []
         try:
-            for i, (work_remote, remote, size) in enumerate(zip(self.work_remotes, self.remotes, sizes)):
+            for i, (work_remote, remote, size) in enumerate(zip(self.work_remotes, self.remotes, sizes, strict=True)):
                 env_fn_for_worker: Callable[[], gym.Env] | None = None
                 if env_fns is not None:
                     from stable_baselines3.common.vec_env.base_vec_env import CloudpickleWrapper
@@ -274,7 +274,7 @@ class ChunkedSubprocVecEnv(VecEnv):
 
     def step_async(self, actions: np.ndarray) -> None:
         start = 0
-        for remote, size in zip(self.remotes, self._sizes):
+        for remote, size in zip(self.remotes, self._sizes, strict=True):
             remote.send(("step", actions[start : start + size]))
             start += size
         self.waiting = True
@@ -282,7 +282,7 @@ class ChunkedSubprocVecEnv(VecEnv):
     def step_wait(self):
         results = [_recv_worker(remote) for remote in self.remotes]
         self.waiting = False
-        obs_parts, rews, dones, infos, reset_parts = zip(*results)
+        obs_parts, rews, dones, infos, reset_parts = zip(*results, strict=True)
         self.reset_infos = [info for part in reset_parts for info in part]
         info_flat = [info for part in infos for info in part]
         return (
@@ -294,11 +294,11 @@ class ChunkedSubprocVecEnv(VecEnv):
 
     def reset(self):
         start = 0
-        for remote, size in zip(self.remotes, self._sizes):
+        for remote, size in zip(self.remotes, self._sizes, strict=True):
             remote.send(("reset", (self._seeds[start : start + size], self._options[start : start + size])))
             start += size
         results = [_recv_worker(remote) for remote in self.remotes]
-        obs_parts, reset_parts = zip(*results)
+        obs_parts, reset_parts = zip(*results, strict=True)
         self.reset_infos = [info for part in reset_parts for info in part]
         self._reset_seeds()
         self._reset_options()

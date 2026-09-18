@@ -1,7 +1,7 @@
+import gymnasium as gym
 import numpy as np
 import pytest
 from gymnasium import spaces
-import gymnasium as gym
 
 from talongym.training.vec_env import (
     ChunkedSubprocVecEnv,
