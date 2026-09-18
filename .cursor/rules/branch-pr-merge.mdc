@@ -1,0 +1,17 @@
+---
+description: Every commit goes through a branch, PR, merge, and push — confirm each step
+alwaysApply: true
+---
+
+# Branch, PR, merge, then push
+
+Do not commit on `main`/`master`. For every commit, run this sequence and **stop and confirm with the user before each step**. Never assume yes from an earlier turn.
+
+1. **Branch** — create and check out a new feature branch; confirm the name.
+2. **Commit** — stage only the intended files; confirm the message and file list.
+3. **Push** — push the branch with `-u` if needed; confirm before pushing.
+4. **PR** — open a pull request; confirm title and body.
+5. **Merge** — merge the PR only after the user confirms; then confirm if local `main` should fast-forward.
+
+If the user declines a step, stop there. Do not skip confirmation, force-push, or merge without an explicit yes for that step.
+---

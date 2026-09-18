@@ -1,0 +1,24 @@
+---
+description: Always bump the TalonGym program version with each change set
+alwaysApply: true
+---
+
+# Bump program version
+
+Every change set that will be committed must bump the program version. Do not ship commits at the same version as HEAD. Skip only when the user explicitly says not to bump.
+
+## Canonical files (keep in lockstep)
+
+- `pyproject.toml` (`[project] version`)
+- `python/talongym/__init__.py` (`__version__`)
+- `web/package.json` (`version`)
+- `web/package-lock.json` (root `version` and `packages[""].version`)
+- `engine/Cargo.toml` (`[package] version`)
+- `README.md` (the **Status:** line)
+
+## How to bump
+
+- Default to **patch** (`x.y.Z`). Use **minor** (`x.Y.0`) for user-visible features, **major** (`X.0.0`) for breaking API/preset changes.
+- Ask which bump if it is unclear; do not invent a version scheme.
+- Search those known paths only — do not repo-wide glob for the old version.
+---
