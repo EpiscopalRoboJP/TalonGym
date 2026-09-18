@@ -10,6 +10,8 @@ from typing import Any
 PROFILES = ("lightweight_cpu", "workstation", "cloud")
 ENV_PROFILE = "TALONGYM_COMPUTE_PROFILE"
 ENV_DEVICE = "TALONGYM_TORCH_DEVICE"
+ENV_SIM_WORKERS = "TALONGYM_SIM_WORKERS"
+ENV_EVAL_WORKERS = "TALONGYM_EVAL_WORKERS"
 # Keep in sync with requirements.txt.
 TORCH_CUDA_INDEX = "https://download.pytorch.org/whl/cu130"
 
@@ -243,6 +245,50 @@ def recommended_n_envs(profile: str | None = None, hardware: dict[str, Any] | No
     return max(1, int(n))
 
 
+MAX_DEFAULT_WORKERS = 8
+
+
+def _parse_worker_override(env_name: str) -> int | None:
+    raw = (os.environ.get(env_name) or "").strip()
+    if not raw:
+        return None
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return None
+
+
+def _default_workers(n: int, hardware: dict[str, Any] | None = None) -> int:
+    """Leave one core for PPO / the Lab. Cap copies of the mesh field (override via env)."""
+    n = max(1, int(n))
+    hw = hardware or detect_hardware()
+    cpu = max(1, int(hw.get("cpuCount") or cpu_count()))
+    spare = max(1, cpu - 1) if cpu > 1 else 1
+    cap = min(spare, MAX_DEFAULT_WORKERS)
+    ram = hw.get("ramGb")
+    if ram is not None:
+        cap = min(cap, max(1, int(float(ram) // 4)))
+    return min(n, cap)
+
+
+def recommended_sim_workers(n_envs: int, hardware: dict[str, Any] | None = None) -> int:
+    """Process count for CPU physics. Default min(nEnvs, cores-1, 8); override with TALONGYM_SIM_WORKERS."""
+    n_envs = max(1, int(n_envs))
+    forced = _parse_worker_override(ENV_SIM_WORKERS)
+    if forced is not None:
+        return min(n_envs, forced)
+    return _default_workers(n_envs, hardware)
+
+
+def recommended_eval_workers(n_trials: int, hardware: dict[str, Any] | None = None) -> int:
+    """Process count for held-out trials. Override with TALONGYM_EVAL_WORKERS, not SIM_WORKERS."""
+    n_trials = max(1, int(n_trials))
+    forced = _parse_worker_override(ENV_EVAL_WORKERS)
+    if forced is not None:
+        return min(n_trials, forced)
+    return _default_workers(n_trials, hardware)
+
+
 def training_family(training_id: str) -> str:
     for suffix in _FAMILY_SUFFIXES:
         if training_id.endswith(suffix):
@@ -300,15 +346,20 @@ def describe_compute(training_id: str | None = None) -> dict[str, Any]:
     hw = detect_hardware()
     profile = detect_compute_profile(hw)
     current = training_id or "biobuzz_auto_lightweight"
+    n_envs = recommended_n_envs(profile, hw)
     return {
         "hardware": hw,
         "profile": profile,
-        "nEnvs": recommended_n_envs(profile, hw),
+        "nEnvs": n_envs,
+        "simWorkers": recommended_sim_workers(n_envs, hw),
+        "evalWorkers": recommended_eval_workers(500, hw),
         "override": (os.environ.get(ENV_PROFILE) or "").strip() or None,
         "trainingId": current,
         "easyTrainingId": easy_training_id(current),
         "profileTrainingId": training_id_for_profile(current, profile),
         "envVar": ENV_PROFILE,
+        "simWorkersEnvVar": ENV_SIM_WORKERS,
+        "evalWorkersEnvVar": ENV_EVAL_WORKERS,
         "torchDevice": hw.get("torchDevice"),
         "deviceOverride": (os.environ.get(ENV_DEVICE) or "").strip() or None,
         "deviceEnvVar": ENV_DEVICE,

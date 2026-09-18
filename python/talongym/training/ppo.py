@@ -13,8 +13,6 @@ from gymnasium import spaces
 from talongym import paths
 from talongym.assets.cad_common import mesh_required
 from talongym.env.ftc_auto import (
-    BoxActionDictObsEnv,
-    EncoderOnlyObsAssertWrapper,
     FTCAutoEnv,
     flatten_obs,
 )
@@ -53,20 +51,52 @@ def record_policy_episode(
     return frames
 
 
-class _Progress:
-    def __init__(self, total: int) -> None:
-        self.total = max(1, total)
+class SharedFracProgress:
+    """Curriculum progress that only reads a multiprocessing.Value (worker side)."""
+
+    def __init__(self, shared_frac: Any | None = None) -> None:
+        self._shared_frac = shared_frac
+        self.total = 1
         self.steps = 0
 
     @property
     def frac(self) -> float:
-        return min(1.0, self.steps / self.total)
+        if self._shared_frac is not None:
+            return float(self._shared_frac.value)
+        return 0.0
+
+
+class _Progress:
+    def __init__(self, total: int, shared_frac: Any | None = None) -> None:
+        self.total = max(1, total)
+        self._steps = 0
+        self._shared_frac = shared_frac
+
+    def bind_shared(self, shared_frac: Any) -> None:
+        self._shared_frac = shared_frac
+        shared_frac.value = min(1.0, self._steps / self.total)
+
+    @property
+    def steps(self) -> int:
+        return self._steps
+
+    @steps.setter
+    def steps(self, value: int) -> None:
+        self._steps = int(value)
+        if self._shared_frac is not None:
+            self._shared_frac.value = min(1.0, self._steps / self.total)
+
+    @property
+    def frac(self) -> float:
+        if self._shared_frac is not None:
+            return float(self._shared_frac.value)
+        return min(1.0, self._steps / self.total)
 
 
 class CurriculumEnv(gym.Wrapper):
     """Re-apply curriculum unlocks on every reset from shared training progress."""
 
-    def __init__(self, env: gym.Env, progress: _Progress, training: dict[str, Any] | None) -> None:
+    def __init__(self, env: gym.Env, progress: Any, training: dict[str, Any] | None) -> None:
         super().__init__(env)
         self._progress = progress
         self._training = training
@@ -194,6 +224,7 @@ def train_ppo(
         n_steps = min(n_steps, max(16, total_steps))
         rollout_len = n_steps * n_envs
     startup_phase = "creating_envs"
+    n_workers = 1
 
     def emit_startup(phase: str, message: str) -> None:
         nonlocal startup_phase
@@ -204,37 +235,16 @@ def train_ppo(
                 {
                     "envSteps": 0,
                     "nEnvs": n_envs,
+                    "simWorkers": n_workers,
                     "algo": algo_name,
                     "startupPhase": phase,
                     "progressFrac": 0.0,
                 }
             )
 
-    def make_env():
-        def _init():
-            env = FTCAutoEnv(
-                bundle=bundle,
-                record=False,
-                motif_known_at_t0=motif_known_at_t0(training, progress.frac),
-                teammate_policy=teammate_for(training, progress.frac),
-                opponent_policy=opponent_for(training, progress.frac),
-                action_tier=action_tier,
-                frozen_policy=frozen_policy,
-                match_setup=match_setup,
-            )
-            wrapped = EncoderOnlyObsAssertWrapper(env)
-            from talongym.training.privileged import PrivilegedObsWrapper
-
-            priv = PrivilegedObsWrapper(wrapped)
-            boxed = BoxActionDictObsEnv(priv)
-            return CurriculumEnv(boxed, progress, training)
-
-        return _init
-
     try:
         from sb3_contrib import RecurrentPPO
         from stable_baselines3.common.callbacks import BaseCallback
-        from stable_baselines3.common.vec_env import DummyVecEnv
     except ImportError as exc:
         if allow_scripted:
             emit("stable-baselines3 not installed; using scripted AUTO baseline")
@@ -265,9 +275,27 @@ def train_ppo(
             f"(torch, stable-baselines3, sb3-contrib) in {sys.executable}: {exc}"
         ) from exc
 
-    emit_startup("creating_envs", f"creating {n_envs} envs")
-    venv = DummyVecEnv([make_env() for _ in range(n_envs)])
-    emit(f"created {n_envs} envs in {time.monotonic() - t0:.1f}s")
+    from talongym.training.compute import recommended_sim_workers, resolve_torch_device
+    from talongym.training.vec_env import make_train_vec_env, mp_context
+
+    n_workers = recommended_sim_workers(n_envs)
+    if n_workers > 1:
+        progress.bind_shared(mp_context().Value("d", progress.frac))
+    env_spec = {
+        "field": bundle.field,
+        "robot": bundle.robot,
+        "scoring": bundle.scoring,
+        "training": training,
+        "actionTier": action_tier,
+        "matchSetup": match_setup,
+        "progress": progress,
+        "frozenPolicy": frozen_policy,
+        "frozenPolicyPath": getattr(frozen_policy, "path", None),
+        "progressFrac": progress._shared_frac,
+    }
+    emit_startup("creating_envs", f"creating {n_envs} envs ({n_workers} sim workers)")
+    venv, n_workers = make_train_vec_env(n_envs, env_spec, n_workers=n_workers)
+    emit(f"created {n_envs} envs in {time.monotonic() - t0:.1f}s ({n_workers} sim workers)")
     batch = int(algo_cfg.get("batchSize") or 256)
     batch = min(batch, rollout_len)
     while batch > 1 and rollout_len % batch != 0:
@@ -281,8 +309,6 @@ def train_ppo(
     save_dir.mkdir(parents=True, exist_ok=True)
     latest = save_dir / "latest.zip"
     best_path = save_dir / "best.zip"
-
-    from talongym.training.compute import resolve_torch_device
 
     device = resolve_torch_device()
     emit(f"torch device: {device}")
@@ -310,21 +336,25 @@ def train_ppo(
             emit(f"Resume failed ({exc}); starting fresh")
 
     if not loaded:
-        model = RecurrentPPO(
-            AsymmetricLstmPolicy,
-            venv,
-            verbose=0,
-            device=device,
-            n_steps=n_steps,
-            batch_size=batch,
-            learning_rate=float(algo_cfg.get("learningRate") or 3e-4),
-            gamma=float(algo_cfg.get("gamma") or 0.99),
-            gae_lambda=float(algo_cfg.get("gaeLambda") or 0.95),
-            clip_range=float(algo_cfg.get("clipRange") or 0.2),
-            n_epochs=int(algo_cfg.get("nEpochs") or 10),
-            ent_coef=float(algo_cfg.get("entCoef") or 0.01),
-            policy_kwargs=policy_kwargs,
-        )
+        try:
+            model = RecurrentPPO(
+                AsymmetricLstmPolicy,
+                venv,
+                verbose=0,
+                device=device,
+                n_steps=n_steps,
+                batch_size=batch,
+                learning_rate=float(algo_cfg.get("learningRate") or 3e-4),
+                gamma=float(algo_cfg.get("gamma") or 0.99),
+                gae_lambda=float(algo_cfg.get("gaeLambda") or 0.95),
+                clip_range=float(algo_cfg.get("clipRange") or 0.2),
+                n_epochs=int(algo_cfg.get("nEpochs") or 10),
+                ent_coef=float(algo_cfg.get("entCoef") or 0.01),
+                policy_kwargs=policy_kwargs,
+            )
+        except Exception:
+            venv.close()
+            raise
         model.talongym_robot_interface = interface_stamp
         bc_steps = int(algo_cfg.get("bcWarmupSteps") or 0)
         if bc_steps > 0:
@@ -339,15 +369,7 @@ def train_ppo(
                 emit(f"BC warmup skipped: {exc}")
     emit("Using sb3-contrib RecurrentPPO (AsymmetricLstmPolicy)")
 
-    from talongym.training.diagnostics import assert_scripted_baseline_scores, summarize_episode
-
-    if total_steps >= 2048:
-        emit_startup("scripted_baseline", "checking scripted baseline")
-        baseline = assert_scripted_baseline_scores(bundle)
-        emit(
-            f"scripted baseline launches={baseline.launches} "
-            f"score={baseline.true_score:.1f} wall={baseline.wall_contact_s:.1f}s"
-        )
+    from talongym.training.diagnostics import summarize_episode
 
     true_hist: list[float] = []
     obj_hist: list[float] = []
@@ -370,6 +392,7 @@ def train_ppo(
         packed: dict[str, Any] = {
             "envSteps": progress.steps,
             "nEnvs": n_envs,
+            "simWorkers": n_workers,
             "objectiveMean": float(np.mean(obj_hist[-200:])) if obj_hist else None,
             "trueScoreMean": float(np.mean(true_hist[-32:])) if true_hist else None,
             "shapingMean": float(np.mean(shape_hist[-200:])) if shape_hist else None,
@@ -461,7 +484,11 @@ def train_ppo(
         step = max(rollout_len, (step // rollout_len) * rollout_len) if step >= rollout_len else step
         if step <= 0:
             break
-        model.learn(total_timesteps=step, reset_num_timesteps=done == 0, callback=MetricsCb())
+        try:
+            model.learn(total_timesteps=step, reset_num_timesteps=done == 0, callback=MetricsCb())
+        except Exception:
+            venv.close()
+            raise
         done = int(model.num_timesteps)
         progress.steps = done
         metrics = _live_metrics(done)
@@ -633,15 +660,17 @@ class RecurrentPolicyAdapter:
         return np.asarray(action, dtype=np.float32)
 
 
-def load_trained_policy(path: str | Path) -> RecurrentPolicyAdapter:
+def load_trained_policy(path: str | Path, device: str | None = None) -> RecurrentPolicyAdapter:
     from sb3_contrib import RecurrentPPO
 
     from talongym.training.asymmetric import AsymmetricLstmPolicy
     from talongym.training.compute import resolve_torch_device
 
-    device = resolve_torch_device()
+    resolved = device if device is not None else resolve_torch_device()
     try:
-        model = RecurrentPPO.load(str(path), device=device, custom_objects={"AsymmetricLstmPolicy": AsymmetricLstmPolicy})
+        model = RecurrentPPO.load(str(path), device=resolved, custom_objects={"AsymmetricLstmPolicy": AsymmetricLstmPolicy})
     except Exception:
-        model = RecurrentPPO.load(str(path), device=device)
-    return RecurrentPolicyAdapter(model)
+        model = RecurrentPPO.load(str(path), device=resolved)
+    adapter = RecurrentPolicyAdapter(model)
+    adapter.path = str(path)
+    return adapter

@@ -1,10 +1,14 @@
 from talongym.presets.loader import load_preset, preset_index
 from talongym.training.compute import (
     ENV_DEVICE,
+    ENV_EVAL_WORKERS,
+    ENV_SIM_WORKERS,
     _arch_supports_capability,
     detect_compute_profile,
     easy_training_id,
+    recommended_eval_workers,
     recommended_n_envs,
+    recommended_sim_workers,
     resolve_torch_device,
     resolve_training,
     training_family,
@@ -86,3 +90,35 @@ def test_cuda_arch_check_rejects_gpus_the_torch_build_has_no_kernels_for():
     assert not _arch_supports_capability(cu130, (6, 1))
     assert not _arch_supports_capability(["sm_50", "sm_60", "sm_86"], (12, 0))
     assert _arch_supports_capability([], (6, 1))
+
+
+def test_sim_workers_leave_a_core_and_never_exceed_n_envs(monkeypatch):
+    monkeypatch.delenv(ENV_SIM_WORKERS, raising=False)
+    assert recommended_sim_workers(1, {"cpuCount": 16}) == 1
+    assert recommended_sim_workers(8, {"cpuCount": 8}) == 7
+    assert recommended_sim_workers(256, {"cpuCount": 16}) == 8
+    assert recommended_sim_workers(4, {"cpuCount": 1}) == 1
+    assert recommended_sim_workers(256, {"cpuCount": 48, "ramGb": 12.0}) == 3
+
+
+def test_sim_and_eval_worker_env_overrides(monkeypatch):
+    monkeypatch.setenv(ENV_SIM_WORKERS, "3")
+    monkeypatch.delenv(ENV_EVAL_WORKERS, raising=False)
+    assert recommended_sim_workers(256, {"cpuCount": 48}) == 3
+    assert recommended_eval_workers(500, {"cpuCount": 48}) == 8
+    monkeypatch.setenv(ENV_EVAL_WORKERS, "2")
+    assert recommended_eval_workers(500, {"cpuCount": 48}) == 2
+    assert recommended_sim_workers(256, {"cpuCount": 48}) == 3
+
+
+def test_describe_compute_includes_sim_workers(monkeypatch):
+    monkeypatch.delenv(ENV_SIM_WORKERS, raising=False)
+    monkeypatch.delenv(ENV_EVAL_WORKERS, raising=False)
+    from talongym.training.compute import describe_compute
+
+    info = describe_compute("biobuzz_auto_lightweight")
+    assert info["simWorkers"] >= 1
+    assert info["simWorkers"] <= info["nEnvs"]
+    assert info["evalWorkers"] >= 1
+    assert info["simWorkersEnvVar"] == ENV_SIM_WORKERS
+    assert info["evalWorkersEnvVar"] == ENV_EVAL_WORKERS

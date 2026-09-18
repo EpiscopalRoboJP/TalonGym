@@ -42,6 +42,7 @@ def _allow_missing_mesh_unless_required(monkeypatch, request):
 
     if available():
         return
+    monkeypatch.setenv("TALONGYM_ALLOW_MISSING_MESH", "1")
     from talongym.sim.world import World
 
     orig = World.__init__

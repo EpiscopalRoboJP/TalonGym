@@ -21,6 +21,8 @@ Printed fields:
 
 32 trials is a sanity check. A label-eligible report is n = 500 (preset default). Cap in the Lab API is 500.
 
+Scripted AUTO and checkpoint evals fan out across CPU processes (`evalWorkers` defaults to at most 8). Lambdas and other unpicklable policies stay sequential. Override with `TALONGYM_EVAL_WORKERS=1` to debug. Checkpoint copies in workers load on CPU so they do not clone the GPU policy N times.
+
 ## Lab Compare
 
 Open `/compare` ([LAB.md](LAB.md)).
@@ -63,6 +65,7 @@ From [`python/talongym/eval/harness.py`](../python/talongym/eval/harness.py):
 | `restrictedEntryRate` | Data rule / accumulator `restricted_entry` (G402-style), not a hardcoded season name. The same node also deducts −15 from `trueScore` (training foul proxy); the rate remains a side metric. |
 | `bestScore`, `bestFrames` | Highest true score this batch (frames dropped after the API saves a replay) |
 | `objective`, `objectiveValue` | Requested objective and the scalar used for it (mean / p10 / LCB) |
+| `evalWorkers` | Process count used for this batch (`1` when sequential) |
 | `bestLabelEligible` | n ≥ 500 for a single batch |
 
 Shaping never appears in this report.

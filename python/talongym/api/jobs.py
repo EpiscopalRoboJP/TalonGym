@@ -316,8 +316,13 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
         emit(run_id, {"type": "metrics", "payload": dict(last_metrics)})
         emit(run_id, {"type": "rollout", "payload": {"replayId": rid, "frames": frames[::5]}})
     except Exception as exc:
-        db.save_run(run_id, config, "failed", {**last_metrics, "error": str(exc)}, str(exc))
-        emit(run_id, {"type": "error", "payload": {"code": "TRAIN_FAILED", "message": str(exc)}})
+        import traceback
+
+        tb = traceback.format_exc()
+        message = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
+        log(message)
+        db.save_run(run_id, config, "failed", {**last_metrics, "error": message, "traceback": tb}, "\n".join(logs) + "\n" + tb)
+        emit(run_id, {"type": "error", "payload": {"code": "TRAIN_FAILED", "message": message}})
         emit(run_id, {"type": "status", "payload": {"state": "failed"}})
     finally:
         clear_cancel(run_id)

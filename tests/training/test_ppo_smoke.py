@@ -42,17 +42,11 @@ def test_eval_drop_rolls_back_to_best_and_halves_learning_rate(monkeypatch, tmp_
     pytest.importorskip("sb3_contrib")
     import sb3_contrib
 
-    import talongym.training.diagnostics as diagnostics
     import talongym.training.distill as distill
     import talongym.training.ppo as ppo
 
     monkeypatch.setattr(distill, "bc_warmup", _stub_bc_warmup)
     monkeypatch.setattr(distill, "BC_TARGET_LOSS", float("inf"))
-    monkeypatch.setattr(
-        diagnostics,
-        "assert_scripted_baseline_scores",
-        lambda bundle=None, seed=1: diagnostics.EpisodeHealth(true_score=8, launches=4, scored_pieces=1),
-    )
 
     def fake_learn(self, total_timesteps=0, callback=None, reset_num_timesteps=True, **kwargs):
         if reset_num_timesteps:

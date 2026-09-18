@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from concurrent.futures import ProcessPoolExecutor
 from typing import Any
 
 import numpy as np
 
 from talongym.env.ftc_auto import FTCAutoEnv
 from talongym.presets.loader import LoadedPresets
+from talongym.training.compute import recommended_eval_workers
 from talongym.training.curriculum import objective_value
+from talongym.training.vec_env import mp_context
 
 
 def bootstrap_ci(samples: list[float], confidence: float = 0.95, n_boot: int = 2000, rng: np.random.Generator | None = None) -> dict[str, float]:
@@ -36,6 +39,50 @@ def bootstrap_ci(samples: list[float], confidence: float = 0.95, n_boot: int = 2
     }
 
 
+def policy_spec_for(policy: Callable[[dict, dict], Any]) -> dict[str, Any] | None:
+    """Picklable policy descriptor, or None if this callable must stay in-process (lambdas)."""
+    from talongym.training.policies import scripted_auto
+
+    if policy is scripted_auto:
+        return {"kind": "scripted"}
+    path = getattr(policy, "path", None)
+    if path:
+        return {"kind": "checkpoint", "path": str(path)}
+    return None
+
+
+def _bundle_payload(bundle: LoadedPresets | None) -> dict[str, Any] | None:
+    if bundle is None:
+        return None
+    return {
+        "field": bundle.field,
+        "robot": bundle.robot,
+        "scoring": bundle.scoring,
+        "training": bundle.training,
+    }
+
+
+def _bundle_from_payload(payload: dict[str, Any] | None) -> LoadedPresets | None:
+    if not payload:
+        return None
+    return LoadedPresets(
+        field=payload["field"],
+        robot=payload["robot"],
+        scoring=payload["scoring"],
+        training=payload.get("training"),
+    )
+
+
+def _load_eval_policy(spec: dict[str, Any]) -> Callable[[dict, dict], Any]:
+    if spec.get("kind") == "checkpoint":
+        from talongym.training.ppo import load_trained_policy
+
+        return load_trained_policy(spec["path"], device="cpu")
+    from talongym.training.policies import scripted_auto
+
+    return scripted_auto
+
+
 def _run_one(
     policy: Callable[[dict, dict], Any],
     seed: int,
@@ -43,6 +90,8 @@ def _run_one(
     record: bool,
     match_setup: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    if hasattr(policy, "reset_lstm"):
+        policy.reset_lstm()
     env = FTCAutoEnv(bundle=bundle, record=record, match_setup=match_setup)
     obs, info = env.reset(seed=seed)
     terminated = truncated = False
@@ -60,9 +109,26 @@ def _run_one(
         "first_contact_s": rs.first_contact_s,
         "entered_restricted": bool(rs.entered_restricted or env.world.accumulators.get("restricted_entry")),
         "frames": list(env.frames) if record else [],
+        "seed": int(seed),
     }
     env.close()
     return result
+
+
+def _eval_job(job: dict[str, Any]) -> dict[str, Any]:
+    policy = _load_eval_policy(job["policy"])
+    bundle = _bundle_from_payload(job.get("bundle"))
+    return _run_one(policy, int(job["seed"]), bundle, False, job.get("matchSetup"))
+
+
+def _rows_from_sequential(
+    seed_list: list[int],
+    policy: Callable[[dict, dict], Any],
+    bundle: LoadedPresets | None,
+    record_best: bool,
+    match_setup: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    return [_run_one(policy, seed, bundle, record_best, match_setup) for seed in seed_list]
 
 
 def run_trials(
@@ -76,6 +142,27 @@ def run_trials(
     objective: str = "mean_true_score",
 ) -> dict[str, Any]:
     seed_list = list(seeds) if seeds is not None else [seed0 + i for i in range(n_trials)]
+    n_workers = recommended_eval_workers(len(seed_list))
+    spec = policy_spec_for(policy)
+    if spec is not None and n_workers > 1 and len(seed_list) > 1:
+        jobs = [
+            {
+                "policy": spec,
+                "seed": seed,
+                "bundle": _bundle_payload(bundle),
+                "matchSetup": match_setup,
+            }
+            for seed in seed_list
+        ]
+        with ProcessPoolExecutor(max_workers=n_workers, mp_context=mp_context()) as pool:
+            rows = list(pool.map(_eval_job, jobs))
+        if record_best and rows:
+            best = max(rows, key=lambda row: float(row["score"]))
+            recorded = _run_one(policy, int(best["seed"]), bundle, True, match_setup)
+            best["frames"] = recorded["frames"]
+    else:
+        rows = _rows_from_sequential(seed_list, policy, bundle, record_best, match_setup)
+
     scores: list[float] = []
     best_frames: list[dict] = []
     best_score = -1e9
@@ -83,8 +170,7 @@ def run_trials(
     collision_times: list[float] = []
     first_contacts: list[float] = []
     restricted = 0
-    for seed in seed_list:
-        row = _run_one(policy, seed, bundle, record_best, match_setup)
+    for row in rows:
         scores.append(row["score"])
         collision_times.append(row["collision_time_s"])
         if row["first_contact_s"] is not None:
@@ -112,6 +198,7 @@ def run_trials(
             "bestLabelEligible": len(seed_list) >= 500,
             "objective": objective,
             "objectiveValue": objective_value(report, objective),
+            "evalWorkers": n_workers if spec is not None and n_workers > 1 and len(seed_list) > 1 else 1,
         }
     )
     return report

@@ -23,7 +23,7 @@ Shipped training ids (four compute variants):
 
 BIOBUZZ training presets keep RecurrentPPO (`recurrent_ppo`), including cloud (larger `nEnvs`). `rllib_ppo` is an experimental one-shot toy in `training/rllib.py`; Lab/CLI fall back to RecurrentPPO. Do not treat it as a production scale path.
 
-`computeProfile: "auto"` (the `*_easy` files) resolves at train time from CPU count, RAM, and CUDA. Override with `TALONGYM_COMPUTE_PROFILE=lightweight_cpu|workstation|cloud`. Print the detection:
+`computeProfile: "auto"` (the `*_easy` files) resolves at train time from CPU count, RAM, and CUDA. Override with `TALONGYM_COMPUTE_PROFILE=lightweight_cpu|workstation|cloud`. Physics steps on CPU process workers (`simWorkers` defaults to at most 8, leaving a core for PPO; each worker compiles its own mesh). The LSTM still uses CUDA/MPS when torch can. Overrides: `TALONGYM_SIM_WORKERS`, `TALONGYM_TORCH_DEVICE`. Print the detection:
 
 ```bash
 python -m talongym detect
@@ -46,18 +46,17 @@ python -m talongym train --steps 8192
 | `--easy` | off | Load the season `*_easy` preset and autodetect `nEnvs` |
 | `--training` | active default | Training-run id for this invocation |
 | `--steps` | 8192 (easy: preset budget) | Total env steps this invocation |
-| `--n-envs` | preset `nEnvs` (easy: detected) | Parallel `DummyVecEnv` workers |
+| `--n-envs` | preset `nEnvs` (easy: detected) | Vectorized env count. Stepped in-process when `TALONGYM_SIM_WORKERS=1`; otherwise chunked across CPU processes (default at most 8) |
 | `--algo` | from the training preset | RecurrentPPO. `rllib_ppo` is a toy one-shot (`[scale]`) |
 | `--allow-scripted` | off | If sb3 is missing, run the scripted AUTO instead of failing |
 
 The loop:
 
 1. Builds `FTCAutoEnv` with Dict observations and `AsymmetricLstmPolicy` (actor drops `_privileged`).
-2. Asserts the scripted baseline can physically launch and score from the launch pose before long runs (`total_steps >= 2048`). That check does not initialize the LSTM.
-3. Wraps with `EncoderOnlyObsAssertWrapper` so privileged motif/match vars cannot leak into the actor.
-4. Resets from a legal G304 spawn with full domain randomization when the training curriculum is empty.
-5. Saves `var/ckpts/latest.zip` every chunk and `var/ckpts/best.zip` only when the held-out **objective** improves **and** the eval is healthy (at least one physical launch, wall contact within 8 s).
-6. Prints `true=` (episode true-score mean) and `eval=` (held-out true-score mean), plus launch count and wall-contact time. Use `eval`, not reward extras.
+2. Wraps with `EncoderOnlyObsAssertWrapper` so privileged motif/match vars cannot leak into the actor.
+3. Resets from a legal G304 spawn with full domain randomization when the training curriculum is empty.
+4. Saves `var/ckpts/latest.zip` every chunk and `var/ckpts/best.zip` only when the held-out **objective** improves **and** the eval is healthy (at least one physical launch, wall contact within 8 s).
+5. Prints `true=` (episode true-score mean) and `eval=` (held-out true-score mean), plus launch count and wall-contact time. Use `eval`, not reward extras.
 
 A short run is a smoke test. Lightweight presets declare `budget.totalEnvSteps` of 5e6 and a 4-hour wall-clock cap; pass a larger `--steps` for an overnight CLI job.
 
@@ -131,7 +130,7 @@ Shipped presets use `high_level_waypoint`: target pose (inches / rad), speed fra
 
 ## Scripted baseline
 
-[`python/talongym/training/policies.py`](../python/talongym/training/policies.py) is HIVE TIP + LEAVE + PARK for BIOBUZZ. Use it to confirm the env can physically launch and score, not as “the auto.” Long training runs fail closed if that baseline launches 0 pieces. Compare trained checkpoints against it on [EVALUATION.md](EVALUATION.md).
+[`python/talongym/training/policies.py`](../python/talongym/training/policies.py) is a HIVE TIP + LEAVE + PARK reference for BIOBUZZ **tests and evaluation**, not a training clone. `train_ppo` does not run it. Compare trained checkpoints against it on [EVALUATION.md](EVALUATION.md).
 
 A zero-launch `best.zip` is a simulator or robot-contract defect, not a PPO hyperparameter issue. Lab run `1d66d5d4b63e` used a catalog robot (`test1`) that compiled without a 4-piece magazine, so eval true score 3.0 was LEAVE from parking into walls with no flywheel fire (0 launches, 4 held at park, 0.68 s wall). Replayed on `mecanum_biobuzz_4cap` it stays unhealthy. The repaired default `gobilda_mecanum_starter` scripted baseline launches 4 pieces (wall 0.12 s). Hive CAD still intercepts many up-CELL shots, so LEAVE 3.0 with launches is success; 3.0 with zero launches is not. `var/defaults.json` overlaying `mecanum_biobuzz_4cap` also hid the shipped starter — reset Lab defaults to `gobilda_mecanum_starter` for CLI jobs.
 
