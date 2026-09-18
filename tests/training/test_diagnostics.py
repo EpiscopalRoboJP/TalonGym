@@ -6,7 +6,7 @@ import pytest
 
 from talongym.presets.loader import load_preset
 from talongym.training.curriculum import curriculum_spawn, stage_info
-from talongym.training.diagnostics import EpisodeHealth, summarize_episode
+from talongym.training.diagnostics import summarize_episode
 
 
 def test_curriculum_is_legal_spawn_without_scaffolds():

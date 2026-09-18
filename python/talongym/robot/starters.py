@@ -100,14 +100,7 @@ def _attach_gobilda_scoring(document: dict[str, Any]) -> None:
     instances: list[dict[str, Any]] = assembly["instances"]
     connections: list[dict[str, Any]] = assembly["connections"]
     ids = {row["id"] for row in instances}
-    length_sku = next(row["sku"] for row in instances if row["id"] == "left_rail")
-    width_sku = next(row["sku"] for row in instances if row["id"] == "rear_rail")
     motor_sku = next(row["sku"] for row in instances if row["id"] == "motor_fl")
-    count_u, _ = _pattern_counts(length_sku, "web")
-    width_u, _ = _pattern_counts(width_sku, "web")
-    intake_u = max(1, min(count_u - 3, 7))
-    conveyor_u = max(1, min(width_u - 2, 4))
-    fly_u = max(1, min(count_u - 3, 14 if count_u > 16 else count_u - 4))
     extras = [
         _instance("intake_motor", motor_sku),
         _instance("intake_wheel", _GOBILDA_INTAKE),
@@ -152,12 +145,9 @@ def _attach_rev_scoring(document: dict[str, Any]) -> None:
     connections: list[dict[str, Any]] = assembly["connections"]
     ids = {row["id"] for row in instances}
     length_sku = next(row["sku"] for row in instances if row["id"] == "left_rail")
-    width_sku = next(row["sku"] for row in instances if row["id"] == "rear_rail")
     motor_sku = next(row["sku"] for row in instances if row["id"] == "motor_fl")
     length_u, _ = _pattern_counts(length_sku, "slot")
-    width_u, _ = _pattern_counts(width_sku, "slot")
     intake_u = max(2, min(length_u - 3, 6))
-    conveyor_u = max(2, min(width_u - 2, 3))
     extras = [
         _instance("intake_up", "REV-41-1621"),
         _instance("intake_motor", motor_sku),

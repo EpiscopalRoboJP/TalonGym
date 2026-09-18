@@ -9,7 +9,7 @@ import numpy as np
 from talongym.robot.collision import aabbs_overlap, part_aabbs
 from talongym.robot.contract import AssemblyError
 from talongym.robot.graph import subtree_ids
-from talongym.robot.inference import FLY_TAGS, INTAKE_TAGS, InferenceReport, SERVO_TAGS
+from talongym.robot.inference import FLY_TAGS, INTAKE_TAGS, SERVO_TAGS, InferenceReport
 from talongym.robot.mounts import connection_is_rotating, hole_in_part, mount_axis, part_mount
 from talongym.robot.transforms import axis_angle, transform_direction, transform_point
 from talongym.robot.transmissions import WHEEL_TAGS, part_tags, wheel_radius_in

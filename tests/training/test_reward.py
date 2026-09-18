@@ -3,7 +3,6 @@ import pytest
 from talongym.presets.loader import load_preset, validate_document
 from talongym.training.reward import RewardTracker, resolve_reward_config, volume_ids_for_tag
 
-
 PARK_ELEMENTS = [
     {
         "id": "home_pad",

@@ -15,12 +15,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from talongym import __version__
-from talongym.license_notice import emit_license_notice
 from talongym.api import db, jobs
 from talongym.api.cad_frames import ensure_background_asset
 from talongym.api.robot_catalog import router as catalog_router
 from talongym.eval.harness import run_trials
 from talongym.export.roadrunner import export_from_replay
+from talongym.license_notice import emit_license_notice
 from talongym.paths import WEB_DIST
 from talongym.presets.loader import PresetError, is_shipped_preset, validate_document
 from talongym.sim.physics import default_backend

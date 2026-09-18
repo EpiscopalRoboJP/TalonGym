@@ -14,6 +14,7 @@ from talongym.robot.graph import undirected_adjacency
 from talongym.robot.mounts import connection_is_rotating, mount_axis, part_mount
 from talongym.robot.transforms import transform_direction, transform_point
 
+
 def round_measure(value: float, digits: int = 3) -> float:
     return round(float(value), digits)
 

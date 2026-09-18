@@ -41,6 +41,7 @@ def test_eval_drop_rolls_back_to_best_and_halves_learning_rate(monkeypatch, tmp_
     monkeypatch.setenv("TALONGYM_ALLOW_MISSING_MESH", "1")
     pytest.importorskip("sb3_contrib")
     import sb3_contrib
+
     import talongym.training.diagnostics as diagnostics
     import talongym.training.distill as distill
     import talongym.training.ppo as ppo
