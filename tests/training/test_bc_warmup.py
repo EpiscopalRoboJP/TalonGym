@@ -8,18 +8,12 @@ from talongym.training.curriculum import curriculum_unlocks
 from talongym.training.distill import collect_episodes, collect_full_actions
 
 
-def test_biobuzz_curriculum_has_launch_stages():
+def test_biobuzz_shipped_training_is_scratch_ppo():
     training = load_preset("training", "biobuzz_auto_lightweight")
-    assert training["algorithm"]["name"] == "bc_then_ppo"
-    early = curriculum_unlocks(training, 0.0)
-    mid = curriculum_unlocks(training, 0.5)
-    late = curriculum_unlocks(training, 0.99)
-    assert "scripted_launch" not in early
-    assert "ballistic_launch" not in early
-    assert "motif_known_at_t0" not in early
-    assert "scripted_launch" not in mid
-    assert "ballistic_launch" not in mid
-    assert "full_noise" in late
+    assert training["algorithm"]["name"] == "recurrent_ppo"
+    assert int(training["algorithm"].get("bcWarmupSteps") or 0) == 0
+    assert curriculum_unlocks(training, 0.0) == []
+    assert curriculum_unlocks(training, 0.99) == []
 
 
 @pytest.mark.require_mesh

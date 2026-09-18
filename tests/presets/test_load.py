@@ -39,7 +39,8 @@ def test_rp_proxy_probability_is_rejected():
     assert validate_document("training", doc)
 
 
-def test_cloud_preset_is_bc_then_ppo():
+def test_cloud_preset_is_recurrent_ppo():
     training = load_preset("training", "biobuzz_auto_cloud")
-    assert training["algorithm"]["name"] == "bc_then_ppo"
+    assert training["algorithm"]["name"] == "recurrent_ppo"
+    assert int(training["algorithm"].get("bcWarmupSteps") or 0) == 0
     assert training["nEnvs"] == 1024

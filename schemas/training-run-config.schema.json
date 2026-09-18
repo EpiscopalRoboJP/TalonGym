@@ -130,6 +130,19 @@
         "pairCommonRandomNumbers": { "type": "boolean", "default": true }
       }
     },
+    "reward": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["terms"],
+      "description": "Optional override of scoring.reward for this training recipe.",
+      "properties": {
+        "terms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rewardTerm" }
+        }
+      }
+    },
     "objective": {
       "type": "string",
       "enum": ["mean_true_score", "lcb_true_score", "p10_true_score"]
@@ -143,6 +156,35 @@
           "enum": ["rr1_actions", "rr05_trajectory_sequence"],
           "default": "rr1_actions"
         }
+      }
+    }
+  },
+  "$defs": {
+    "rewardTerm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "trueScoreDelta",
+            "earlyVolumeBonus",
+            "collisionPenalty",
+            "missedLaunchPenalty",
+            "timeCost"
+          ]
+        },
+        "volumeTag": { "type": "string" },
+        "requireAccumulator": { "type": "string" },
+        "excludeAccumulators": { "type": "array", "items": { "type": "string" } },
+        "scale": { "type": "number" },
+        "on": { "type": "string", "enum": ["phaseEnd", "alwaysTick"] },
+        "wall": { "type": "number" },
+        "robot": { "type": "number" },
+        "piece": { "type": "number" },
+        "perLaunch": { "type": "number" },
+        "perSecond": { "type": "number" }
       }
     }
   }

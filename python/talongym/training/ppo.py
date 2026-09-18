@@ -327,8 +327,6 @@ def train_ppo(
         )
         model.talongym_robot_interface = interface_stamp
         bc_steps = int(algo_cfg.get("bcWarmupSteps") or 0)
-        if algo_name == "bc_then_ppo" and bc_steps <= 0:
-            bc_steps = 1024
         if bc_steps > 0:
             from talongym.training.distill import bc_warmup
 

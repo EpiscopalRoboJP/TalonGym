@@ -20,7 +20,7 @@ TalonGym is a **season-plugin, Gymnasium-first** FTC Autonomous trainer with a R
 | Rapier vs Box2D | **Not shipped.** Health reports `planar2d` while the Rapier crate is a stub. There is no Box2D worker pool. | A batched Rapier `step(n_worlds)` remains the Phase 0 spike; until it meets the gate, Python planar contacts are the 2.5D path. |
 | 3D physics | **Opt-in `MujocoFieldBackend`** when the field declares `collisionAsset` / `mesh_field_collision`. The old chassis-only adapter remains for `talongym validate-3d`. | Required for ballistic CELL launches. Viewer still does not run physics. |
 | Action space MVP | **High-level waypoint / spline** executed by a Road Runner-like follower | Trains faster; maps onto exportable RR 1.0 segments. `physical_actuators` is a legal training `actionTier` (robot builder). Low-level `(vx, vy, ω)` is Phase 5 transfer/validation. |
-| Algorithm | **BIOBUZZ:** `bc_then_ppo` (scripted clone, then asymmetric-critic PPO). Actor stays encoder-only. | Scratch LSTM PPO does not learn a 30s +20 TIP. `grpo` and `rllib_ppo` exist as experimental unused code (no product preset). Not a VLA. |
+| Algorithm | **BIOBUZZ:** `recurrent_ppo` (scratch LSTM, asymmetric critic, encoder-only actor). Reward terms are data on the scoring/training preset. | No handwritten AUTO clone. `bc_then_ppo` / `grpo` / `rllib_ppo` exist as unused experimental names. Not a VLA. |
 | Frontend | React + react-three-fiber; FastAPI BFF; **no localStorage** | Matches the product requirement. Persistence is SQLite (MVP) → Postgres (Phase 5). |
 | Multi-agent | Gymnasium single-agent MVP; **PettingZoo** is a required dependency wrapping an unused Phase 4 module (`python/talongym/env/petting.py`) | Two robots per alliance is real; it is not the first learning problem. |
 | Export | **Road Runner 1.0 `TrajectoryActionBuilder` / Actions** default; 0.5.x `TrajectorySequence` as compatibility | RR 1.0 replaced trajectory sequences. Emitting deprecated APIs as the primary path would strand teams. |
@@ -268,18 +268,13 @@ Legal on the robot preset (`defaultActionTier`) and training `actionTier`. PPO u
 @dataclass
 class RewardBreakdown:
     true_score_delta: float      # official points this step (usually 0 until events)
-    shaping: float               # progress, time cost, collision — NOT on the leaderboard
-    objective: float             # what PPO actually maximizes (configurable mix)
+    shaping: float               # configured extra terms — NOT on the leaderboard
+    objective: float             # what PPO actually maximizes (true_score_delta + extras)
 ```
 
 `step` returns `reward = breakdown.objective`. `info["true_score"]` is the running official AUTO score. `info["shaping"]` is logged and plotted on a **separate** chart. Leaderboard and “statistically best” use **only** `true_score` (or the pre-registered objective of true_score / LCB / RP-proxy).
 
-Default shaping (coefficients in the training config, not the scoring preset):
-
-- +progress toward nearest useful piece / score volume (potential difference).
-- −0.01 per second (time cost).
-- −0.5 on wall contact impulse above threshold; −2.0 on robot-robot contact.
-- 0 motif bonus in shaping (avoid leaking). Pattern points arrive only via the rule DAG at `phaseEnd`.
+Default extras live in `scoring.reward` (training JSON may override). BIOBUZZ ships true-score delta plus an early-park bonus on non-LEAVE/PARK points. There is no route-to-launch/park potential.
 
 ### `reset` / `step` semantics
 
@@ -372,7 +367,7 @@ The server **pushes** JSON text frames (`v`, `seq`, `type`, `payload`). Client t
 | Route | View |
 |-------|------|
 | `/replay/:replayId?` | 3D field, robots, pieces, FSM overlays, scrub, play/pause/speed. FOV cones and planned path are best-effort overlays, not a physics planner. No reward heatmap. |
-| `/train/:runId?` | Sparklines (true score vs shaping) and live scene. No score histogram, success-rate plot, or hyperparam editor panel. |
+| `/train/:runId?` | Sparklines (true score vs reward extras) and live scene. No score histogram, success-rate plot, or hyperparam editor panel. |
 | `/build/field` | Pose + JSON field editor (not a free-form grid CAD tool) |
 | `/build/robot` | Catalog 3D assembly builder: goBILDA/REV recipes, snap, drafts; `defaultActionTier` including `physical_actuators` after confirmation |
 | `/compare` | Leaderboard of evaluations with CI whiskers; Export RR per row. No scoring graph editor. |
@@ -433,7 +428,7 @@ Keep the plan-file numbering mapped as:
 
 1. **Rapier Python ABI slips.** Mitigation: Phase 0 time-box; ship Python `Planar2DBackend`. Box2D is not implemented. Keep `PhysicsBackend` protocol tiny (`reset_batch`, `step_batch`, `contacts`).
 2. **Policy cheats motif.** Mitigation: unit tests that mutate privileged motif without moving the robot/camera and assert obs unchanged; curriculum that starts with `motif_known_at_t0` then disables it.
-3. **Shaping optimizes the wrong game.** Mitigation: leaderboard binds to `true_score`; freeze shaping coefficients in the run config hash. Automatic abort when true_score and objective diverge is **not implemented**.
+3. **Reward extras optimize the wrong game.** Mitigation: leaderboard binds to `true_score`; extras are declared on the scoring/training preset. Automatic abort when true_score and objective diverge is **not implemented**.
 4. **Sim-to-real gap on launch.** Mitigation: ballistic launches use the mesh field when unlocked; launch success can also be a Bernoulli + heading/range model fit from team logs (`calibrate/`). MuJoCo is required for BIOBUZZ training — no silent planar fallback.
 5. **LSTM ONNX / in-browser demo is lossy.** Mitigation: the only field path is (a) follower waypoint sequence pasted into an AUTO OpMode the Control Hub runs; (b) `distill=true` writes a feed-forward clone of the **scripted** policy, not the run. Do not claim on-robot NN inference.
 6. **Multi-robot collisions ignored in MVP then surprise in quals.** Mitigation: even single-agent MVP spawns a **static** teammate bounding box by default (configurable off) and penalizes contact.
@@ -449,7 +444,7 @@ Do not treat the following as engine work. They are **preset sign-off** question
 1. Confirm Table 10-2 AUTO values still 3 / 5 / 20 for LEAVE / PARK / HIVE TIP.
 2. Confirm HIVE TIP threshold (preset uses 7 in the upward CELL) against CAD / Field Setup Guide.
 3. Confirm AprilTag cluster ids against official artwork (0, 7, 38–41 confirmed; 1–3, 4–6, 42–45 inferred).
-4. G402 (no AUTO opponent-side interference): **encoded as a scoring/foul node.** Restricted-volume entry `addScore`s −15 on `trueScore` (training proxy for opponent Major Foul; VERIFY AGAINST MANUAL). The flag still feeds `restrictedEntryRate`. Replay highlights the foul; wall/robot contact stays shaping-only.
+4. G402 (no AUTO opponent-side interference): **encoded as a scoring/foul node.** Restricted-volume entry `addScore`s −20 on `trueScore` (training proxy for opponent Major Foul; VERIFY AGAINST MANUAL). The flag still feeds `restrictedEntryRate`. Replay highlights the foul. Collision penalties are optional `reward.terms`, not a hardcoded env mix.
 5. Championship 15 s transition vs 8 s: ignore for AUTO policy training?
 6. Which optimization objective should the default leaderboard use for *your* team: mean match points, 10th percentile (robust), or RP-proxy probability (SWARM ≥ 16, POLLINATOR 1/2 — **verify Table 10-3**)?
 7. Legal start poses for your region’s typical field build: which start slots are actually used in AUTO?
@@ -475,7 +470,7 @@ Do not treat the following as engine work. They are **preset sign-off** question
 
 ### Multi-robot right-of-way
 
-Contact events increment `collision_time_s` and apply shaping penalty. Eval report includes collision rate. Cooperative Phase 3 adds a shared “who claimed this spike mark” accumulator teams can put in the rule graph if they want explicit coordination rewards — still data, not engine.
+Contact events increment `collision_time_s`. Eval report includes collision rate. Optional `collisionPenalty` reward terms can charge wall/robot/piece hits; shipped BIOBUZZ does not. Cooperative Phase 3 adds a shared “who claimed this spike mark” accumulator teams can put in the rule graph if they want explicit coordination rewards — still data, not engine.
 
 ### Statistical rigor
 

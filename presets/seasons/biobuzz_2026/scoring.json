@@ -186,5 +186,18 @@
       "thresholdsByEventClass": { "other": 7 }
     }
   ],
-  "optimizationObjectives": ["mean_true_score", "lcb_true_score", "p10_true_score"]
+  "optimizationObjectives": ["mean_true_score", "lcb_true_score", "p10_true_score"],
+  "reward": {
+    "terms": [
+      { "kind": "trueScoreDelta" },
+      {
+        "kind": "earlyVolumeBonus",
+        "volumeTag": "park",
+        "requireAccumulator": "parked_auto",
+        "excludeAccumulators": ["leave_park_points"],
+        "scale": 0.1,
+        "on": "phaseEnd"
+      }
+    ]
+  }
 }

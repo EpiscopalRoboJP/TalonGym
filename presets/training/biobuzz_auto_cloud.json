@@ -10,7 +10,7 @@
     "opponentPolicy": "static"
   },
   "algorithm": {
-    "name": "bc_then_ppo",
+    "name": "recurrent_ppo",
     "learningRate": 0.0003,
     "gamma": 0.99,
     "gaeLambda": 0.95,
@@ -20,7 +20,7 @@
     "nEpochs": 4,
     "entCoef": 0.01,
     "lstmHiddenSize": 256,
-    "bcWarmupSteps": 2048,
+    "bcWarmupSteps": 0,
     "groupSize": 4
   },
   "actionTier": "high_level_waypoint",
@@ -40,31 +40,7 @@
     ],
     "sensorNoiseScale": 1.0,
     "fieldBuildToleranceIn": 1.0,
-    "curriculum": [
-      {
-        "untilFrac": 0.15,
-        "unlock": [
-          "spawn_at_launch",
-          "mechanism_ready"
-        ]
-      },
-      {
-        "untilFrac": 0.4,
-        "unlock": [
-          "spawn_approach"
-        ]
-      },
-      {
-        "untilFrac": 0.75,
-        "unlock": []
-      },
-      {
-        "untilFrac": 1.0,
-        "unlock": [
-          "full_noise"
-        ]
-      }
-    ]
+    "curriculum": []
   },
   "budget": {
     "totalEnvSteps": 50000000,

@@ -9,10 +9,8 @@ from gymnasium import spaces
 
 from talongym.presets.loader import LoadedPresets, load_bundle
 from talongym.rules.engine import MECHANISM_VERBS
-from talongym.sim.geometry import AABB, detour_waypoints, path_length
-from talongym.sim.world import FOLLOWER_CLEARANCE_IN, World
-
-MISSED_LAUNCH_PENALTY = 2.0
+from talongym.sim.world import World
+from talongym.training.reward import RewardTracker, resolve_reward_config
 
 
 class MechanismSensorBank:
@@ -154,7 +152,7 @@ class FTCAutoEnv(gym.Env):
         )
         self._configure_action_space()
         self.frames: list[dict[str, Any]] = []
-        self._last_potential = 0.0
+        self._reward = RewardTracker(resolve_reward_config(self.bundle.scoring, self.bundle.training))
         self._waypoint_log: list[list[float]] = []
         self._last_sensor_vec = np.zeros(self._sensor_bank.size, dtype=np.float32)
 
@@ -227,7 +225,7 @@ class FTCAutoEnv(gym.Env):
         obs = self._obs(self.learner_id, sample=True)
         self.frames = [self._capture_frame()] if self.record else []
         self._waypoint_log = []
-        self._last_potential = self._potential()
+        self._reward.reset(resolve_reward_config(self.bundle.scoring, self.bundle.training))
         return obs, self._info(0.0, 0.0)
 
     def step(self, action: dict[str, Any] | np.ndarray) -> tuple[dict, float, bool, bool, dict]:
@@ -249,19 +247,24 @@ class FTCAutoEnv(gym.Env):
         will_end = remaining_before - (1.0 / self.control_hz) <= 1e-6
         result = self.world.step(end_phase=will_end, actions=actions)
         true_delta = float(result["true_score_delta"])
-        potential = self._potential()
-        shaping = (potential - self._last_potential) - 0.01 / self.control_hz
-        if self.world.wall_hit:
-            shaping -= 0.5
-        if self.world.robot_hit:
-            shaping -= 2.0
-        if self.world.piece_hit:
-            shaping -= 0.05
-        # Immediate feedback for a wasted shot. Without it, "fire a little earlier" keeps paying off near the
-        # launch spot while misses farther out only cost a delayed, noisy lost tip, so PPO drifts to early fire.
-        shaping -= MISSED_LAUNCH_PENALTY * self.world.missed_launches.get(self.learner_id, 0)
-        self._last_potential = potential
-        objective = true_delta + shaping
+        rs = self.world.robots.get(self.learner_id) or self.world.actor()
+        objective, shaping = self._reward.step(
+            true_delta=true_delta,
+            phase_end=will_end,
+            accumulators=self.world.accumulators,
+            true_score=float(self.world.true_score),
+            phase_duration=float(self.world.auto_s),
+            wall_hit=bool(self.world.wall_hit),
+            robot_hit=bool(self.world.robot_hit),
+            piece_hit=bool(self.world.piece_hit),
+            missed_launches=int(self.world.missed_launches.get(self.learner_id, 0) or 0),
+            dt=1.0 / self.control_hz,
+            robot_id=rs.body.id,
+            alliance=rs.body.alliance,
+            occupancy=self.world.prev_occupancy,
+            time_s=float(self.world.time_s),
+            elements=self.world.elements,
+        )
         truncated = self.world.time_s >= self.world.auto_s - 1e-9
         obs = self._obs(self.learner_id, sample=True)
         if self.record:
@@ -396,52 +399,6 @@ class FTCAutoEnv(gym.Env):
         speed = float(arr[3])
         mech = int(np.clip(np.round(arr[4]), 0, len(MECHANISM_VERBS) - 1))
         return {"target_pose": target, "speed_frac": speed, "mechanism": mech}
-
-    def _potential(self) -> float:
-        """Negative remaining drive of the AUTO plan: to the launch spot while loaded, then to the park zone.
-
-        While loaded the plan distance runs robot -> launch spot -> park, so it equals the empty robot's
-        robot -> park distance at the launch spot. Launching there changes nothing; switching targets on
-        the last launch instead charged the tip-completing shot about -1.6 and taught PPO to avoid it.
-        """
-        rs = self.world.robots.get(self.learner_id) or self.world.actor()
-        alliance = [e for e in self.world.elements if e.get("alliance") == rs.body.alliance]
-        park = next((e for e in alliance if "park" in (e.get("tags") or []) and e.get("isTrigger")), None)
-        zone = self.world.element_shapes.get(park["id"]) if park is not None else None
-        zone = zone if isinstance(zone, AABB) else None
-        x, y = rs.body.x, rs.body.y
-        if rs.held:
-            # A launch spot is where shots land; goal centers can sit inside fixtures the chassis cannot reach.
-            goal = next((e for e in alliance if "launch_spot" in (e.get("tags") or [])), None)
-            goal = goal or next((e for e in alliance if e.get("type") == "goal"), None)
-            if goal:
-                gx, gy = float(goal["pose"]["x"]), float(goal["pose"]["y"])
-                then_park = self._route_length(gx, gy, *self._zone_point(zone, gx, gy)) if zone is not None else 0.0
-                return -0.02 * (self._route_length(x, y, gx, gy) + then_park)
-        # An empty robot heads for its park zone: the end-of-AUTO bonus is too far off to steer
-        # early decisions, and loose pieces only pay when they complete a scoring threshold.
-        if zone is not None:
-            return -0.02 * self._route_length(x, y, *self._zone_point(zone, x, y))
-        floor = [
-            p
-            for p in self.world.pieces.values()
-            if not p.held_by and not p.scored and not p.in_flight
-        ]
-        if floor:
-            p = min(floor, key=lambda q: (q.x - x) ** 2 + (q.y - y) ** 2)
-            return -0.02 * self._route_length(x, y, p.x, p.y)
-        return 0.0
-
-    @staticmethod
-    def _zone_point(zone: AABB, x: float, y: float) -> tuple[float, float]:
-        """Nearest point of the zone, so any pose inside it (not just the center) is the goal."""
-        return float(np.clip(x, zone.minx, zone.maxx)), float(np.clip(y, zone.miny, zone.maxy))
-
-    def _route_length(self, ax: float, ay: float, tx: float, ty: float) -> float:
-        """Drive distance from (ax, ay) to (tx, ty) around colliders, so shaping has no minimum pinned against a fixture."""
-        inflate = max(self.world.robot_hx, self.world.robot_hy) + FOLLOWER_CLEARANCE_IN
-        boxes = getattr(self.world, "nav_obstacles", None) or self.world.obstacles
-        return path_length(ax, ay, detour_waypoints(ax, ay, tx, ty, boxes, inflate))
 
     def _mechanism_truths(self, robot_id: str) -> dict[str, float]:
         rs = self.world.robots.get(robot_id) or self.world.actor()

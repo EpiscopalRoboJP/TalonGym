@@ -51,6 +51,9 @@ def opponent_for(training: dict[str, Any] | None, frac: float, default: str = "n
 
 
 def full_noise(training: dict[str, Any] | None, frac: float) -> bool:
+    stages = ((training or {}).get("domainRandomization") or {}).get("curriculum") or []
+    if not stages:
+        return True
     return "full_noise" in curriculum_unlocks(training, frac)
 
 

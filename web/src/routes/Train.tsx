@@ -727,12 +727,12 @@ export function TrainPage() {
             </div>
             <div className="chart-block">
               <div className="chart-head">
-                <span className="label">Shaping reward</span>
+                <span className="label">Reward extras</span>
                 <span className="num">{fmt(metrics.shapingMean)}</span>
               </div>
-              <Sparkline values={shapeSeries} label="Shaping mean over time" color={theme.muted} />
+              <Sparkline values={shapeSeries} label="Configured reward extras over time" color={theme.muted} />
               <p className="note" style={{ marginTop: "0.35rem" }}>
-                Training signal only. Never used for ranking.
+                Season reward terms other than true score. Ranking uses true score only.
               </p>
             </div>
           </Panel>

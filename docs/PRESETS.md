@@ -87,7 +87,8 @@ Important keys:
 - `presets.fieldId` / `robotId` / `scoringId`
 - `presets.teammatePolicy`: `none` \| `scripted` \| `shared_reward` \| `independent`
 - `presets.opponentPolicy`: `none` \| `static` \| `scripted` \| `frozen_policy` (loads `frozenPolicyPath` or a checkpoint artifact from `frozenPolicyRunId`; if missing, logs and skips — no hardcoded zip)
-- `algorithm.name`: shipped path is `bc_then_ppo` / `recurrent_ppo`. `rllib_ppo` and `grpo` are experimental unused product names.
+- `algorithm.name`: shipped path is `recurrent_ppo`. `bc_then_ppo`, `rllib_ppo` and `grpo` are experimental unused product names.
+- `reward`: optional override of `scoring.reward` (true-score delta plus extra terms). Omit to inherit the season scoring preset.
 - `actionTier`: `high_level_waypoint` (default), `low_level_velocity`, or `physical_actuators`. If omitted, train uses `robot.defaultActionTier`.
 - `computeProfile`: `lightweight_cpu` \| `workstation` \| `cloud` \| `auto` (`auto` is the easy run config; resolved from CPU/RAM/CUDA unless `TALONGYM_COMPUTE_PROFILE` is set)
 - `nEnvs`, `episode.controlHz` (25), `episode.durationS` (30)

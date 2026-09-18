@@ -51,6 +51,8 @@ Encode scoring as a `ScoringRulesPreset` DAG. Typical Kickoff mapping:
 
 Keep season nouns (POLLEN, hives, whatever Kickoff names) **only** in the preset JSON `type` strings and display labels.
 
+Fill `reward.terms` on the scoring preset (true-score delta plus any extras such as an early-volume bonus keyed by field **tag** and accumulator id). Training-run JSON may override `reward`; do not add year-specific poses to Python.
+
 ## Day 2: robot + observation wiring
 
 1. Confirm drivetrain preset (mecanum default).

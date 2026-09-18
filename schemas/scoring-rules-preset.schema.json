@@ -158,9 +158,50 @@
         "type": "string",
         "enum": ["mean_true_score", "lcb_true_score", "p10_true_score"]
       }
-    }
+    },
+    "reward": { "$ref": "#/$defs/rewardConfig" }
   },
   "$defs": {
+    "rewardConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["terms"],
+      "description": "Training signal for this game. Extra terms never enter true score or the leaderboard.",
+      "properties": {
+        "terms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rewardTerm" }
+        }
+      }
+    },
+    "rewardTerm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "trueScoreDelta",
+            "earlyVolumeBonus",
+            "collisionPenalty",
+            "missedLaunchPenalty",
+            "timeCost"
+          ]
+        },
+        "volumeTag": { "type": "string" },
+        "requireAccumulator": { "type": "string" },
+        "excludeAccumulators": { "type": "array", "items": { "type": "string" } },
+        "scale": { "type": "number" },
+        "on": { "type": "string", "enum": ["phaseEnd", "alwaysTick"] },
+        "wall": { "type": "number" },
+        "robot": { "type": "number" },
+        "piece": { "type": "number" },
+        "perLaunch": { "type": "number" },
+        "perSecond": { "type": "number" }
+      }
+    },
     "ruleNode": {
       "type": "object",
       "additionalProperties": false,

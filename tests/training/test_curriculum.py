@@ -11,34 +11,27 @@ from talongym.training.curriculum import (
 )
 
 
-def test_biobuzz_curriculum_switches_with_progress():
+def test_biobuzz_curriculum_is_legal_spawn_with_full_noise():
     training = load_preset("training", "biobuzz_auto_lightweight")
-    early = curriculum_unlocks(training, 0.0)
-    mid = curriculum_unlocks(training, 0.5)
-    late = curriculum_unlocks(training, 0.99)
-    assert "scripted_launch" not in early
-    assert "ballistic_launch" not in early
-    assert "scripted_launch" not in mid
-    assert "ballistic_launch" not in mid
-    assert curriculum_spawn(training, 0.0) == "launch"
-    assert curriculum_spawn(training, 0.3) == "approach"
-    assert curriculum_spawn(training, 0.5) == "legal"
+    assert curriculum_unlocks(training, 0.0) == []
+    assert curriculum_unlocks(training, 0.99) == []
+    assert curriculum_spawn(training, 0.0) == "legal"
     assert curriculum_spawn(training, 0.99) == "legal"
-    assert early == ["spawn_at_launch", "mechanism_ready"]
-    assert "spawn_approach" in curriculum_unlocks(training, 0.3)
-    assert stage_info(training, 0.5)["unlock"] == []
-    assert "full_noise" in late
-    assert mechanism_ready(training, 0.0) is True
+    assert mechanism_ready(training, 0.0) is False
     assert mechanism_ready(training, 0.99) is False
-    assert full_noise(training, 0.0) is False
+    assert full_noise(training, 0.0) is True
     assert full_noise(training, 0.99) is True
     assert teammate_for(training, 0.0) == "none"
     assert opponent_for(training, 0.0) == "static"
-    info = stage_info(training, 0.1)
-    assert info["index"] == 0
-    assert stage_info(training, 0.3)["index"] == 1
-    assert stage_info(training, 0.5)["index"] == 2
-    assert stage_info(training, 0.99)["index"] == 3
+    assert stage_info(training, 0.0)["unlock"] == []
+    assert stage_info(training, 0.99)["index"] == 0
+
+
+def test_empty_curriculum_defaults_full_noise():
+    assert full_noise({"domainRandomization": {"curriculum": []}}, 0.0) is True
+    assert full_noise({}, 0.5) is True
+    staged = {"domainRandomization": {"curriculum": [{"untilFrac": 1.0, "unlock": []}]}}
+    assert full_noise(staged, 0.5) is False
 
 
 def test_resolved_action_tier_honors_robot_default():

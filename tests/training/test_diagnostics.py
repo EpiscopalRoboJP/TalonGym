@@ -1,4 +1,4 @@
-"""Training health gates: distinct curriculum stages, baseline launch, unhealthy checkpoints."""
+"""Training health gates: legal spawn, baseline launch, unhealthy checkpoints."""
 
 from __future__ import annotations
 
@@ -9,16 +9,12 @@ from talongym.training.curriculum import curriculum_spawn, stage_info
 from talongym.training.diagnostics import EpisodeHealth, summarize_episode
 
 
-def test_curriculum_stages_are_distinct_physical_scaffolds():
+def test_curriculum_is_legal_spawn_without_scaffolds():
     training = load_preset("training", "biobuzz_auto_lightweight")
     stages = [stage_info(training, frac) for frac in (0.0, 0.3, 0.6, 0.99)]
-    unlocks = [tuple(stage["unlock"]) for stage in stages]
-    assert len(set(unlocks)) == 4
-    assert curriculum_spawn(training, 0.0) == "launch"
-    assert curriculum_spawn(training, 0.3) == "approach"
-    assert curriculum_spawn(training, 0.6) == "legal"
-    assert "mechanism_ready" in stages[0]["unlock"]
-    assert "full_noise" in stages[-1]["unlock"]
+    assert {tuple(stage["unlock"]) for stage in stages} == {()}
+    assert curriculum_spawn(training, 0.0) == "legal"
+    assert curriculum_spawn(training, 0.99) == "legal"
 
 
 def test_summarize_episode_marks_zero_launch_policies_unhealthy():
