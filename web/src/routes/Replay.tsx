@@ -326,7 +326,7 @@ export function ReplayPage() {
           )}
         </Panel>
 
-        <Panel title="Field state" sub={frame ? `t ${frame.t.toFixed(2)} s` : undefined}>
+        <Panel title="Field state" sub={frame ? `t ${frame.t.toFixed(2)} s` : undefined} bodyClass="panel-body scroll">
           <p className="note">Queues {namedQueues(frame?.queues)}</p>
           <p className="label">Gates</p>
           <KeyValues data={frame?.gate as Record<string, unknown>} />

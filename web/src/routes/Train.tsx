@@ -428,6 +428,7 @@ export function TrainPage() {
       <div className="col">
         <Panel
           title="New training run"
+          bodyClass="panel-body scroll"
           footer={
             <>
               <button type="button" className="btn primary" style={{ flex: 1 }} onClick={start} disabled={starting || busy}>

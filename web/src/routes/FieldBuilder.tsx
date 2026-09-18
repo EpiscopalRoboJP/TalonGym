@@ -515,7 +515,7 @@ export function FieldBuilderPage() {
 
       {tab === "json" && (
         <div className="builder-json">
-          <Panel className="grow" title="Field JSON" sub={doc?.id}>
+          <Panel className="grow" title="Field JSON" sub={doc?.id} bodyClass="panel-body scroll">
             <textarea aria-label="Field JSON" className="json-editor" spellCheck={false} value={jsonText}
               onChange={(e) => {
                 setJsonText(e.target.value);
@@ -525,6 +525,7 @@ export function FieldBuilderPage() {
           </Panel>
           <Panel
             title="Validation"
+            bodyClass="panel-body scroll"
             actions={
               <button type="button" className="btn sm" onClick={validateField}>
                 <Icon name="check" size={14} /> Validate
@@ -544,6 +545,7 @@ export function FieldBuilderPage() {
           <Panel
             className="grow"
             title="Scoring rules"
+            bodyClass="panel-body scroll"
             actions={
               <select aria-label="Scoring preset" style={{ width: "auto" }} value={scoringId} onChange={(e) => setScoringId(e.target.value)}>
                 {scoringList.map((p) => (
@@ -558,6 +560,7 @@ export function FieldBuilderPage() {
           </Panel>
           <Panel
             title="Validation"
+            bodyClass="panel-body scroll"
             actions={
               <button type="button" className="btn sm" onClick={validateScoring}>
                 <Icon name="check" size={14} /> Validate
