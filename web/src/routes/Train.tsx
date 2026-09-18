@@ -52,7 +52,6 @@ type Metrics = {
 const STARTUP_PHASE_LABEL: Record<string, string> = {
   creating_envs: "Creating envs…",
   bc_warmup: "BC warmup…",
-  scripted_baseline: "Checking scripted baseline…",
 };
 
 function startupPhaseLabel(phase?: string | null, nEnvs?: number) {

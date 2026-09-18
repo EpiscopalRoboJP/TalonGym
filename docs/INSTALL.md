@@ -74,7 +74,7 @@ cd web && npm test
 
 ## Hardware modes
 
-`python -m talongym detect` classifies this machine. Starting points also live on the training JSON (`nEnvs`). CLI `train --easy` uses the detected count; an explicit preset keeps its JSON `nEnvs` unless you pass `--n-envs`.
+`python -m talongym detect` classifies this machine. Starting points also live on the training JSON (`nEnvs`). CLI `train --easy` uses the detected count; an explicit preset keeps its JSON `nEnvs` unless you pass `--n-envs`. Physics defaults to at most 8 processes (`simWorkers`); override with `TALONGYM_SIM_WORKERS`. Held-out eval uses `TALONGYM_EVAL_WORKERS`.
 
 | Profile | Typical n_envs | Notes |
 |---------|----------------|-------|

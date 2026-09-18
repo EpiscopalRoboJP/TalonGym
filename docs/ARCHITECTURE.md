@@ -315,14 +315,14 @@ Typical error body: `{ "error": { "code": "SCHEMA"|"NOT_FOUND"|…, "message": "
 
 HTTP today: 400 validation, 404 missing, 409 preset in use, 422 schema, 501 LSTM ONNX, 503 mesh/CAD extras. There is **no** `PRESET_STALE` code and **no** worker-busy 503. Stale presets are a boolean on list rows (`stale`), not an error envelope.
 
-Training jobs are **in-process threads**. The SQLite `jobs` table is a write-only status log (`enqueue_job`); no worker reads it.
+Training jobs are **in-process threads**. The SQLite `jobs` table is a write-only status log (`enqueue_job`); no worker reads it. Rollouts use a **CPU process pool** (`forkserver` / `spawn`, never `fork` from Lab): `simWorkers` defaults to `min(nEnvs, cores-1, 8)` so each process does not compile another full mesh copy; each worker steps a DummyVecEnv chunk. The RecurrentPPO LSTM stays on CUDA/MPS in the parent when torch can; MuJoCo does not. Override with `TALONGYM_SIM_WORKERS`.
 
 ### REST
 
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | `{ "ok", "engine": "planar2d" (Rapier stub fallback), "fieldEngine", "db", "capabilityVersion": 1, "computeProfile", "nEnvs" }` |
-| GET | `/compute` | Detected profile and recommended nEnvs |
+| GET | `/compute` | Detected profile, recommended nEnvs, simWorkers, evalWorkers |
 | GET/PUT | `/defaults` | Active field/robot/scoring/training ids |
 | GET | `/presets/{kind}` | List (`field` \| `robot` \| `scoring` \| `training`) |
 | POST | `/presets/{kind}` | Create; 201 |
@@ -494,7 +494,7 @@ Final numbers are **locked after Phase 0 measurement**.
 
 ### Accessibility
 
-Lightweight CPU path is first-class. Cloud is optional. UI copy must not assume a GPU.
+Lightweight CPU path is first-class. Cloud is optional. UI copy must not assume a GPU. A GPU accelerates PPO updates only; physics remains CPU MuJoCo, parallelized across processes.
 
 ### Extensibility self-check
 
@@ -555,4 +555,4 @@ BIOBUZZ is the only shipped season. A new season is data under `presets/seasons/
 2. Compile scoring JSON to a contiguous struct-of-arrays DAG; evaluate in Rust or Cython-free Python first, profile, then move hot loops.
 3. Write `tests/presets/test_no_season_leak.py` and `tests/env/test_motif_not_leaked.py` before any PPO run.
 4. Pin `sb3-contrib` RecurrentPPO; flatten only the boxes SB3 cannot digest, keep Dict via `MultiInputLstmPolicy`. BIOBUZZ uses `AsymmetricLstmPolicy` so the critic may read `_privileged` while the actor cannot.
-5. SQLite schema: `presets`, `runs`, `evaluations`, `artifacts`, `replays`, `jobs` — WAL mode, files under `var/talongym.db`. Training is in-process threads; `jobs` is a status log.
+5. SQLite schema: `presets`, `runs`, `evaluations`, `artifacts`, `replays`, `jobs` — WAL mode, files under `var/talongym.db`. Training is in-process threads; `jobs` is a status log. Env stepping is a chunked CPU process pool (`python/talongym/training/vec_env.py`).

@@ -43,7 +43,7 @@ Prints `compute=… nEnvs=… training=… steps=…` then `algo=… steps=… c
 python -m talongym detect
 ```
 
-Prints CPU count, RAM, CUDA, the resolved `lightweight_cpu` / `workstation` / `cloud` profile, recommended `nEnvs`, and the matching `*_easy` training id. Override with `TALONGYM_COMPUTE_PROFILE`.
+Prints CPU count, RAM, CUDA, the resolved `lightweight_cpu` / `workstation` / `cloud` profile, recommended `nEnvs`, `simWorkers` / `evalWorkers`, and the matching `*_easy` training id. Override with `TALONGYM_COMPUTE_PROFILE`, `TALONGYM_SIM_WORKERS`, `TALONGYM_EVAL_WORKERS`.
 
 ## `evaluate`
 
