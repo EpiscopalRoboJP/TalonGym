@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "talongym"
-version = "0.3.3"
+version = "0.3.4"
 description = "Season-agnostic FTC Autonomous RL trainer and 3D strategy lab"
 readme = "README.md"
 license = { file = "LICENSE" }

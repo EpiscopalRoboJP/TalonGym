@@ -1,4 +1,4 @@
-import type { CacheBatchCounts, CacheBatchItem, CatalogCacheBatch, CatalogCacheState, RigidPartSpec } from "../api";
+import type { CacheBatchCounts, CacheBatchItem, CatalogCacheBatch, CatalogCacheState } from "../api";
 
 export const EMPTY_CACHE_COUNTS: CacheBatchCounts = {
   queued: 0,
