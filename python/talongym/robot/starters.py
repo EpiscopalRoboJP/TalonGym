@@ -95,12 +95,48 @@ def _extend_unique(instances: list[dict[str, Any]], extras: list[dict[str, Any]]
     instances.extend(row for row in extras if row["id"] not in ids)
 
 
+def _next_flange_pair(flange_u: int, occupied: set[int], start: int = 2) -> int:
+    for hole in range(max(start, 0), flange_u - 2):
+        footprint = {hole, hole + 1, hole + 2}
+        if occupied & footprint:
+            continue
+        occupied.update(footprint)
+        return hole
+    raise StarterError(f"U-channel flange {flange_u} has no free 16 mm motor pair")
+
+
+def _occupied_flange_holes(connections: list[dict[str, Any]], rail_id: str) -> set[int]:
+    occupied: set[int] = set()
+    refs: list[dict[str, Any]] = []
+    for row in connections:
+        refs.append(row.get("parent") or {})
+        refs.append(row.get("child") or {})
+        secondary = row.get("secondary") or {}
+        refs.append(secondary.get("parent") or {})
+        refs.append(secondary.get("child") or {})
+    for ref in refs:
+        if str(ref.get("instanceId") or "") != rail_id or str(ref.get("mountId") or "") != "flange_a":
+            continue
+        index = ref.get("patternIndex") or []
+        if index:
+            hole = int(index[0])
+            occupied.update({hole - 1, hole, hole + 1})
+    return occupied
+
+
 def _attach_gobilda_scoring(document: dict[str, Any]) -> None:
     assembly = document["assembly"]
     instances: list[dict[str, Any]] = assembly["instances"]
     connections: list[dict[str, Any]] = assembly["connections"]
     ids = {row["id"] for row in instances}
     motor_sku = next(row["sku"] for row in instances if row["id"] == "motor_fl")
+    length_sku = next(row["sku"] for row in instances if row["id"] == "left_rail")
+    flange_u, _ = _pattern_counts(length_sku, "flange_a")
+    left_used = _occupied_flange_holes(connections, "left_rail")
+    right_used = _occupied_flange_holes(connections, "right_rail")
+    intake_u = _next_flange_pair(flange_u, left_used)
+    conveyor_u = _next_flange_pair(flange_u, left_used, start=intake_u + 1)
+    launcher_u = _next_flange_pair(flange_u, right_used)
     extras = [
         _instance("intake_motor", motor_sku),
         _instance("intake_wheel", _GOBILDA_INTAKE),
@@ -115,11 +151,11 @@ def _attach_gobilda_scoring(document: dict[str, Any]) -> None:
     _extend_unique(instances, extras)
     connections.extend(
         [
-            _conn("intake_motor", "left_rail", "flange_a", (8, 0), "intake_motor", "face", (0, 0), ((10, 0), (1, 0))),
+            _conn("intake_motor", "left_rail", "flange_a", (intake_u, 0), "intake_motor", "face", (0, 0), ((intake_u + 2, 0), (1, 0))),
             _conn("intake_wheel", "intake_motor", "output", None, "intake_wheel", "bore", None, joint_type="hinge"),
-            _conn("conveyor_motor", "left_rail", "flange_a", (12, 0), "conveyor_motor", "face", (0, 0), ((14, 0), (1, 0))),
+            _conn("conveyor_motor", "left_rail", "flange_a", (conveyor_u, 0), "conveyor_motor", "face", (0, 0), ((conveyor_u + 2, 0), (1, 0))),
             _conn("conveyor_wheel", "conveyor_motor", "output", None, "conveyor_wheel", "bore", None, joint_type="hinge"),
-            _conn("launcher_motor", "right_rail", "flange_a", (8, 0), "launcher_motor", "face", (0, 0), ((10, 0), (1, 0))),
+            _conn("launcher_motor", "right_rail", "flange_a", (launcher_u, 0), "launcher_motor", "face", (0, 0), ((launcher_u + 2, 0), (1, 0))),
             _conn(
                 "flywheel_wheel",
                 "launcher_motor",

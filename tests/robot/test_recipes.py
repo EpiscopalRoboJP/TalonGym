@@ -80,6 +80,7 @@ def test_gobilda_recipes_include_rails_motors_wheels_brackets_and_electronics():
     assert {"plate_center", "hub_center", "bracket_fl", "bracket_fr", "sensor_imu", "servo_front"} <= ids
     assert skus["motor_fl"] == "5203-2402-0019"
     assert skus["wheel_fl"] == "3213-3606-0001"
+    assert skus["wheel_fr"] == "3213-3606-0002"
     compiled = instantiate_and_compile("gobilda_mecanum")
     assert compiled.report.drivetrain.get("complete") is True
     assert compiled.preset["motors"]["count"] == 4
@@ -144,10 +145,10 @@ def test_rev_recipes_place_rails_motors_wheels_and_compile():
 
 def test_recipes_report_real_track_wheelbase_and_selected_gearing():
     expected = {
-        "gobilda_mecanum": {"gear": 19.2, "track": 7.244, "wheelbase": 4.724},
-        "gobilda_tank": {"gear": 19.2, "track": 4.409, "wheelbase": 4.724},
-        "rev_mecanum": {"gear": 5.0, "track": 8.189, "wheelbase": 14.173},
-        "rev_tank": {"gear": 5.0, "track": 8.189, "wheelbase": 14.173},
+        "gobilda_mecanum": {"gear": 19.2, "track": 12.913, "wheelbase": 11.654},
+        "gobilda_tank": {"gear": 19.2, "track": 4.409, "wheelbase": 5.984},
+        "rev_mecanum": {"gear": 5.0, "track": 8.189, "wheelbase": 14.803},
+        "rev_tank": {"gear": 5.0, "track": 8.189, "wheelbase": 14.803},
     }
     for recipe_id, want in expected.items():
         compiled = instantiate_and_compile(recipe_id, competitive=True)
@@ -172,9 +173,10 @@ def test_recipes_report_real_track_wheelbase_and_selected_gearing():
     assert three.preset["motors"]["gearRatio"] == pytest.approx(3.0)
     four = instantiate_and_compile("rev_tank", {"cartridgeSku": "REV-41-1602"}, competitive=True)
     assert four.preset["motors"]["gearRatio"] == pytest.approx(4.0)
+    full = instantiate_and_compile("gobilda_mecanum", competitive=True)
     narrow = instantiate_and_compile("gobilda_mecanum", {"widthSku": "1120-0004-0120"}, competitive=True)
     assert narrow.preset["drivetrain"]["trackWidthIn"] == pytest.approx(4.409, abs=0.35)
-    assert narrow.preset["drivetrain"]["trackWidthIn"] != pytest.approx(7.244, abs=0.05)
+    assert narrow.preset["drivetrain"]["trackWidthIn"] < full.preset["drivetrain"]["trackWidthIn"] - 2.0
 
 
 def test_recipe_loader_rejects_unknown_ids_and_invalid_choices():
@@ -199,6 +201,24 @@ def test_recipes_form_compact_planar_drivebases():
         assert min(span[0], span[1]) > 6.0, f"{recipe_id} collapsed to a line {span}"
         ids = {row["id"] for row in compiled.preset["rigidParts"]}
         assert {"left_rail", "front_rail", "right_rail", "rear_rail", "motor_fl", "wheel_fl"} <= ids
+        assert span[2] >= 2.5, f"{recipe_id} wheels are not standing up, height {span[2]}"
+
+
+def test_recipe_drive_wheels_spin_about_lateral_axles():
+    from talongym.robot.catalog import get_part
+    from talongym.robot.mounts import mount_axis, part_mount
+    from talongym.robot.transforms import matrix_from_pose, transform_direction
+
+    for recipe_id in RECIPE_IDS:
+        document = instantiate_recipe(recipe_id)
+        compiled = instantiate_and_compile(recipe_id, competitive=True)
+        instances = {row["id"]: row for row in document["assembly"]["instances"]}
+        for ident in ("wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"):
+            pose = matrix_from_pose(compiled.instance_poses[ident])
+            part = get_part(instances[ident]["sku"])
+            axis = transform_direction(pose, mount_axis(part_mount(part, "bore")))
+            assert abs(float(axis[1])) > 0.95, f"{recipe_id} {ident} bore {axis} is not lateral"
+            assert abs(float(axis[2])) < 0.2, f"{recipe_id} {ident} bore {axis} points at the floor"
 
 
 def test_recipe_compile_throughput_is_proportional():

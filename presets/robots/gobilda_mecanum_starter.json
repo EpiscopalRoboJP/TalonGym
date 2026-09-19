@@ -7,29 +7,30 @@
     "recipe": {
       "id": "gobilda_mecanum",
       "parameters": {
-        "lengthSku": "1120-0007-0192",
-        "widthSku": "1120-0007-0192",
+        "lengthSku": "1120-0013-0336",
+        "widthSku": "1120-0013-0336",
         "motorSku": "5203-2402-0019",
         "wheelSku": "3213-3606-0001",
+        "wheelSkuOpposite": "3213-3606-0002",
         "includeElectronics": true
       }
     },
     "instances": [
       {
         "id": "left_rail",
-        "sku": "1120-0007-0192"
+        "sku": "1120-0013-0336"
       },
       {
         "id": "front_rail",
-        "sku": "1120-0007-0192"
+        "sku": "1120-0013-0336"
       },
       {
         "id": "right_rail",
-        "sku": "1120-0007-0192"
+        "sku": "1120-0013-0336"
       },
       {
         "id": "rear_rail",
-        "sku": "1120-0007-0192"
+        "sku": "1120-0013-0336"
       },
       {
         "id": "plate_center",
@@ -61,7 +62,7 @@
       },
       {
         "id": "wheel_fr",
-        "sku": "3213-3606-0001"
+        "sku": "3213-3606-0002"
       },
       {
         "id": "motor_rl",
@@ -77,7 +78,7 @@
       },
       {
         "id": "wheel_rr",
-        "sku": "3213-3606-0001"
+        "sku": "3213-3606-0002"
       },
       {
         "id": "sensor_imu",
@@ -147,7 +148,7 @@
           "instanceId": "front_rail",
           "mountId": "web",
           "patternIndex": [
-            23,
+            41,
             1
           ]
         },
@@ -155,7 +156,7 @@
           "instanceId": "right_rail",
           "mountId": "web",
           "patternIndex": [
-            23,
+            41,
             1
           ]
         },
@@ -167,7 +168,7 @@
           "instanceId": "left_rail",
           "mountId": "web",
           "patternIndex": [
-            23,
+            41,
             1
           ]
         },
@@ -187,7 +188,7 @@
           "instanceId": "left_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            3,
+            2,
             0
           ]
         },
@@ -204,7 +205,7 @@
             "instanceId": "left_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              5,
+              4,
               0
             ]
           },
@@ -224,7 +225,7 @@
           "instanceId": "left_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            18,
+            38,
             0
           ]
         },
@@ -241,7 +242,7 @@
             "instanceId": "left_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              20,
+              40,
               0
             ]
           },
@@ -261,7 +262,7 @@
           "instanceId": "right_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            3,
+            2,
             0
           ]
         },
@@ -278,7 +279,7 @@
             "instanceId": "right_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              5,
+              4,
               0
             ]
           },
@@ -298,7 +299,7 @@
           "instanceId": "right_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            18,
+            38,
             0
           ]
         },
@@ -315,7 +316,7 @@
             "instanceId": "right_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              20,
+              40,
               0
             ]
           },
@@ -335,7 +336,7 @@
           "instanceId": "front_rail",
           "mountId": "web",
           "patternIndex": [
-            12,
+            21,
             1
           ]
         },
@@ -352,7 +353,7 @@
             "instanceId": "front_rail",
             "mountId": "web",
             "patternIndex": [
-              13,
+              22,
               1
             ]
           },
@@ -602,7 +603,7 @@
           "instanceId": "left_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            8,
+            6,
             0
           ]
         },
@@ -619,7 +620,7 @@
             "instanceId": "left_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              10,
+              8,
               0
             ]
           },
@@ -651,7 +652,7 @@
           "instanceId": "left_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            12,
+            9,
             0
           ]
         },
@@ -668,7 +669,7 @@
             "instanceId": "left_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              14,
+              11,
               0
             ]
           },
@@ -700,7 +701,7 @@
           "instanceId": "right_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            8,
+            6,
             0
           ]
         },
@@ -717,7 +718,7 @@
             "instanceId": "right_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              10,
+              8,
               0
             ]
           },
@@ -771,8 +772,8 @@
       "type": "mecanum",
       "strafeMultiplier": 1.0,
       "wheelDiameterIn": 3.78,
-      "trackWidthIn": 7.244,
-      "wheelbaseIn": 4.724
+      "trackWidthIn": 12.913,
+      "wheelbaseIn": 11.654
     },
     "instanceRoles": {
       "left_rail": "structure",
@@ -807,14 +808,14 @@
     "type": "mecanum",
     "strafeMultiplier": 1.0,
     "wheelDiameterIn": 3.78,
-    "trackWidthIn": 7.244,
-    "wheelbaseIn": 4.724
+    "trackWidthIn": 12.913,
+    "wheelbaseIn": 11.654
   },
   "chassis": {
     "lengthIn": 18,
     "widthIn": 18,
     "heightIn": 14,
-    "massKg": 5.911999999999999,
+    "massKg": 5.328,
     "collisionShape": "aabb"
   },
   "motors": {

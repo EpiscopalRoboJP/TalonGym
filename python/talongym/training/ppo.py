@@ -124,21 +124,28 @@ def _eval_true_scores(
 ) -> tuple[list[float], list[dict[str, Any]]]:
     scores: list[float] = []
     frames: list[dict[str, Any]] = []
-    for i, seed in enumerate(seeds):
-        adapter.reset_lstm()
-        env = FTCAutoEnv(
-            bundle=bundle,
-            record=record_first and i == 0,
-            match_setup=match_setup,
-        )
-        obs, info = env.reset(seed=int(seed), options=dict(options or {}))
-        term = trunc = False
-        while not term and not trunc:
-            obs, _, term, trunc, info = env.step(adapter(obs, info))
-        scores.append(float(info.get("true_score") or 0.0))
-        if record_first and i == 0:
-            frames = list(env.frames)
-        env.close()
+    env = None
+    try:
+        for i, seed in enumerate(seeds):
+            adapter.reset_lstm()
+            if env is None:
+                env = FTCAutoEnv(
+                    bundle=bundle,
+                    record=record_first,
+                    match_setup=match_setup,
+                )
+            elif i == 1:
+                env.record = False
+            obs, info = env.reset(seed=int(seed), options=dict(options or {}))
+            term = trunc = False
+            while not term and not trunc:
+                obs, _, term, trunc, info = env.step(adapter(obs, info))
+            scores.append(float(info.get("true_score") or 0.0))
+            if record_first and i == 0:
+                frames = list(env.frames)
+    finally:
+        if env is not None:
+            env.close()
     return scores, frames
 
 
@@ -233,12 +240,12 @@ def train_ppo(
         if on_metrics:
             on_metrics(
                 {
-                    "envSteps": 0,
+                    "envSteps": int(progress.steps),
                     "nEnvs": n_envs,
                     "simWorkers": n_workers,
                     "algo": algo_name,
                     "startupPhase": phase,
-                    "progressFrac": 0.0,
+                    "progressFrac": progress.frac,
                 }
             )
 
@@ -401,6 +408,7 @@ def train_ppo(
             "curriculumStage": stage.get("index"),
             "curriculumUnlock": stage.get("unlock"),
             "startupPhase": startup_phase,
+            "bestSkippedUnhealthy": False,
         }
         if elapsed > 0 and progress.steps > 0:
             packed["fps"] = float(progress.steps / elapsed)
@@ -446,6 +454,8 @@ def train_ppo(
             self._emit(force=True)
 
         def _on_step(self) -> bool:
+            if startup_phase != "training":
+                emit_startup("training", "collecting rollouts")
             self._collect()
             self._emit()
             if should_stop and should_stop():
@@ -453,6 +463,7 @@ def train_ppo(
             return True
 
         def _on_rollout_end(self) -> None:
+            emit_startup("ppo_update", "PPO update (env steps pause during the gradient step)")
             self._emit(force=True)
 
     chunk = max(rollout_len, min(total_steps, 8192))
@@ -496,6 +507,7 @@ def train_ppo(
         try:
             model.save(str(latest))
             if eval_n > 0:
+                emit_startup("evaluating", "held-out eval (training continues)")
                 adapter = RecurrentPolicyAdapter(model)
                 scores, eval_frames = _eval_true_scores(
                     adapter,
@@ -527,8 +539,9 @@ def train_ppo(
                 elif metric > best_metric and not health.healthy:
                     metrics["bestSkippedUnhealthy"] = True
                     emit(
-                        f"eval {objective_name}={metric:.2f} but checkpoint is unhealthy "
-                        f"(launches={health.launches}, wall={health.wall_contact_s:.1f}s); not saving best.zip"
+                        f"eval {objective_name}={metric:.2f} has not launched yet "
+                        f"(launches={health.launches}, wall={health.wall_contact_s:.1f}s); "
+                        "best.zip unchanged, training continues"
                     )
                 elif anchor_tolerance > 0 and metric < best_metric - anchor_tolerance and best_path.exists():
                     # Outcome anchor: the policy may act unlike the script, but not score clearly worse than

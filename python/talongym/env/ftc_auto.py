@@ -195,9 +195,14 @@ class FTCAutoEnv(gym.Env):
         teammate = opts.get("teammate_policy", self.teammate_policy)
         opponent = opts.get("opponent_policy", self.opponent_policy)
         live = teammate in {"scripted", "shared_reward", "independent"}
-        static = self.static_teammate if teammate in {"none", None} else False
-        if teammate == "none" and not live:
-            static = opts.get("static_teammate", self.static_teammate)
+        if live:
+            static = False
+        elif "static_teammate" in opts:
+            static = bool(opts["static_teammate"])
+        elif teammate in {"none", None}:
+            static = False
+        else:
+            static = self.static_teammate
         opp_mode = opponent if opponent not in {None, "none"} else "none"
         if opts.get("opponent_mode"):
             opp_mode = opts["opponent_mode"]
@@ -347,7 +352,7 @@ class FTCAutoEnv(gym.Env):
             speed = float(np.asarray(speed_raw).reshape(-1)[0])
             if not np.all(np.isfinite(target)) or not np.isfinite(speed):
                 return None
-            parsed["target_pose"] = target
+            parsed["target_pose"] = self._clip_alliance_target(target)
             parsed["speed_frac"] = speed
         if "velocity" in action:
             vel = np.asarray(action.get("velocity"), dtype=np.float64).reshape(-1)
@@ -399,6 +404,18 @@ class FTCAutoEnv(gym.Env):
         speed = float(arr[3])
         mech = int(np.clip(np.round(arr[4]), 0, len(MECHANISM_VERBS) - 1))
         return {"target_pose": target, "speed_frac": speed, "mechanism": mech}
+
+    def _clip_alliance_target(self, target: np.ndarray) -> np.ndarray:
+        """Keep waypoint X on the learner's alliance half so random targets cannot farm G402."""
+        out = np.asarray(target, dtype=np.float64).reshape(3).copy()
+        robot = self.world.robots.get(self.learner_id) or (self.world.actor() if self.world.robots else None)
+        alliance = robot.body.alliance if robot is not None else "red"
+        reach = float(getattr(self.world, "robot_hx", 9.0) or 9.0)
+        if alliance == "red":
+            out[0] = min(float(out[0]), -reach)
+        elif alliance == "blue":
+            out[0] = max(float(out[0]), reach)
+        return out
 
     def _mechanism_truths(self, robot_id: str) -> dict[str, float]:
         rs = self.world.robots.get(robot_id) or self.world.actor()

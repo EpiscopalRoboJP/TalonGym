@@ -277,6 +277,16 @@ const tests: Array<[string, () => void]> = [
   ["articulated catalog parts hide the chassis lump and CAD missing is explicit", () => {
     assert(hideChassisLump({ rigidParts: [{ id: "chassis" }, { id: "motor_fl" }] }) === true, "hide lump");
     assert(hideChassisLump({ rigidParts: [{ id: "chassis" }] }) === false, "chassis only keeps lump");
+    assert(
+      hideChassisLump({
+        rigidParts: [
+          { id: "chassis", collision: [{ kind: "box" }] },
+          { id: "intake_roller" },
+        ],
+      }) === false,
+      "4-cap hull stays",
+    );
+    assert(hideChassisLump({ rigidParts: [{ id: "_catalog" }] }) === true, "uncompiled catalog placeholder");
     assert(cadPlaceholderLabel({ cacheState: "unavailable" }) === "CAD unavailable", "unavailable");
     assert(cadPlaceholderLabel({ cacheState: "invalid" }) === "CAD cache invalid", "invalid");
     assert(cadPlaceholderLabel({ cacheState: "missing" }) === "CAD not cached", "missing");

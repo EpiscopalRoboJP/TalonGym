@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from talongym.env.ftc_auto import BoxActionDictObsEnv, FTCAutoEnv
 
@@ -96,4 +97,20 @@ def test_mechanism_sensor_defaults_without_backend_fields():
     )
     frame = env.frames[-1]
     assert frame["robots"][0].get("lastVerb") in {"idle", "intake", "score", "open_gate", "stow"}
+    env.close()
+
+
+def test_waypoint_targets_are_clipped_to_alliance_half():
+    env = FTCAutoEnv(record=False, static_teammate=False)
+    env.reset(seed=1)
+    parsed = env._parse_action(
+        {
+            "target_pose": np.array([40.0, 12.0, 0.0], dtype=np.float32),
+            "speed_frac": np.array([1.0], dtype=np.float32),
+            "mechanism": 0,
+        }
+    )
+    assert parsed is not None
+    assert parsed["target_pose"][0] <= -float(env.world.robot_hx)
+    assert parsed["target_pose"][1] == pytest.approx(12.0)
     env.close()

@@ -8,7 +8,7 @@ import pytest
 from tests.robot.test_assembly import golden_three_part_assembly
 
 from talongym.assets.mjcf_robot import emit_robot_bodies, kinematic_part_transforms
-from talongym.presets.loader import LoadedPresets, load_bundle
+from talongym.presets.loader import LoadedPresets, load_bundle, load_preset
 from talongym.robot.assembly import compile_assembly_to_preset
 from talongym.robot.catalog import get_part
 from talongym.sim.world import World
@@ -88,6 +88,38 @@ def test_kinematic_snapshot_rows_keep_exact_catalog_ids():
     wheel_row = next(row for row in rows if row["id"] == "wheel")
     assert wheel_row["x"] == pytest.approx(12.0, abs=3.0)
     assert wheel_row["z"] == pytest.approx(7.2 - 7.0 + radius, abs=0.2)
+
+
+def test_four_cap_kinematic_rows_keep_mechanism_hull():
+    robot = load_preset("robot", "mecanum_biobuzz_4cap")
+    rows = kinematic_part_transforms(
+        robot,
+        robot_x=0.0,
+        robot_y=0.0,
+        heading=0.0,
+        origin_z=7.2,
+        robot_hz=7.0,
+    )
+    ids = {row["id"] for row in rows}
+    assert "intake_roller" in ids
+    assert "flywheel" in ids
+
+
+def test_scoring_starter_kinematic_rows_are_catalog_only():
+    compiled = compile_assembly_to_preset(load_preset("robot", "gobilda_mecanum_starter"), competitive=True)
+    rows = kinematic_part_transforms(
+        compiled.preset,
+        robot_x=0.0,
+        robot_y=0.0,
+        heading=0.0,
+        origin_z=7.2,
+        robot_hz=7.0,
+    )
+    ids = {row["id"] for row in rows}
+    assert "intake_wheel" in ids
+    assert "flywheel_wheel" in ids
+    assert "intake_roller" not in ids
+    assert "flywheel" not in ids
 
 
 def test_existing_physical_robot_still_emits_articulated_geoms():

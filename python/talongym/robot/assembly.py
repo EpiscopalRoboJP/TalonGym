@@ -19,7 +19,12 @@ from talongym.robot.contract import (
     compile_robot_preset,
 )
 from talongym.robot.graph import validate_assembly_graph
-from talongym.robot.inference import InferenceReport, build_inference_report, infer_connection_joint
+from talongym.robot.inference import (
+    TOPOLOGY_FALLBACK_FIELDS,
+    InferenceReport,
+    build_inference_report,
+    infer_connection_joint,
+)
 from talongym.robot.mounts import (
     hole_in_part,
     mount_axis,
@@ -79,6 +84,118 @@ def _strip_scoring_topology(preset: dict[str, Any]) -> dict[str, Any]:
     preset["mechanisms"] = mechanisms
     preset["defaultActionTier"] = "high_level_waypoint"
     return preset
+
+
+def _minimal_chassis_parent(preset: dict[str, Any]) -> dict[str, Any]:
+    """Keep a chassis id for catalog parenting; drop the 4-cap hull collision boxes."""
+    parent: dict[str, Any] = {
+        "id": "chassis",
+        "parentId": None,
+        "pose": {"x": 0.0, "y": 0.0, "z": 0.0},
+        "massKg": 1e-6,
+        "collision": [],
+    }
+    for row in preset.get("rigidParts") or []:
+        if str(row.get("id") or "") != "chassis":
+            continue
+        parent["pose"] = dict(row.get("pose") or parent["pose"])
+        break
+    preset["rigidParts"] = [parent]
+    return preset
+
+
+def _restore_scoring_contract(preset: dict[str, Any], template: dict[str, Any]) -> None:
+    """Copy functional 4-cap fields without grafting its rigid-part hull."""
+    for key in TOPOLOGY_FALLBACK_FIELDS:
+        if key in template:
+            preset[key] = copy.deepcopy(template[key])
+
+
+_ACTUATOR_CATALOG_CHILDREN = {
+    "intake": ("intake_wheel",),
+    "conveyor": ("conveyor_wheel",),
+    "flywheel": ("flywheel_wheel",),
+    "hood": ("hood_plate",),
+    "gate": ("gate_servo", "servo_front"),
+}
+
+
+def _ghost_topology_part(row: dict[str, Any]) -> dict[str, Any]:
+    part = copy.deepcopy(row)
+    part["collision"] = []
+    part.pop("visualAsset", None)
+    part["massKg"] = max(float(part.get("massKg") or 0.0), 0.05)
+    if not (isinstance(part.get("inertiaKgM2"), list) and len(part.get("inertiaKgM2") or []) == 3):
+        part["inertiaKgM2"] = [1e-4, 1e-4, 1e-4]
+    return part
+
+
+def _rewire_scoring_actuators(preset: dict[str, Any], template: dict[str, Any]) -> None:
+    """Bind scoring actuators to catalog hinges; ghost 4-cap hood/gate parts only if needed."""
+    joints = list(preset.get("joints") or [])
+    parts = list(preset.get("rigidParts") or [])
+    by_child = {str(row.get("childPartId") or ""): row for row in joints}
+    joint_ids = {str(row.get("id") or "") for row in joints}
+    part_ids = {str(row.get("id") or "") for row in parts}
+    template_parts = {str(row.get("id") or ""): row for row in template.get("rigidParts") or []}
+    template_joints = {str(row.get("id") or ""): row for row in template.get("joints") or []}
+    template_by_child = {str(row.get("childPartId") or ""): row for row in template.get("joints") or []}
+
+    def ensure_ghost_child(child_id: str) -> None:
+        if child_id in part_ids or child_id == "chassis":
+            return
+        part = template_parts.get(child_id)
+        joint = template_by_child.get(child_id)
+        if part is None or joint is None:
+            return
+        parent_id = str(joint.get("parentPartId") or "chassis")
+        if parent_id not in part_ids and parent_id != "chassis":
+            ensure_ghost_child(parent_id)
+        parts.append(_ghost_topology_part(part))
+        part_ids.add(child_id)
+        ident = str(joint.get("id") or "")
+        if ident and ident not in joint_ids:
+            joints.append(copy.deepcopy(joint))
+            joint_ids.add(ident)
+            by_child[child_id] = joints[-1]
+
+    actuators: list[dict[str, Any]] = []
+    for row in preset.get("actuators") or []:
+        if not isinstance(row, dict):
+            continue
+        actuator = copy.deepcopy(row)
+        ident = str(actuator.get("id") or "")
+        catalog_joint = next(
+            (
+                by_child[child_id]
+                for child_id in _ACTUATOR_CATALOG_CHILDREN.get(ident, ())
+                if child_id in by_child and str(by_child[child_id].get("type") or "fixed") != "fixed"
+            ),
+            None,
+        )
+        if catalog_joint is not None:
+            actuator["jointId"] = catalog_joint["id"]
+            actuators.append(actuator)
+            continue
+        joint_id = str(actuator.get("jointId") or "")
+        if joint_id in joint_ids:
+            actuators.append(actuator)
+            continue
+        tmpl = template_joints.get(joint_id)
+        if tmpl is None:
+            if str(actuator.get("kind") or "") not in {"position_motor", "servo"}:
+                actuator.pop("jointId", None)
+            actuators.append(actuator)
+            continue
+        ensure_ghost_child(str(tmpl.get("childPartId") or ""))
+        if str(tmpl.get("id") or "") not in joint_ids:
+            joints.append(copy.deepcopy(tmpl))
+            joint_ids.add(str(tmpl["id"]))
+        actuator["jointId"] = tmpl["id"]
+        actuators.append(actuator)
+    preset["actuators"] = actuators
+    preset["joints"] = joints
+    preset["rigidParts"] = parts
 
 
 def _catalog_mechanism_tags(
@@ -380,9 +497,10 @@ def materialize_physical_preset(
     include_scoring = _scoring_topology_requested(bindings, instances, catalog_parts)
     if include_scoring:
         _require_scoring_catalog_parts(instances, catalog_parts)
-    template = _load_topology()
-    if not include_scoring:
-        template = _strip_scoring_topology(template)
+    full_template = _load_topology()
+    template = _minimal_chassis_parent(_strip_scoring_topology(copy.deepcopy(full_template)))
+    if include_scoring:
+        _restore_scoring_contract(template, full_template)
     reserved = _template_ids(template)
     collisions = {ident for ident in instances if ident in reserved}
     if collisions:
@@ -424,6 +542,8 @@ def materialize_physical_preset(
 
     preset["rigidParts"] = list(preset.get("rigidParts") or []) + catalog_parts_out
     preset["joints"] = list(preset.get("joints") or []) + catalog_joints
+    if include_scoring:
+        _rewire_scoring_actuators(preset, full_template)
     _apply_inferred_contract(preset, report, bindings, include_scoring=include_scoring)
     return preset
 

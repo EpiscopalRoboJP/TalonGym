@@ -8,7 +8,7 @@
   "parameters": {
     "lengthSku": {
       "label": "Side rail length",
-      "default": "1120-0007-0192",
+      "default": "1120-0013-0336",
       "choices": [
         "1120-0004-0120",
         "1120-0007-0192",
@@ -18,7 +18,7 @@
     },
     "widthSku": {
       "label": "Cross rail length",
-      "default": "1120-0007-0192",
+      "default": "1120-0013-0336",
       "choices": [
         "1120-0001-0048",
         "1120-0004-0120",
@@ -35,8 +35,17 @@
       ]
     },
     "wheelSku": {
-      "label": "Mecanum wheel",
+      "label": "Left mecanum wheel",
       "default": "3213-3606-0001",
+      "choices": [
+        "3213-3606-0001",
+        "3213-3606-0002",
+        "3213-3606-0003"
+      ]
+    },
+    "wheelSkuOpposite": {
+      "label": "Right mecanum wheel",
+      "default": "3213-3606-0002",
       "choices": [
         "3213-3606-0001",
         "3213-3606-0002",
