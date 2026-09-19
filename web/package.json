@@ -1,7 +1,7 @@
 {
   "name": "talongym-web",
   "private": true,
-  "version": "0.3.8",
+  "version": "0.3.9",
   "license": "GPL-3.0-or-later",
   "author": "FTC Team 17986 904 Robo Eagles and FTC Team 27268 Talon Strike",
   "type": "module",

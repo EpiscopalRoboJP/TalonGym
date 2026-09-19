@@ -1546,9 +1546,41 @@ class World:
                 return True
         return False
 
+    def _chassis_hits_tagged_fixture(self, rs: RobotState, tags: set[str]) -> bool:
+        box = self._robot_aabb(rs.body.x, rs.body.y, rs.body.heading)
+        for _tid, el, sh in self._volume_geom:
+            if not isinstance(el, dict) or not (tag_set(el.get("tags")) & tags):
+                continue
+            if isinstance(sh, AABB) and box.overlaps_aabb(sh):
+                return True
+            if isinstance(sh, Circle) and box.overlaps_circle(sh.x, sh.y, sh.r):
+                return True
+        return False
+
+    def _apply_flower_ram(self, occ: dict[str, set[str]]) -> None:
+        """Sitting on a FLOWER (and its balls) is a ram, not a free LEAVE nest."""
+        if not self._chassis_hits_tagged_fixture(self.actor(), {"flower"}):
+            return
+        self.wall_hit = True
+        for tid, el, _sh in self._volume_geom:
+            if not isinstance(el, dict) or "flower" not in tag_set(el.get("tags")):
+                continue
+            if any(
+                pid in self.pieces and not self.pieces[pid].held_by and not self.pieces[pid].scored
+                for pid in occ.get(tid, set())
+            ):
+                self.piece_hit = True
+                break
+
     def _update_contacts_and_restricted(self, dt: float, occ: dict[str, set[str]]) -> None:
         for rs in self.robots.values():
-            if self._chassis_hits_other(rs) or (self.robot_hit and rs.body.dynamic):
+            rammed = (
+                self._chassis_hits_other(rs)
+                or (self.robot_hit and rs.body.dynamic)
+                or (self.wall_hit and rs.body.dynamic)
+                or self._chassis_hits_tagged_fixture(rs, {"flower"})
+            )
+            if rammed:
                 rs.collision_time_s += dt
                 if rs.first_contact_s is None:
                     rs.first_contact_s = self.time_s
@@ -1751,6 +1783,7 @@ class World:
             self._update_piece_ownership()
             self.time_s += self.dt
             occ_mid = self._occupancy()
+            self._apply_flower_ram(occ_mid)
             events.extend(self._events_from_occupancy(occ_mid))
             self._update_contacts_and_restricted(self.dt, occ_mid)
             self.prev_occupancy = occ_mid

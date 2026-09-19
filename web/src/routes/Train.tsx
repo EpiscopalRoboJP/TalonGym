@@ -708,7 +708,9 @@ export function TrainPage() {
             {metrics.healthWarnings?.length || metrics.bestSkippedUnhealthy ? (
               <p className="note" data-testid="train-health-warnings" role="status">
                 {metrics.bestSkippedUnhealthy
-                  ? "Training is still running. Held-out eval has not launched yet, so best.zip was not updated. "
+                  ? current.state === "running" || current.state === "starting"
+                    ? "Training is still running. Held-out eval has not launched yet, so best.zip was not updated. "
+                    : "Held-out eval never launched, so best.zip was not updated. "
                   : ""}
                 {(metrics.healthWarnings || []).join("; ")}
               </p>

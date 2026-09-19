@@ -37,3 +37,29 @@ def test_occupancy_survives_corrupt_live_lookups():
     occ = world._occupancy()
     assert occ
     assert all(isinstance(ids, set) for ids in occ.values())
+
+
+def test_start_pose_is_not_a_flower_ram():
+    world = _world()
+    world.reset(seed=0, static_teammate=True, full_noise=False)
+    assert not world._chassis_hits_tagged_fixture(world.actor(), {"flower"})
+    world.wall_hit = False
+    world.piece_hit = False
+    world._apply_flower_ram(world._occupancy())
+    assert world.wall_hit is False
+    assert world.piece_hit is False
+
+
+def test_chassis_on_flower_is_a_wall_and_ball_ram():
+    world = _world()
+    world.reset(seed=0, static_teammate=True, full_noise=False)
+    pose = next(el for el in world.elements if el.get("id") == "flower_1")["pose"]
+    rs = world.actor()
+    rs.body.x = float(pose["x"])
+    rs.body.y = float(pose["y"])
+    assert world._chassis_hits_tagged_fixture(rs, {"flower"})
+    world.wall_hit = False
+    world.piece_hit = False
+    world._apply_flower_ram(world._occupancy())
+    assert world.wall_hit is True
+    assert world.piece_hit is True

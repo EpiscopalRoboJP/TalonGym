@@ -631,14 +631,31 @@ class MujocoFieldBackend:
             return self._body_name_by_id[bid]
         return ""
 
-    def _contact_flags(self, robot_ids: set[str], piece_ids: set[str]) -> ContactSet:
+    def _contact_flags(
+        self,
+        robot_ids: set[str],
+        piece_ids: set[str],
+        piece_owners: dict[str, str] | None = None,
+    ) -> ContactSet:
         flags = ContactSet()
         live_robots = set(robot_ids)
+        held = set((piece_owners or {}).keys())
+        held_body_ids = {
+            self._piece_body[slot]
+            for pid, slot in self._id_to_slot.items()
+            if pid in held and 0 <= slot < len(self._piece_body)
+        }
+
+        def _robot_id(name: str) -> str | None:
+            if name in live_robots:
+                return name
+            for rid in live_robots:
+                if name.startswith(f"{rid}_"):
+                    return rid
+            return None
 
         def _is_live_robot(name: str) -> bool:
-            if name in live_robots:
-                return True
-            return any(name.startswith(f"{rid}_") for rid in live_robots)
+            return _robot_id(name) is not None
 
         ncon = int(self._data.ncon)
         for i in range(ncon):
@@ -651,12 +668,22 @@ class MujocoFieldBackend:
             hits_live_robot = _is_live_robot(b1) or _is_live_robot(b2)
             hits_piece = GEOM_GROUP_PIECE in {grp1, grp2}
             hits_field = GEOM_GROUP_FIELD in {grp1, grp2}
+            rid1, rid2 = _robot_id(b1), _robot_id(b2)
             if hits_live_robot and hits_field:
                 flags.wall = True
-            if grp1 == GEOM_GROUP_ROBOT and grp2 == GEOM_GROUP_ROBOT and _is_live_robot(b1) and _is_live_robot(b2) and b1 != b2:
+            if (
+                grp1 == GEOM_GROUP_ROBOT
+                and grp2 == GEOM_GROUP_ROBOT
+                and rid1 is not None
+                and rid2 is not None
+                and rid1 != rid2
+            ):
                 flags.robot = True
-            if hits_piece and (hits_field or hits_live_robot):
-                flags.piece = True
+            # Piece-floor rest is not a ram. Held magazine balls must not count either.
+            if hits_piece and hits_live_robot:
+                piece_bid = int(self._mj.geom_bodyid[g1 if grp1 == GEOM_GROUP_PIECE else g2])
+                if piece_bid not in held_body_ids:
+                    flags.piece = True
         return flags
 
     def _robot_pose_ftc(self, robot_id: str) -> tuple[float, float, float, float, float, float] | None:
@@ -938,7 +965,11 @@ class MujocoFieldBackend:
             self._read_robot(body)
         for piece in state.pieces:
             self._read_piece(piece)
-        flags = self._contact_flags({b.id for b in state.robots if b.dynamic}, live_piece_ids)
+        flags = self._contact_flags(
+            {b.id for b in state.robots if b.dynamic},
+            live_piece_ids,
+            piece_owners=state.piece_owners,
+        )
         if overflow:
             flags.wall = True
         for body in state.robots:

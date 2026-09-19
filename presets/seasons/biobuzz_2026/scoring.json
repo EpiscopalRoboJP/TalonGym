@@ -190,11 +190,11 @@
   "reward": {
     "terms": [
       { "kind": "trueScoreDelta" },
-      {
+        {
         "kind": "collisionPenalty",
         "wall": 0.02,
         "robot": 0.0,
-        "piece": 0.0
+        "piece": 0.02
       },
       {
         "kind": "earlyVolumeBonus",

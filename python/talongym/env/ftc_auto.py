@@ -267,7 +267,10 @@ class FTCAutoEnv(gym.Env):
                 left_start_wall=self._left_start_wall,
             ),
             robot_hit=bool(self.world.robot_hit),
-            piece_hit=bool(self.world.piece_hit),
+            piece_hit=wall_hit_for_shaping(
+                wall_hit=bool(self.world.piece_hit),
+                left_start_wall=self._left_start_wall,
+            ),
             missed_launches=int(self.world.missed_launches.get(self.learner_id, 0) or 0),
             dt=1.0 / self.control_hz,
             robot_id=rs.body.id,
@@ -646,7 +649,10 @@ class FTCAutoEnv(gym.Env):
             "vision_tags": vision,
             "match_var_obs": match_obs,
             "teammate_pose_noisy": teammate,
-            "collision": np.array([1.0 if self.world.wall_hit or self.world.robot_hit else 0.0], dtype=np.float32),
+            "collision": np.array(
+                [1.0 if self.world.wall_hit or self.world.robot_hit or self.world.piece_hit else 0.0],
+                dtype=np.float32,
+            ),
             "mechanism_sensors": np.asarray(sensors, dtype=np.float32),
         }
 
