@@ -1065,7 +1065,10 @@ class World:
             if not isinstance(el, dict) or not isinstance(sh, (AABB, Circle)):
                 continue
             for rid, rs in self.robots.items():
-                if tid == "leave_interior" and self._touching_perimeter(rs.body.x, rs.body.y, rs.body.heading):
+                if tid == "leave_interior" and (
+                    self._touching_perimeter(rs.body.x, rs.body.y, rs.body.heading)
+                    or self._chassis_hits_tagged_fixture(rs, {"flower"})
+                ):
                     continue
                 if point_in_volume(el, sh, rs.body.x, rs.body.y, getattr(rs.body, "z", self.robot_hz), 0.0):
                     occ[tid].add(rid)

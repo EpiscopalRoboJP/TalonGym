@@ -260,3 +260,20 @@ def test_spawn_wall_contact_is_not_shaped_until_the_robot_leaves():
     assert wall_hit_for_shaping(wall_hit=True, left_start_wall=False) is False
     assert wall_hit_for_shaping(wall_hit=True, left_start_wall=True) is True
     assert wall_hit_for_shaping(wall_hit=False, left_start_wall=True) is False
+
+
+def test_piece_hits_shape_without_leaving_the_start_wall():
+    tracker = RewardTracker(
+        {"terms": [{"kind": "trueScoreDelta"}, {"kind": "collisionPenalty", "wall": 0.02, "piece": 0.02}]}
+    )
+    reward, extra = tracker.step(
+        true_delta=0.0,
+        phase_end=False,
+        accumulators={},
+        true_score=0.0,
+        phase_duration=30.0,
+        wall_hit=wall_hit_for_shaping(wall_hit=True, left_start_wall=False),
+        piece_hit=True,
+    )
+    assert extra == pytest.approx(-0.02)
+    assert reward == pytest.approx(-0.02)

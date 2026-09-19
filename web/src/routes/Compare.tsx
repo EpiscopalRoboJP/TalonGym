@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Whisker } from "../Sparkline";
-import { getJson, notify, postJson, type RunRow } from "../api";
+import { getJson, notify, postJson, runLabel, type RunRow } from "../api";
 import { Alert, Empty, Field, Icon, Panel, RoadRunnerDialog } from "../ui";
 
 type EvalRow = {
@@ -115,7 +115,7 @@ export function ComparePage() {
                     {runs.length === 0 && <option value="">No finished runs</option>}
                     {runs.map((r) => (
                       <option key={r.id} value={r.id}>
-                        {r.id} · {String((r.metrics as { algo?: string }).algo || "run")}
+                        {runLabel(r)} · {String((r.metrics as { algo?: string }).algo || "run")}
                       </option>
                     ))}
                   </select>

@@ -9,9 +9,11 @@ import {
   getJson,
   loadReplayFrames,
   notify,
+  patchJson,
   postJson,
   putJson,
   robotPresetLabel,
+  runLabel,
   statePill,
   type ComputeInfo,
   type DefaultsBundle,
@@ -182,6 +184,8 @@ export function TrainPage() {
   const [rollout, setRollout] = useState<Frame[]>([]);
   const [rolloutI, setRolloutI] = useState(0);
   const [starting, setStarting] = useState(false);
+  const [runName, setRunName] = useState("");
+  const [editName, setEditName] = useState("");
   const wsRef = useRef<WebSocket | null>(null);
   const watchingRef = useRef<string | null>(null);
   const replayLoadedRef = useRef<string | null>(null);
@@ -328,6 +332,7 @@ export function TrainPage() {
     navigate(`/train/${id}`, { replace: true });
     getJson<RunRow>(`/runs/${id}`).then((row) => {
       setCurrent(row);
+      setEditName(runLabel(row) === row.id ? "" : runLabel(row));
       const m = row.metrics as Metrics;
       pushSeries(m);
       if (m.replayId) {
@@ -402,6 +407,8 @@ export function TrainPage() {
         easy: profile === "easy",
         presets: { fieldId, robotId, scoringId, trainingId: profile === "easy" ? familyTrainingId(trainingId, "easy") : trainingId },
       };
+      const named = runName.trim();
+      if (named) body.name = named;
       if (customStarts) {
         body.matchSetup = {
           robots: robotSetup.map((robot) => {
@@ -422,10 +429,49 @@ export function TrainPage() {
       const res = await postJson<{ runId: string }>("/runs", body);
       await refreshList();
       openRun(res.runId);
-      notify(`Run ${res.runId} queued.`);
+      notify(`Run ${named || res.runId} queued.`);
     } finally {
       setStarting(false);
     }
+  }
+
+  async function continueSelected() {
+    if (!current) return;
+    setStarting(true);
+    try {
+      const extra: Record<string, unknown> = {
+        demo: profile === "demo",
+        easy: profile === "easy",
+      };
+      const named = runName.trim();
+      if (named) extra.name = named;
+      if (profile === "demo") {
+        extra.nEnvs = 2;
+        extra.budget = { totalEnvSteps: 4096 };
+      } else if (profile === "short") {
+        extra.nEnvs = 4;
+        extra.budget = { totalEnvSteps: 16384 };
+      } else if (profile === "easy") {
+        extra.computeProfile = "auto";
+      }
+      const res = await postJson<{ runId: string }>(`/runs/${current.id}/continue`, extra);
+      await refreshList();
+      openRun(res.runId);
+      notify(`Continuing as ${named || res.runId}.`);
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  async function saveEditName(value?: string) {
+    if (!current) return;
+    const nextName = (value ?? editName).trim();
+    const existing = runLabel(current) === current.id ? "" : runLabel(current);
+    if (nextName === existing) return;
+    const next = await patchJson<RunRow>(`/runs/${current.id}`, { name: nextName });
+    setEditName(runLabel(next) === next.id ? "" : runLabel(next));
+    setCurrent((row) => (row && row.id === next.id ? { ...row, ...next } : row));
+    setRuns((list) => (list || []).map((row) => (row.id === next.id ? { ...row, ...next } : row)));
   }
 
   async function cancel() {
@@ -472,6 +518,16 @@ export function TrainPage() {
               <button type="button" className="btn primary" style={{ flex: 1 }} onClick={start} disabled={starting || busy}>
                 <Icon name="play" size={14} /> {starting ? "Starting…" : "Start run"}
               </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={continueSelected}
+                disabled={starting || busy || !current || !current.hasCheckpoint}
+                title={!current ? "Select a finished run" : current.hasCheckpoint ? "Train more steps from this run's latest.zip" : "This run has no checkpoint to continue from"}
+                data-testid="train-continue"
+              >
+                Continue
+              </button>
               <button type="button" className="btn" onClick={saveDefaults} title="Use these presets by default in the CLI and builders">
                 Save as default
               </button>
@@ -479,6 +535,16 @@ export function TrainPage() {
           }
         >
           <div className="stack">
+            <Field id="train-run-name" label="Run name" hint="Optional. Shown in the run list so you can tell retrains apart.">
+              <input
+                id="train-run-name"
+                data-testid="train-run-name"
+                value={runName}
+                onChange={(e) => setRunName(e.target.value)}
+                placeholder="flower-fix retrain"
+                maxLength={80}
+              />
+            </Field>
             <div className="field">
               <span className="label">Budget</span>
               <Segmented label="Training budget" full value={profile} onChange={selectBudget} options={(Object.keys(BUDGETS) as Profile[]).map((k) => [k, BUDGETS[k].label])} />
@@ -598,8 +664,11 @@ export function TrainPage() {
                 <li key={r.id}>
                   <button type="button" className={`list-item ${current?.id === r.id ? "on" : ""}`} onClick={() => openRun(r.id)}>
                     <span className="grow">
-                      <span className="title mono">{r.id}</span>
+                      <span className="title" title={r.id}>
+                        {runLabel(r)}
+                      </span>
                       <span className="meta" style={{ display: "block" }}>
+                        {runLabel(r) !== r.id ? `${r.id} · ` : ""}
                         {String(m.algo || "—")} · {fmtSteps(m.envSteps)} steps
                       </span>
                     </span>
@@ -621,10 +690,29 @@ export function TrainPage() {
         {current ? (
           <section className="panel">
             <header className="panel-head">
-              <h2 className="mono">{current.id}</h2>
+              <h2>
+                <input
+                  aria-label="Run name"
+                  data-testid="train-selected-name"
+                  value={editName}
+                  placeholder={current.id}
+                  maxLength={80}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onBlur={(e) => void saveEditName(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void saveEditName((e.target as HTMLInputElement).value);
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  className="train-run-title"
+                />
+              </h2>
               <span className={statePill(current.state)}>{current.state}</span>
               <span className="sub">
-                {String(metrics.algo || "—")}
+                <span className="mono">{current.id}</span>
+                {` · ${String(metrics.algo || "—")}`}
                 {presets.robotId ? ` · ${presets.robotId}` : ""}
                 {presets.fieldId ? ` · ${presets.fieldId}` : ""}
                 {presets.trainingId ? ` · ${presets.trainingId}` : ""}

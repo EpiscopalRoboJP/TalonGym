@@ -1,7 +1,7 @@
 {
   "name": "talongym-web",
   "private": true,
-  "version": "0.3.9",
+  "version": "0.3.11",
   "license": "GPL-3.0-or-later",
   "author": "FTC Team 17986 904 Robo Eagles and FTC Team 27268 Talon Strike",
   "type": "module",
@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx src/scene/cadAssets.test.ts && tsx src/scene/physicalReplay.test.ts && tsx src/scene/setupPreview.test.ts && tsx src/labHonesty.test.ts && tsx src/catalog.test.ts && tsx src/licenseNotice.test.ts",
+    "test": "tsx src/scene/cadAssets.test.ts && tsx src/scene/physicalReplay.test.ts && tsx src/scene/setupPreview.test.ts && tsx src/labHonesty.test.ts && tsx src/catalog.test.ts && tsx src/licenseNotice.test.ts && tsx src/runLabel.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

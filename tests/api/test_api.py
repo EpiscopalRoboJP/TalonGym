@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -191,6 +192,93 @@ def test_cancel_run(monkeypatch):
     row = _wait_run(client, run_id, {"cancelled", "failed", "succeeded"})
     assert row["state"] == "cancelled"
     time.sleep(0.3)
+
+
+def _fake_train_with_ckpt(**kwargs):
+    save_dir = Path(kwargs["save_dir"])
+    save_dir.mkdir(parents=True, exist_ok=True)
+    (save_dir / "latest.zip").write_bytes(b"ckpt")
+    on_metrics = kwargs.get("on_metrics")
+    if on_metrics:
+        on_metrics({"envSteps": 64, "trueScoreMean": 3.0, "algo": "recurrent_ppo", "nEnvs": 2})
+    return {
+        "algo": "recurrent_ppo",
+        "frames": [_frame()],
+        "steps": 64,
+        "checkpoint": str(save_dir / "latest.zip"),
+        "metrics": {"envSteps": 64},
+    }
+
+
+def test_named_run_can_be_renamed_and_continued(monkeypatch):
+    calls: list[dict] = []
+
+    def fake_train(**kwargs):
+        calls.append(kwargs)
+        return _fake_train_with_ckpt(**kwargs)
+
+    monkeypatch.setattr("talongym.api.jobs.train_ppo", fake_train)
+    client = TestClient(app)
+    res = client.post(
+        "/api/v1/runs",
+        json={
+            "demo": True,
+            "nEnvs": 2,
+            "budget": {"totalEnvSteps": 128},
+            "name": "  flower fix  ",
+            "presets": {"trainingId": "biobuzz_auto_lightweight"},
+        },
+    )
+    assert res.status_code == 202
+    run_id = res.json()["runId"]
+    row = _wait_run(client, run_id, {"succeeded", "failed"})
+    assert row["state"] == "succeeded"
+    assert row["name"] == "flower fix"
+    assert row["hasCheckpoint"] is True
+    listed = client.get("/api/v1/runs").json()
+    assert any(r["id"] == run_id and r["name"] == "flower fix" for r in listed)
+
+    patched = client.patch(f"/api/v1/runs/{run_id}", json={"name": "flower-fix v2"})
+    assert patched.status_code == 200
+    assert patched.json()["name"] == "flower-fix v2"
+
+    cont = client.post(
+        f"/api/v1/runs/{run_id}/continue",
+        json={"name": "flower-fix v3", "demo": True, "budget": {"totalEnvSteps": 128}, "nEnvs": 2},
+    )
+    assert cont.status_code == 202
+    new_id = cont.json()["runId"]
+    assert new_id != run_id
+    continued = _wait_run(client, new_id, {"succeeded", "failed"})
+    assert continued["state"] == "succeeded"
+    assert continued["name"] == "flower-fix v3"
+    assert continued["config"]["resume"] is True
+    assert continued["config"]["extend"] is True
+    assert continued["config"]["resumeFromRunId"] == run_id
+    assert calls[-1]["resume"] is True
+    assert calls[-1]["extend"] is True
+
+
+def test_continue_without_checkpoint_is_conflict(monkeypatch):
+    def fake_train(**kwargs):
+        return {
+            "algo": "recurrent_ppo",
+            "frames": [_frame()],
+            "steps": 8,
+            "checkpoint": None,
+            "metrics": {"envSteps": 8},
+        }
+
+    monkeypatch.setattr("talongym.api.jobs.train_ppo", fake_train)
+    client = TestClient(app)
+    res = client.post("/api/v1/runs", json={"demo": True, "presets": {"trainingId": "biobuzz_auto_lightweight"}})
+    run_id = res.json()["runId"]
+    _wait_run(client, run_id, {"succeeded", "failed"})
+    cont = client.post(f"/api/v1/runs/{run_id}/continue", json={})
+    assert cont.status_code == 409
+    body = cont.json()
+    err = body.get("error") or (body.get("detail") or {}).get("error") or body.get("detail")
+    assert err["code"] == "NO_CHECKPOINT"
 
 
 def test_easy_run_uses_autodetect_training_id(monkeypatch):

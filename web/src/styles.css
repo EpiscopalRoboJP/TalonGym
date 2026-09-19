@@ -209,6 +209,17 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brand); outline-off
   padding: 0.7rem 1rem; border-bottom: 1px solid var(--line); min-height: 50px;
 }
 .panel-head h2 { font-size: 14.5px; }
+.train-run-title {
+  height: 32px;
+  min-width: 10rem;
+  max-width: 22rem;
+  font-weight: 650;
+  background: transparent;
+  border-color: transparent;
+  padding: 0 0.4rem;
+}
+.train-run-title:hover:not(:disabled) { border-color: var(--line-strong); }
+.train-run-title::placeholder { color: var(--muted); font-family: var(--mono); font-weight: 500; }
 .panel-head .sub { color: var(--muted); font-size: 12.5px; }
 .panel-head .spacer { flex: 1; }
 .panel-body { padding: 1rem; min-height: 0; }

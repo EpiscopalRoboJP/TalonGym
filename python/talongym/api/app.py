@@ -76,6 +76,21 @@ class RunBody(BaseModel):
     computeProfile: str | None = None
     algorithm: dict[str, Any] | None = None
     matchSetup: MatchSetupBody | None = None
+    name: str | None = None
+
+
+class ContinueRunBody(BaseModel):
+    name: str | None = None
+    budget: dict[str, int] | None = None
+    nEnvs: int | None = None
+    demo: bool | None = None
+    easy: bool | None = None
+    computeProfile: str | None = None
+    algorithm: dict[str, Any] | None = None
+
+
+class PatchRunBody(BaseModel):
+    name: str | None = None
 
 
 class EvalBody(BaseModel):
@@ -235,6 +250,14 @@ def delete_robot_draft(preset_id: str) -> None:
     db.delete_robot_draft(preset_id)
 
 
+def _present_run(row: dict[str, Any]) -> dict[str, Any]:
+    presented = dict(row)
+    config = presented.get("config") if isinstance(presented.get("config"), dict) else {}
+    presented["name"] = config.get("name")
+    presented["hasCheckpoint"] = jobs.latest_checkpoint(str(presented.get("id") or "")) is not None
+    return presented
+
+
 @app.post(f"{API}/runs", status_code=202)
 def start_run(body: RunBody) -> dict[str, str]:
     run_id = jobs.start_training(body.model_dump())
@@ -243,7 +266,7 @@ def start_run(body: RunBody) -> dict[str, str]:
 
 @app.get(f"{API}/runs")
 def runs() -> list[dict[str, Any]]:
-    return db.list_runs()
+    return [_present_run(row) for row in db.list_runs()]
 
 
 @app.get(f"{API}/runs/{{run_id}}")
@@ -252,9 +275,41 @@ def get_run(run_id: str) -> dict[str, Any]:
     if not row:
         raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": run_id}})
     artifacts = db.list_artifacts(run_id)
-    row["artifactIds"] = [a["id"] for a in artifacts]
-    row["artifacts"] = artifacts
-    return row
+    presented = _present_run(row)
+    presented["artifactIds"] = [a["id"] for a in artifacts]
+    presented["artifacts"] = artifacts
+    return presented
+
+
+@app.patch(f"{API}/runs/{{run_id}}")
+def patch_run(run_id: str, body: PatchRunBody) -> dict[str, Any]:
+    row = db.set_run_name(run_id, body.name)
+    if not row:
+        raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": run_id}})
+    return _present_run(row)
+
+
+@app.post(f"{API}/runs/{{run_id}}/continue", status_code=202)
+def continue_run(run_id: str, body: ContinueRunBody | None = None) -> dict[str, str]:
+    extra = (body.model_dump(exclude_unset=True) if body is not None else {})
+    try:
+        new_id = jobs.continue_training(run_id, extra)
+    except ValueError as exc:
+        code = str(exc)
+        if code == "not_found":
+            raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": run_id}}) from exc
+        if code == "busy":
+            raise HTTPException(
+                409,
+                {"error": {"code": "RUN_BUSY", "message": "Wait for the run to finish or cancel it before continuing."}},
+            ) from exc
+        if code == "no_checkpoint":
+            raise HTTPException(
+                409,
+                {"error": {"code": "NO_CHECKPOINT", "message": "This run has no latest.zip to continue from."}},
+            ) from exc
+        raise
+    return {"runId": new_id}
 
 
 @app.get(f"{API}/runs/{{run_id}}/artifacts")

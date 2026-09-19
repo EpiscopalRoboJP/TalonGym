@@ -332,6 +332,33 @@ def list_replays() -> list[dict[str, Any]]:
     return [{"id": r["id"], **json.loads(r["meta"])} for r in rows]
 
 
+RUN_NAME_MAX = 80
+
+
+def clean_run_name(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = " ".join(value.split())[:RUN_NAME_MAX]
+    return text or None
+
+
+def set_run_name(run_id: str, name: str | None) -> dict[str, Any] | None:
+    row = get_run(run_id)
+    if row is None:
+        return None
+    config = dict(row.get("config") or {})
+    cleaned = clean_run_name(name)
+    if cleaned:
+        config["name"] = cleaned
+    else:
+        config.pop("name", None)
+    with _session() as conn:
+        conn.execute("UPDATE runs SET config=? WHERE id=?", (json.dumps(config), run_id))
+        conn.commit()
+    row["config"] = config
+    return row
+
+
 def save_run(run_id: str, config: dict, state: str, metrics: dict | None = None, log: str | None = None) -> None:
     with _session() as conn:
         if state == "running":

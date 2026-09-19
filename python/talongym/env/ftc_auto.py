@@ -256,6 +256,8 @@ class FTCAutoEnv(gym.Env):
         rs = self.world.robots.get(self.learner_id) or self.world.actor()
         if not self.world._touching_perimeter(rs.body.x, rs.body.y, rs.body.heading):
             self._left_start_wall = True
+        if self.world._chassis_hits_tagged_fixture(rs, {"flower"}):
+            self._left_start_wall = True
         objective, shaping = self._reward.step(
             true_delta=true_delta,
             phase_end=will_end,
@@ -267,10 +269,7 @@ class FTCAutoEnv(gym.Env):
                 left_start_wall=self._left_start_wall,
             ),
             robot_hit=bool(self.world.robot_hit),
-            piece_hit=wall_hit_for_shaping(
-                wall_hit=bool(self.world.piece_hit),
-                left_start_wall=self._left_start_wall,
-            ),
+            piece_hit=bool(self.world.piece_hit),
             missed_launches=int(self.world.missed_launches.get(self.learner_id, 0) or 0),
             dt=1.0 / self.control_hz,
             robot_id=rs.body.id,

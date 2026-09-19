@@ -102,6 +102,16 @@ export async function putJson<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export async function patchJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) await fail(res, path);
+  return res.json() as Promise<T>;
+}
+
 export async function postText(path: string, body: unknown = {}): Promise<string> {
   const res = await fetch(`${API}${path}`, {
     method: "POST",
@@ -974,4 +984,13 @@ export type RunRow = {
   state: string;
   metrics: Record<string, unknown>;
   config: Record<string, unknown>;
+  name?: string | null;
+  hasCheckpoint?: boolean;
 };
+
+export function runLabel(row: Pick<RunRow, "id" | "name" | "config">): string {
+  const named = typeof row.name === "string" && row.name.trim() ? row.name.trim() : "";
+  if (named) return named;
+  const fromConfig = row.config && typeof row.config.name === "string" ? row.config.name.trim() : "";
+  return fromConfig || row.id;
+}
