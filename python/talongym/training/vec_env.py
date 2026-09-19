@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import multiprocessing as mp
 import os
+import time
 import traceback
 from collections.abc import Callable, Sequence
 from typing import Any
@@ -22,6 +23,28 @@ except ImportError:  # pragma: no cover - train_ppo already requires [rl]
 
 
 _WORKER_ERROR = "__talongym_worker_error__"
+WORKER_RECV_TIMEOUT_S = 120.0
+_INFO_KEEP = frozenset(
+    {
+        "true_score",
+        "true_score_delta",
+        "shaping",
+        "collision_time_s",
+        "entered_restricted",
+        "robot_id",
+        "alliance",
+        "TimeLimit.truncated",
+        "terminal_observation",
+        "episode",
+    }
+)
+
+
+def slim_info(info: Any) -> dict[str, Any]:
+    """Drop CAD/privileged blobs so step results fit in the IPC socket."""
+    if not isinstance(info, dict):
+        return {}
+    return {key: info[key] for key in _INFO_KEEP if key in info}
 
 
 def _send_worker_error(remote: Any, exc: BaseException) -> None:
@@ -46,6 +69,33 @@ def _recv_worker(remote: Any) -> Any:
     ):
         raise RuntimeError(f"sim worker crashed:\n{msg[1]}")
     return msg
+
+
+def _recv_all(
+    remotes: Sequence[Any],
+    timeout: float = WORKER_RECV_TIMEOUT_S,
+    processes: Sequence[Any] | None = None,
+) -> list[Any]:
+    """Drain ready workers in any order so a large send cannot stall a later pipe."""
+    index_of = {remote: i for i, remote in enumerate(remotes)}
+    out: list[Any] = [None] * len(remotes)
+    remaining = set(remotes)
+    deadline = time.monotonic() + max(0.1, float(timeout))
+    while remaining:
+        ready = mp.connection.wait(list(remaining), timeout=max(0.0, deadline - time.monotonic()))
+        if not ready:
+            alive = []
+            if processes:
+                alive = ["alive" if proc.is_alive() else str(proc.exitcode) for proc in processes]
+            raise RuntimeError(
+                f"sim worker stalled ({len(remaining)}/{len(remotes)} pipes idle "
+                f"for {timeout:.0f}s)"
+                + (f" exitcodes={','.join(alive)}" if alive else "")
+            )
+        for remote in ready:
+            out[index_of[remote]] = _recv_worker(remote)
+            remaining.discard(remote)
+    return out
 
 
 def mp_start_method() -> str:
@@ -179,13 +229,15 @@ def _chunk_worker(
                 break
             if cmd == "step":
                 obs, rews, dones, infos = venv.step(data)
-                remote.send((obs, rews, dones, infos, list(venv.reset_infos)))
+                slim = [slim_info(row) for row in infos]
+                reset_slim = [slim_info(row) for row in venv.reset_infos]
+                remote.send((obs, rews, dones, slim, reset_slim))
             elif cmd == "reset":
                 seeds, options_list = data
                 venv._seeds = list(seeds)
                 venv._options = list(options_list)
                 obs = venv.reset()
-                remote.send((obs, list(venv.reset_infos)))
+                remote.send((obs, [slim_info(row) for row in venv.reset_infos]))
             elif cmd == "close":
                 venv.close()
                 remote.close()
@@ -262,7 +314,7 @@ class ChunkedSubprocVecEnv(VecEnv):
                 work_remote.close()
 
             self.remotes[0].send(("get_spaces", None))
-            observation_space, action_space = _recv_worker(self.remotes[0])
+            observation_space, action_space = _recv_all(self.remotes[:1], processes=self.processes)[0]
         except Exception:
             self.close()
             raise
@@ -280,7 +332,7 @@ class ChunkedSubprocVecEnv(VecEnv):
         self.waiting = True
 
     def step_wait(self):
-        results = [_recv_worker(remote) for remote in self.remotes]
+        results = _recv_all(self.remotes, processes=self.processes)
         self.waiting = False
         obs_parts, rews, dones, infos, reset_parts = zip(*results, strict=True)
         self.reset_infos = [info for part in reset_parts for info in part]
@@ -297,7 +349,7 @@ class ChunkedSubprocVecEnv(VecEnv):
         for remote, size in zip(self.remotes, self._sizes, strict=True):
             remote.send(("reset", (self._seeds[start : start + size], self._options[start : start + size])))
             start += size
-        results = [_recv_worker(remote) for remote in self.remotes]
+        results = _recv_all(self.remotes, processes=self.processes)
         obs_parts, reset_parts = zip(*results, strict=True)
         self.reset_infos = [info for part in reset_parts for info in part]
         self._reset_seeds()
@@ -329,8 +381,7 @@ class ChunkedSubprocVecEnv(VecEnv):
         for remote in self.remotes:
             remote.send(("render", None))
         images = []
-        for remote in self.remotes:
-            part = _recv_worker(remote)
+        for part in _recv_all(self.remotes, processes=self.processes):
             if part:
                 images.extend(part)
         return images
@@ -338,29 +389,28 @@ class ChunkedSubprocVecEnv(VecEnv):
     def has_attr(self, attr_name: str) -> bool:
         for remote in self.remotes:
             remote.send(("has_attr", attr_name))
-        return all(_recv_worker(remote) for remote in self.remotes)
+        return all(_recv_all(self.remotes, processes=self.processes))
 
     def get_attr(self, attr_name: str, indices=None) -> list[Any]:
         for remote in self.remotes:
             remote.send(("get_attr", attr_name))
         values: list[Any] = []
-        for remote in self.remotes:
-            values.extend(_recv_worker(remote))
+        for part in _recv_all(self.remotes, processes=self.processes):
+            values.extend(part)
         indices = self._get_indices(indices)
         return [values[i] for i in indices]
 
     def set_attr(self, attr_name: str, value: Any, indices=None) -> None:
         for remote in self.remotes:
             remote.send(("set_attr", (attr_name, value)))
-        for remote in self.remotes:
-            _recv_worker(remote)
+        _recv_all(self.remotes, processes=self.processes)
 
     def env_method(self, method_name: str, *method_args, indices=None, **method_kwargs) -> list[Any]:
         for remote in self.remotes:
             remote.send(("env_method", (method_name, method_args, method_kwargs)))
         values: list[Any] = []
-        for remote in self.remotes:
-            values.extend(_recv_worker(remote))
+        for part in _recv_all(self.remotes, processes=self.processes):
+            values.extend(part)
         indices = self._get_indices(indices)
         return [values[i] for i in indices]
 
@@ -368,8 +418,8 @@ class ChunkedSubprocVecEnv(VecEnv):
         for remote in self.remotes:
             remote.send(("is_wrapped", wrapper_class))
         values: list[bool] = []
-        for remote in self.remotes:
-            values.extend(_recv_worker(remote))
+        for part in _recv_all(self.remotes, processes=self.processes):
+            values.extend(part)
         indices = self._get_indices(indices)
         return [values[i] for i in indices]
 

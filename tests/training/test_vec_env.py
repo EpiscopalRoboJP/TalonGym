@@ -6,6 +6,7 @@ from gymnasium import spaces
 from talongym.training.vec_env import (
     ChunkedSubprocVecEnv,
     make_train_vec_env,
+    slim_info,
     split_chunk_sizes,
 )
 
@@ -101,5 +102,40 @@ def test_chunked_worker_forwards_crash():
         venv.reset()
         with pytest.raises(RuntimeError, match="sim worker crashed"):
             venv.step(np.zeros((2, 1), dtype=np.float32))
+    finally:
+        venv.close()
+
+
+def test_slim_info_keeps_true_score_and_drops_privileged():
+    slim = slim_info(
+        {
+            "true_score": 3.0,
+            "shaping": -0.02,
+            "privileged": {"parts": [{"mesh": "x" * 1000}]},
+            "waypoint_log": [[0.0, 0.0, 0.0]] * 800,
+        }
+    )
+    assert slim == {"true_score": 3.0, "shaping": -0.02}
+
+
+class FatInfoEnv(TinyEnv):
+    def step(self, action):
+        obs, rew, term, trunc, info = super().step(action)
+        info["true_score"] = 3.0
+        info["privileged"] = {"blob": "x" * 200_000, "parts": [{"m": list(range(200))}]}
+        info["waypoint_log"] = [[0.0, 0.0, 0.0]] * 800
+        return obs, rew, term, trunc, info
+
+
+def test_chunked_worker_slims_privileged_info():
+    pytest.importorskip("stable_baselines3")
+    venv = ChunkedSubprocVecEnv(2, 2, env_fns=[FatInfoEnv, FatInfoEnv])
+    try:
+        venv.reset()
+        _obs, _rewards, _dones, infos = venv.step(np.zeros((2, 1), dtype=np.float32))
+        assert len(infos) == 2
+        assert infos[0]["true_score"] == 3.0
+        assert "privileged" not in infos[0]
+        assert "waypoint_log" not in infos[0]
     finally:
         venv.close()

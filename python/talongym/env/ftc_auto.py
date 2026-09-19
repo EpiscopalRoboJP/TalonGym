@@ -10,7 +10,7 @@ from gymnasium import spaces
 from talongym.presets.loader import LoadedPresets, load_bundle
 from talongym.rules.engine import MECHANISM_VERBS
 from talongym.sim.world import World
-from talongym.training.reward import RewardTracker, resolve_reward_config
+from talongym.training.reward import RewardTracker, resolve_reward_config, wall_hit_for_shaping
 
 
 class MechanismSensorBank:
@@ -230,6 +230,7 @@ class FTCAutoEnv(gym.Env):
         obs = self._obs(self.learner_id, sample=True)
         self.frames = [self._capture_frame()] if self.record else []
         self._waypoint_log = []
+        self._left_start_wall = False
         self._reward.reset(resolve_reward_config(self.bundle.scoring, self.bundle.training))
         return obs, self._info(0.0, 0.0)
 
@@ -253,13 +254,18 @@ class FTCAutoEnv(gym.Env):
         result = self.world.step(end_phase=will_end, actions=actions)
         true_delta = float(result["true_score_delta"])
         rs = self.world.robots.get(self.learner_id) or self.world.actor()
+        if not self.world._touching_perimeter(rs.body.x, rs.body.y, rs.body.heading):
+            self._left_start_wall = True
         objective, shaping = self._reward.step(
             true_delta=true_delta,
             phase_end=will_end,
             accumulators=self.world.accumulators,
             true_score=float(self.world.true_score),
             phase_duration=float(self.world.auto_s),
-            wall_hit=bool(self.world.wall_hit),
+            wall_hit=wall_hit_for_shaping(
+                wall_hit=bool(self.world.wall_hit),
+                left_start_wall=self._left_start_wall,
+            ),
             robot_hit=bool(self.world.robot_hit),
             piece_hit=bool(self.world.piece_hit),
             missed_launches=int(self.world.missed_launches.get(self.learner_id, 0) or 0),

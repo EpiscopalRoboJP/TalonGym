@@ -1,7 +1,7 @@
 import pytest
 
 from talongym.presets.loader import load_preset, validate_document
-from talongym.training.reward import RewardTracker, resolve_reward_config, volume_ids_for_tag
+from talongym.training.reward import RewardTracker, resolve_reward_config, volume_ids_for_tag, wall_hit_for_shaping
 
 PARK_ELEMENTS = [
     {
@@ -236,3 +236,9 @@ def test_collision_penalty_shapes_wall_hits_only():
     )
     assert clean_extra == 0.0
     assert clean == 0.0
+
+
+def test_spawn_wall_contact_is_not_shaped_until_the_robot_leaves():
+    assert wall_hit_for_shaping(wall_hit=True, left_start_wall=False) is False
+    assert wall_hit_for_shaping(wall_hit=True, left_start_wall=True) is True
+    assert wall_hit_for_shaping(wall_hit=False, left_start_wall=True) is False

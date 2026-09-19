@@ -107,6 +107,8 @@ def test_mjcf_timestep_is_two_milliseconds():
     robot = load_preset("robot", "mecanum_biobuzz_4cap")
     xml = build_field_mjcf(field, robot=robot, n_robots=1).xml
     assert 'timestep="0.002"' in xml
+    assert 'nconmax="4096"' in xml
+    assert 'memory="64M"' in xml
     committed = (ASSETS_DIR / field["collisionAsset"]).read_text(encoding="utf-8")
     assert 'timestep="0.002"' in committed
     pollen = committed.split('class="piece_pollen"', 1)[1].split("</default>", 1)[0]

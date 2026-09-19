@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from talongym.assets.mjcf_field import GEOM_GROUP_FIELD, GEOM_GROUP_PIECE, GEOM_GROUP_ROBOT
+from talongym.assets.mjcf_field import GEOM_GROUP_FIELD, GEOM_GROUP_PIECE, GEOM_GROUP_ROBOT, MJCF_MEMORY, MJCF_NCONMAX
 from talongym.sim.physics import (
     NM_TO_INCH_TORQUE,
     Body,
@@ -148,18 +148,38 @@ def mj_omega_to_ftc(wx: float, wy: float, wz: float) -> tuple[float, float, floa
     return float(wx), float(-wz), float(wy)
 
 
+def _constraint_memory_bytes() -> int:
+    raw = str(MJCF_MEMORY).strip().upper()
+    if raw.endswith("G"):
+        return int(float(raw[:-1]) * 1024 ** 3)
+    if raw.endswith("M"):
+        return int(float(raw[:-1]) * 1024 ** 2)
+    if raw.endswith("K"):
+        return int(float(raw[:-1]) * 1024)
+    return int(raw)
+
+
+def _is_constraint_overflow(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return "nefc mis-allocation" in msg or "insufficient arena" in msg or "arena overflow" in msg
+
+
 def _compile_mj_model(xml: str, xml_path: Path | None):
     import hashlib
 
     import mujoco
 
-    key = str(xml_path.resolve()) if xml_path is not None else hashlib.sha256(xml.encode("utf-8")).hexdigest()
+    path_key = str(xml_path.resolve()) if xml_path is not None else hashlib.sha256(xml.encode("utf-8")).hexdigest()
+    key = f"{path_key}:nconmax={MJCF_NCONMAX}:mem={MJCF_MEMORY}"
     model = _MJ_MODEL_CACHE.get(key)
     if model is None:
-        if xml_path is not None:
-            model = mujoco.MjModel.from_xml_path(str(xml_path))
-        else:
-            model = mujoco.MjModel.from_xml_string(xml)
+        spec = mujoco.MjSpec.from_file(str(xml_path)) if xml_path is not None else mujoco.MjSpec.from_string(xml)
+        ncon = int(spec.nconmax)
+        spec.nconmax = MJCF_NCONMAX if ncon < 0 else max(ncon, MJCF_NCONMAX)
+        mem = int(spec.memory)
+        need = _constraint_memory_bytes()
+        spec.memory = need if mem < 0 else max(mem, need)
+        model = spec.compile()
         _MJ_MODEL_CACHE[key] = model
     return mujoco, model
 
@@ -870,6 +890,8 @@ class MujocoFieldBackend:
                 )
         max_accel = float(state.max_accel)
         max_ang_accel = float(state.max_ang_accel)
+        qpos0 = self._data.qpos.copy()
+        overflow = False
         for _ in range(nsub):
             self._data.qfrc_applied[:] = 0.0
             self._data.xfrc_applied[:] = 0.0
@@ -893,7 +915,18 @@ class MujocoFieldBackend:
             for dof, torque in actuator_torques:
                 self._data.qfrc_applied[dof] += torque
             self._apply_piece_flow_forces(state)
-            self._mujoco.mj_step(self._mj, self._data)
+            try:
+                self._mujoco.mj_step(self._mj, self._data)
+            except self._mujoco.FatalError as exc:
+                if not _is_constraint_overflow(exc):
+                    raise
+                overflow = True
+                self._data.qpos[:] = qpos0
+                self._data.qvel[:] = 0.0
+                self._data.qfrc_applied[:] = 0.0
+                self._data.xfrc_applied[:] = 0.0
+                self._mujoco.mj_forward(self._mj, self._data)
+                break
             for mechanism_id, (qpos, dof) in self._field_mechanism_joints.items():
                 target = float(state.field_mechanism_targets.get(mechanism_id, 0.0))
                 if abs(target) < 1e-9:
@@ -906,6 +939,8 @@ class MujocoFieldBackend:
         for piece in state.pieces:
             self._read_piece(piece)
         flags = self._contact_flags({b.id for b in state.robots if b.dynamic}, live_piece_ids)
+        if overflow:
+            flags.wall = True
         for body in state.robots:
             if not body.dynamic:
                 continue
