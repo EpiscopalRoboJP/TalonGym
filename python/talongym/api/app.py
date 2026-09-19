@@ -18,6 +18,7 @@ from talongym import __version__
 from talongym.api import db, jobs
 from talongym.api.cad_frames import ensure_background_asset
 from talongym.api.robot_catalog import router as catalog_router
+from talongym.credits import CREDIT_LINE
 from talongym.eval.harness import run_trials
 from talongym.export.roadrunner import export_from_replay
 from talongym.license_notice import emit_license_notice
@@ -36,7 +37,7 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(title="TalonGym", version=__version__, lifespan=_lifespan)
+app = FastAPI(title="TalonGym", version=__version__, description=CREDIT_LINE, lifespan=_lifespan)
 app.include_router(catalog_router)
 
 API = "/api/v1"
@@ -112,6 +113,7 @@ def health() -> dict[str, Any]:
         "version": __version__,
         "computeProfile": detect_compute_profile(),
         "nEnvs": recommended_n_envs(),
+        "credits": CREDIT_LINE,
         "note": "planar2d is the Phase 0 Rapier fallback when the Rust crate is a stub.",
     }
 

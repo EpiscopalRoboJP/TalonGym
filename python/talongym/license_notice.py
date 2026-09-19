@@ -5,9 +5,11 @@ from __future__ import annotations
 import sys
 
 from talongym import __version__
+from talongym.credits import CREDIT_LINE
 
-_NOTICE = (
+NOTICE = (
     f"TalonGym {__version__} — Copyright (C) 2026 TalonGym contributors.\n"
+    f"{CREDIT_LINE}\n"
     "Licensed under GNU GPL v3 or later; see LICENSE in the repository.\n"
     "This program comes with ABSOLUTELY NO WARRANTY."
 )
@@ -22,4 +24,4 @@ def emit_license_notice(stream=None) -> None:
         return
     _emitted = True
     out = stream or sys.stderr
-    print(_NOTICE, file=out, flush=True)
+    print(NOTICE, file=out, flush=True)

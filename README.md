@@ -2,7 +2,9 @@
 
 A **training and strategy-discovery aid** for FIRST Tech Challenge (FTC) autonomous periods. Teams configure a field, robot, and scoring-rules preset; train a control policy on the BIOBUZZ™ MuJoCo mesh field; inspect *why* a strategy scored; and export a Road Runner 1.0 Actions snippet they paste into an AUTO OpMode.
 
-**Status:** 0.3.4 alpha. APIs and presets still move. Licensed **GPL-3.0-or-later**. TalonGym is not affiliated with, endorsed by, or sponsored by FIRST.
+**Status:** 0.3.5 alpha. APIs and presets still move. Licensed **GPL-3.0-or-later**. TalonGym is not affiliated with, endorsed by, or sponsored by FIRST.
+
+TalonGym is built by **FTC Team 17986 904 Robo Eagles** and **FTC Team 27268 Talon Strike**.
 
 **Always and only this deployment path:** train offline → export a trajectory → paste into an AUTO OpMode → the Control Hub runs that OpMode. TalonGym never talks to a robot during a MATCH.
 
@@ -98,7 +100,7 @@ Do not commit `var/` (logs, SQLite, checkpoints), virtualenvs, official FIRST ST
 
 ## License
 
-Copyright (C) 2026 TalonGym contributors.
+Copyright (C) 2026 TalonGym contributors. Built by FTC Team 17986 904 Robo Eagles and Team 27268 Talon Strike.
 
 TalonGym is free software: you can redistribute it and/or modify it under the terms of the [GNU General Public License](LICENSE) as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
