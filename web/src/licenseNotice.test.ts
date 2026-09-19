@@ -24,4 +24,7 @@ for (const [name, fn] of tests) {
     console.error(`FAIL ${name}:`, err);
   }
 }
-if (failed) process.exit(1);
+if (failed) {
+  throw new Error(`${failed} license notice test(s) failed`);
+}
+console.log(`${tests.length} passed`);
