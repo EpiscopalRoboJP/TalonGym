@@ -1,5 +1,5 @@
 export const CREDIT_LINE =
-  "Built by FTC Team 17986 — 904 Robo Eagles and Team 27268 — Talon Strike.";
+  "Built by FTC Team 17986 904 Robo Eagles and Team 27268 Talon Strike.";
 
 export const LICENSE_NOTICE =
   "TalonGym — Copyright (C) 2026 TalonGym contributors. " +

@@ -3,7 +3,7 @@
 **Status:** buildable specification for a greenfield rewrite.  
 **Flagship season:** BIOBUZZ™ presented by RTX, 2026–2027, Competition Manual **V1**.  
 **This document is the source of truth for implementation.** JSON Schema files in [`../schemas/`](../schemas/) are normative for preset files.  
-**Built by:** FTC Team 17986 — 904 Robo Eagles and FTC Team 27268 — Talon Strike.
+**Built by:** FTC Team 17986 904 Robo Eagles and FTC Team 27268 Talon Strike.
 
 **Deployment path (always and only):** train offline → export a trajectory → paste into an AUTO OpMode → Control Hub runs that OpMode. Intended-use boundary, hardware modes, and official source links: [README.md](../README.md). Kickoff procedure: [NEW_SEASON_RUNBOOK.md](NEW_SEASON_RUNBOOK.md).
 

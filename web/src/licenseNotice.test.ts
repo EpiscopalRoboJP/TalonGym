@@ -10,7 +10,7 @@ const tests: Array<[string, () => void]> = [
     assert(LICENSE_NOTICE.includes("904 Robo Eagles"), "Robo Eagles");
     assert(LICENSE_NOTICE.includes("27268"), "team 27268");
     assert(LICENSE_NOTICE.includes("Talon Strike"), "Talon Strike");
-    assert(CREDIT_LINE === "Built by FTC Team 17986 — 904 Robo Eagles and Team 27268 — Talon Strike.", "credit line");
+    assert(CREDIT_LINE === "Built by FTC Team 17986 904 Robo Eagles and Team 27268 Talon Strike.", "credit line");
   }],
 ];
 

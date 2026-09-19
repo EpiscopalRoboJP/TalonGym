@@ -42,4 +42,4 @@ Train offline → export a trajectory → paste into an AUTO OpMode → Control 
 
 TalonGym is off-field only. The Control Hub runs the pasted OpMode; TalonGym does not talk to the robot during a MATCH. Full boundary: [../README.md](../README.md).
 
-TalonGym is built by **FTC Team 17986 — 904 Robo Eagles** and **FTC Team 27268 — Talon Strike**. Named contributors: [../CONTRIBUTORS.md](../CONTRIBUTORS.md).
+TalonGym is built by **FTC Team 17986 904 Robo Eagles** and **FTC Team 27268 Talon Strike**. Named contributors: [../CONTRIBUTORS.md](../CONTRIBUTORS.md).

@@ -1,6 +1,6 @@
 """TalonGym — FTC Autonomous RL trainer.
 
-Built by FTC Team 17986 — 904 Robo Eagles and Team 27268 — Talon Strike.
+Built by FTC Team 17986 904 Robo Eagles and Team 27268 Talon Strike.
 Copyright (C) 2026 TalonGym contributors
 SPDX-License-Identifier: GPL-3.0-or-later
 """

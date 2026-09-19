@@ -13,7 +13,7 @@ from talongym.presets.loader import load_bundle
 from talongym.training.policies import scripted_auto
 from talongym.training.ppo import record_policy_episode, train_ppo
 
-app = typer.Typer(help="TalonGym — FTC Autonomous trainer (FTC Team 17986 — 904 Robo Eagles and Team 27268 — Talon Strike)")
+app = typer.Typer(help="TalonGym — FTC Autonomous trainer (FTC Team 17986 904 Robo Eagles and Team 27268 Talon Strike)")
 
 
 @app.callback()

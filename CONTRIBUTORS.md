@@ -2,8 +2,8 @@
 
 TalonGym is built by:
 
-- **FTC Team 17986 — 904 Robo Eagles**
-- **FTC Team 27268 — Talon Strike**
+- **FTC Team 17986 904 Robo Eagles**
+- **FTC Team 27268 Talon Strike**
 
 ## Individual contributors
 

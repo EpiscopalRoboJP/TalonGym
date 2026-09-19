@@ -7,8 +7,8 @@ version = "0.3.5"
 edition = "2021"
 license = "GPL-3.0-or-later"
 authors = [
-  "FTC Team 17986 — 904 Robo Eagles",
-  "FTC Team 27268 — Talon Strike",
+  "FTC Team 17986 904 Robo Eagles",
+  "FTC Team 27268 Talon Strike",
 ]
 
 [lib]

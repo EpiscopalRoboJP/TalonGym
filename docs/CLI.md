@@ -5,7 +5,7 @@ python -m talongym --help
 talongym --help
 ```
 
-All commands print a GPL startup notice (stderr) that credits FTC Team 17986 — 904 Robo Eagles and Team 27268 — Talon Strike, then load the active bundle from [PRESETS.md](PRESETS.md) (`presets/defaults.json` plus `var/defaults.json`) unless noted.
+All commands print a GPL startup notice (stderr) that credits FTC Team 17986 904 Robo Eagles and Team 27268 Talon Strike, then load the active bundle from [PRESETS.md](PRESETS.md) (`presets/defaults.json` plus `var/defaults.json`) unless noted.
 
 ## `lab`
 
