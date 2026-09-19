@@ -69,9 +69,24 @@ class Circle:
         return dx * dx + dy * dy <= self.r * self.r
 
 
+def _as_mapping(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def tag_set(value: Any) -> set[str]:
+    """Tags from a field element; never iterate a non-sequence (Piece, dict view, …)."""
+    if isinstance(value, str):
+        return {value}
+    if isinstance(value, (set, frozenset, list, tuple)):
+        return {str(item) for item in value}
+    return set()
+
+
 def shape_from_element(el: dict[str, Any]) -> AABB | Circle | None:
-    pose = el.get("pose") or {}
-    shape = el.get("shape") or {}
+    if not isinstance(el, dict):
+        return None
+    pose = _as_mapping(el.get("pose"))
+    shape = _as_mapping(el.get("shape"))
     kind = shape.get("kind", "none")
     x, y = float(pose.get("x", 0.0)), float(pose.get("y", 0.0))
     heading = deg_to_rad(float(pose.get("headingDeg", 0.0)))
@@ -85,16 +100,16 @@ def shape_from_element(el: dict[str, Any]) -> AABB | Circle | None:
 
 
 def point_in_shape(shape: AABB | Circle | None, x: float, y: float) -> bool:
-    if shape is None:
-        return False
     if isinstance(shape, AABB):
         return shape.contains(x, y)
-    return shape.contains(x, y)
+    if isinstance(shape, Circle):
+        return shape.contains(x, y)
+    return False
 
 
 def volume_needs_z(el: dict[str, Any]) -> bool:
-    tags = set(el.get("tags") or [])
-    kind = str(el.get("type") or "")
+    tags = tag_set(el.get("tags") if isinstance(el, dict) else None)
+    kind = str(el.get("type") or "") if isinstance(el, dict) else ""
     return bool(tags.intersection({"cell", "flower", "goal", "up_cell", "down_cell"})) or kind in {
         "goal",
         "cell",
@@ -107,9 +122,10 @@ def point_in_volume(el: dict[str, Any], shape: AABB | Circle | None, x: float, y
         return False
     if not volume_needs_z(el):
         return True
-    pose = el.get("pose") or {}
+    pose = _as_mapping(el.get("pose") if isinstance(el, dict) else None)
+    raw_shape = _as_mapping(el.get("shape") if isinstance(el, dict) else None)
     ez = float(pose.get("z") or 0.0)
-    hh = float((el.get("shape") or {}).get("height") or 16.0) / 2.0
+    hh = float(raw_shape.get("height") or 16.0) / 2.0
     return abs(z - ez) <= hh + radius + 2.0
 
 

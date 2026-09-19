@@ -17,6 +17,7 @@ from talongym.robot.sensors import camera_world_pose, detect_tags
 from talongym.rules.engine import MECHANISM_VERBS, RuleContext, RuleEngine, TickEvent
 from talongym.sim.geometry import (
     AABB,
+    Circle,
     deg_to_rad,
     detour_waypoints,
     path_length,
@@ -26,6 +27,7 @@ from talongym.sim.geometry import (
     push_out_of_boxes,
     rad_to_deg,
     shape_from_element,
+    tag_set,
     wrap_angle,
 )
 from talongym.sim.mujoco_backend import ftc_yaw_to_mj_quat
@@ -122,11 +124,17 @@ class World:
             for el in self.elements
             if el.get("isTrigger")
         }
+        # Occupancy must not re-index live dicts: those have shown up as a Piece or a
+        # dict_itemiterator mid-run and killed the sim worker.
+        self._volume_geom: tuple[tuple[str, dict[str, Any], AABB | Circle | None], ...] = tuple(
+            (str(tid), el, self.element_shapes.get(el["id"]) if isinstance(el, dict) else None)
+            for tid, el in self.triggers.items()
+        )
         self.obstacles: list[AABB] = []
         for el in self.elements:
             if not el.get("isCollider"):
                 continue
-            if "perimeter" in (el.get("tags") or []):
+            if "perimeter" in tag_set(el.get("tags")):
                 continue
             sh = self.element_shapes.get(el["id"])
             if isinstance(sh, AABB) and sh.hx < 70 and sh.hy < 70:
@@ -265,7 +273,7 @@ class World:
         chassis_top = 2.0 * self.robot_hz + 0.2
         boxes: list[AABB] = []
         for el in self.elements:
-            tags = el.get("tags") or []
+            tags = tag_set(el.get("tags"))
             if "perimeter" in tags or "launch_spot" in tags:
                 continue
             if not el.get("isCollider"):
@@ -275,7 +283,8 @@ class World:
                 continue
             pose = el.get("pose") or {}
             z = float(pose.get("z") or 6.0)
-            height = float((el.get("shape") or {}).get("height") or 12.0)
+            raw_shape = el.get("shape") if isinstance(el.get("shape"), dict) else {}
+            height = float(raw_shape.get("height") or 12.0)
             if z - height / 2.0 >= chassis_top:
                 continue
             boxes.append(sh)
@@ -785,7 +794,7 @@ class World:
         if not self._touching_perimeter(x, y, heading):
             return f"robot start ({x:.3f}, {y:.3f}) must touch the FIELD perimeter wall (G304.C)"
         for el in self.elements:
-            tags = set(el.get("tags") or [])
+            tags = tag_set(el.get("tags"))
             shape = self.element_shapes.get(el["id"])
             if not isinstance(shape, AABB):
                 continue
@@ -1051,9 +1060,10 @@ class World:
         return self.robots["red_0"]
 
     def _occupancy(self) -> dict[str, set[str]]:
-        occ: dict[str, set[str]] = {tid: set() for tid in self.triggers}
-        for tid, el in self.triggers.items():
-            sh = self.element_shapes[el["id"]]
+        occ: dict[str, set[str]] = {tid: set() for tid, _el, _sh in self._volume_geom}
+        for tid, el, sh in self._volume_geom:
+            if not isinstance(el, dict) or not isinstance(sh, (AABB, Circle)):
+                continue
             for rid, rs in self.robots.items():
                 if tid == "leave_interior" and self._touching_perimeter(rs.body.x, rs.body.y, rs.body.heading):
                     continue
@@ -1372,11 +1382,11 @@ class World:
                     rs.score_timer = cycle
         if verb == "open_gate":
             gate_el = next(
-                (e for e in self.elements if e.get("type") == "gate" or "gate" in (e.get("tags") or [])),
+                (e for e in self.elements if e.get("type") == "gate" or "gate" in tag_set(e.get("tags"))),
                 None,
             )
             if gate_el:
-                sh = self.element_shapes[gate_el["id"]]
+                sh = self.element_shapes.get(gate_el["id"])
                 if point_in_shape(sh, rs.body.x, rs.body.y):
                     self.gate_state[gate_el["id"]] = "open"
                     events.append(
@@ -1543,8 +1553,10 @@ class World:
                 if rs.first_contact_s is None:
                     rs.first_contact_s = self.time_s
             tag = f"restricted_for_{rs.body.alliance}"
-            for tid, el in self.triggers.items():
-                tags = el.get("tags") or []
+            for tid, el, _sh in self._volume_geom:
+                if not isinstance(el, dict):
+                    continue
+                tags = tag_set(el.get("tags"))
                 if tag in tags or el.get("id") == tag or el.get("triggerId") == tag:
                     if rs.body.id in occ.get(tid, set()):
                         rs.entered_restricted = True
