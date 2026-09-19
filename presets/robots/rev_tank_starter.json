@@ -404,7 +404,7 @@
           "instanceId": "left_rail",
           "mountId": "slot",
           "patternIndex": [
-            3,
+            2,
             0
           ]
         },
@@ -421,7 +421,7 @@
             "instanceId": "left_rail",
             "mountId": "slot",
             "patternIndex": [
-              4,
+              3,
               0
             ]
           },
@@ -441,7 +441,7 @@
           "instanceId": "left_rail",
           "mountId": "slot",
           "patternIndex": [
-            47,
+            48,
             0
           ]
         },
@@ -458,7 +458,7 @@
             "instanceId": "left_rail",
             "mountId": "slot",
             "patternIndex": [
-              48,
+              49,
               0
             ]
           },
@@ -478,7 +478,7 @@
           "instanceId": "right_rail",
           "mountId": "slot",
           "patternIndex": [
-            3,
+            2,
             0
           ]
         },
@@ -495,7 +495,7 @@
             "instanceId": "right_rail",
             "mountId": "slot",
             "patternIndex": [
-              4,
+              3,
               0
             ]
           },
@@ -515,7 +515,7 @@
           "instanceId": "right_rail",
           "mountId": "slot",
           "patternIndex": [
-            47,
+            48,
             0
           ]
         },
@@ -532,7 +532,7 @@
             "instanceId": "right_rail",
             "mountId": "slot",
             "patternIndex": [
-              48,
+              49,
               0
             ]
           },
@@ -1164,7 +1164,7 @@
       "type": "tank",
       "wheelDiameterIn": 3.543,
       "trackWidthIn": 8.189,
-      "wheelbaseIn": 14.173
+      "wheelbaseIn": 14.803
     },
     "instanceRoles": {
       "left_rail": "structure",
@@ -1212,13 +1212,13 @@
     "type": "tank",
     "wheelDiameterIn": 3.543,
     "trackWidthIn": 8.189,
-    "wheelbaseIn": 14.173
+    "wheelbaseIn": 14.803
   },
   "chassis": {
-    "lengthIn": 18.464611811023623,
-    "widthIn": 12.590597637795275,
+    "lengthIn": 18.917360236220475,
+    "widthIn": 11.968476377952754,
     "heightIn": 14.0,
-    "massKg": 5.131999999999999,
+    "massKg": 3.7619999999999987,
     "collisionShape": "aabb"
   },
   "motors": {

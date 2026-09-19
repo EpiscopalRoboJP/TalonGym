@@ -437,8 +437,16 @@ export function RobotActor({
   }, [cadUrl]);
   const chassisColor = highlight ? theme.restricted : dynamic ? theme.chassis : theme.chassisIdle;
   const emissiveIntensity = highlight === "foul" ? 0.55 : highlight === "contact" ? 0.35 : 0;
-  const previewParts = useMemo(() => (hideBody ? [] : design?.rigidParts || []), [hideBody, design?.rigidParts]);
-  const hideChassisLump = chassisLumpHidden({ hideBody, rigidParts: previewParts });
+  const previewParts = useMemo(
+    () =>
+      (hideBody ? [] : (design?.rigidParts || [])).filter((part) => {
+        if (part.id === "_catalog") return false;
+        const ghost = part.id === "intake_roller" || part.id === "conveyor_roller" || part.id === "flywheel" || part.id === "hood" || part.id === "release_gate";
+        return !ghost || Boolean(part.collision?.length);
+      }),
+    [hideBody, design?.rigidParts],
+  );
+  const hideChassisLump = chassisLumpHidden({ hideBody, rigidParts: design?.rigidParts });
   const showBox = !hideChassisLump && (!cadUrl || !cadReady || showHull || Boolean(highlight));
   const camera = aprilTagCamera(design);
   const composed = useMemo(() => composeRigidPartPoses(previewParts), [previewParts]);
@@ -487,12 +495,14 @@ export function RobotActor({
               </group>
             );
           })}
-      {(design?.intakes || []).map((intake) => (
-        <IntakeGizmo key={intake.id} intake={intake} chassisHeight={height} />
-      ))}
-      {(design?.launchers || []).map((launcher) => (
-        <LauncherGizmo key={launcher.id} launcher={launcher} chassisHeight={height} />
-      ))}
+      {!hideChassisLump &&
+        (design?.intakes || []).map((intake) => (
+          <IntakeGizmo key={intake.id} intake={intake} chassisHeight={height} />
+        ))}
+      {!hideChassisLump &&
+        (design?.launchers || []).map((launcher) => (
+          <LauncherGizmo key={launcher.id} launcher={launcher} chassisHeight={height} />
+        ))}
       {design?.piecePath && launchPreview && (
         <>
           <StorageSlotMarkers path={design.piecePath} />

@@ -48,6 +48,12 @@ def test_catalog_seeds_drivebase_and_optional_electronics():
     gobilda_motor = get_part("5203-2402-0019")
     assert gobilda_motor["cad"]["downloadEnabled"] is True
     assert gobilda_motor["cad"]["sourceUrl"].startswith("https://www.gobilda.com/content/step_files/")
+    face = part_mount(gobilda_motor, "face")
+    output = part_mount(gobilda_motor, "output")
+    assert list(face["axis"]) == list(output["axis"])
+    wheel = get_part("3213-3606-0001")
+    assert list(part_mount(wheel, "bore")["axis"]) == [0.0, 0.0, 1.0]
+    assert part_mount(get_part("REV-41-1621"), "motor_face")["axis"][1] == pytest.approx(1.0)
     hub = get_part("REV-31-1595")
     assert hub["cad"]["downloadEnabled"] is False
     assert "sourceUrl" not in hub["cad"]

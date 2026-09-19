@@ -1126,6 +1126,10 @@ class World:
         tx, ty = push_out_of_boxes(float(target[0]), float(target[1]), obstacles, clearance)
         tx = float(np.clip(tx, -lim_x, lim_x))
         ty = float(np.clip(ty, -lim_y, lim_y))
+        if rs.body.alliance == "red":
+            tx = min(tx, -self.robot_hx)
+        elif rs.body.alliance == "blue":
+            tx = max(tx, self.robot_hx)
         route = detour_waypoints(rs.body.x, rs.body.y, tx, ty, obstacles, clearance)
         wx, wy = route[0]
         ex, ey = wx - rs.body.x, wy - rs.body.y
@@ -1770,29 +1774,51 @@ class World:
         live: dict[str, list[dict[str, Any]]] | None,
     ) -> dict[str, list[dict[str, Any]]]:
         from talongym.assets.mjcf_robot import kinematic_part_transforms
+        from talongym.robot.assembly import _TOPOLOGY_MECHANISM_IDS
 
         out = dict(live or {})
+        ghost_ids = {
+            str(part["id"])
+            for part in (self.robot.get("rigidParts") or [])
+            if part.get("id")
+            and str(part["id"]) in _TOPOLOGY_MECHANISM_IDS
+            and not part.get("collision")
+        }
         expected = {
             str(part["id"])
             for part in (self.robot.get("rigidParts") or [])
-            if part.get("id") and part.get("parentId") is not None
+            if part.get("id")
+            and part.get("parentId") is not None
+            and str(part["id"]) not in ghost_ids
         }
         if not expected:
-            return out
+            return {
+                rid: [row for row in rows if str(row.get("id") or "") not in ghost_ids]
+                for rid, rows in out.items()
+            }
         origin_z = float(self.robot_hz) + 0.2 + float(getattr(self, "floor_y", 0.0) or 0.0)
         for robot in self.robots.values():
-            rows = list(out.get(robot.body.id) or [])
+            rows = [
+                row
+                for row in (out.get(robot.body.id) or [])
+                if str(row.get("id") or "") not in ghost_ids
+            ]
             present = {str(row.get("id") or "") for row in rows}
             if expected.issubset(present):
+                out[robot.body.id] = rows
                 continue
-            fallback = kinematic_part_transforms(
-                self.robot,
-                robot_x=float(robot.body.x),
-                robot_y=float(robot.body.y),
-                heading=float(robot.body.heading),
-                origin_z=origin_z,
-                robot_hz=float(self.robot_hz),
-            )
+            fallback = [
+                row
+                for row in kinematic_part_transforms(
+                    self.robot,
+                    robot_x=float(robot.body.x),
+                    robot_y=float(robot.body.y),
+                    heading=float(robot.body.heading),
+                    origin_z=origin_z,
+                    robot_hz=float(self.robot_hz),
+                )
+                if str(row.get("id") or "") not in ghost_ids
+            ]
             if not rows:
                 out[robot.body.id] = fallback
                 continue

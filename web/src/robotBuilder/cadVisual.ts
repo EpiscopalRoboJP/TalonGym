@@ -1,4 +1,4 @@
-import type { CacheBatchCounts, CacheBatchItem, CatalogCacheBatch, CatalogCacheState, RigidPartSpec } from "../api";
+import type { CacheBatchCounts, CacheBatchItem, CatalogCacheBatch, CatalogCacheState } from "../api";
 
 export const EMPTY_CACHE_COUNTS: CacheBatchCounts = {
   queued: 0,
@@ -9,11 +9,19 @@ export const EMPTY_CACHE_COUNTS: CacheBatchCounts = {
   cancelled: 0,
 };
 
-export function hasArticulatedCatalogParts(parts?: RigidPartSpec[] | { id: string }[]): boolean {
-  return (parts || []).some((part) => part.id && part.id !== "chassis");
+export function hasArticulatedCatalogParts(parts?: { id: string; collision?: unknown[] | null }[]): boolean {
+  const rows = parts || [];
+  if (rows.some((part) => part.id === "_catalog")) return true;
+  const chassis = rows.find((part) => part.id === "chassis");
+  const others = rows.some((part) => Boolean(part.id) && part.id !== "chassis");
+  if (!others) return false;
+  return !((chassis?.collision || []).length > 0);
 }
 
-export function hideChassisLump(options: { hideBody?: boolean; rigidParts?: { id: string }[] }): boolean {
+export function hideChassisLump(options: {
+  hideBody?: boolean;
+  rigidParts?: { id: string; collision?: unknown[] | null }[];
+}): boolean {
   return Boolean(options.hideBody) || hasArticulatedCatalogParts(options.rigidParts);
 }
 

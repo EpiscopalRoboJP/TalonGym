@@ -81,8 +81,60 @@ def test_follower_brakes_to_a_stop_on_target():
 
 def test_recorded_eval_episode_fields_four_robots():
     env = FTCAutoEnv(record=True)
-    env.reset(seed=0)
+    env.reset(seed=0, options={"static_teammate": True, "opponent_policy": "static"})
     assert set(env.world.robots) == {"red_0", "red_1", "blue_0", "blue_1"}
     snap = env.world.snapshot()
     assert {row["id"] for row in snap["robots"]} == {"red_0", "red_1", "blue_0", "blue_1"}
+    env.close()
+
+
+def test_teammate_none_does_not_spawn_static_red_1():
+    env = FTCAutoEnv(record=False)
+    env.reset(seed=0, options={"teammate_policy": "none"})
+    assert "red_0" in env.world.robots
+    assert "red_1" not in env.world.robots
+    env.close()
+
+
+def test_clipped_waypoint_does_not_farm_restricted_wall_still_shapes():
+    env = FTCAutoEnv(record=False, static_teammate=False)
+    env.reset(seed=2, options={"teammate_policy": "none", "opponent_policy": "none"})
+    parsed = env._parse_action(
+        {
+            "target_pose": np.array([40.0, 0.0, 0.0], dtype=np.float32),
+            "speed_frac": np.array([1.0], dtype=np.float32),
+            "mechanism": 0,
+        }
+    )
+    assert parsed is not None
+    assert parsed["target_pose"][0] <= -float(env.world.robot_hx)
+    _obs, _reward, _term, _trunc, info = env.step(
+        {
+            "target_pose": np.array([40.0, 0.0, 0.0], dtype=np.float32),
+            "speed_frac": np.array([1.0], dtype=np.float32),
+            "mechanism": 0,
+        }
+    )
+    assert env.world.accumulators.get("restricted_entry") is not True
+    assert info["true_score"] > -20
+
+    half = float(env.world.field["fieldSizeIn"]["width"]) / 2.0
+    rs = env.world.actor()
+    rs.body.x = -half + 0.2
+    rs.body.vx = -40.0
+    _obs, _reward, _term, _trunc, wall_info = env.step(
+        {
+            "target_pose": np.array([rs.body.x, rs.body.y, rs.body.heading], dtype=np.float32),
+            "speed_frac": np.array([1.0], dtype=np.float32),
+            "mechanism": 0,
+        }
+    )
+    if env.world.wall_hit:
+        assert wall_info["shaping"] <= -0.02
+
+    rs = env.world.actor()
+    rs.body.x, rs.body.y = 20.0, 0.0
+    env.world.step(np.array([20.0, 0.0, 0.0]), 0.2, 0, end_phase=False)
+    assert env.world.accumulators.get("restricted_entry") is True
+    assert env.world.true_score <= -20
     env.close()

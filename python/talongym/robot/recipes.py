@@ -285,7 +285,10 @@ def _instantiate_gobilda(recipe: dict[str, Any], parameters: dict[str, Any]) -> 
         raise RecipeError(f"{length_sku}/{width_sku} web pattern is too small for a drivebase recipe")
     if count_u < 12 or flange_u < 12 or width_u < 4:
         raise RecipeError(f"{length_sku}/{width_sku} does not have enough holes for four drive modules")
-    rear_motor = count_u - 6
+    front_motor = 2
+    rear_motor = flange_u - 4
+    opposite = str(parameters.get("wheelSkuOpposite") or wheel_sku)
+    wheel_skus = {"fl": wheel_sku, "rl": wheel_sku, "fr": opposite, "rr": opposite}
     instances = [
         _instance("left_rail", length_sku),
         _instance("front_rail", width_sku),
@@ -300,9 +303,9 @@ def _instantiate_gobilda(recipe: dict[str, Any], parameters: dict[str, Any]) -> 
         _conn("front_rail", "left_rail", "web", (0, 1), "front_rail", "web", (0, 1), spin_deg=90.0),
         _conn("right_rail", "front_rail", "web", (width_u - 1, 1), "right_rail", "web", (count_u - 1, 1), spin_deg=180.0),
         _conn("rear_rail", "left_rail", "web", (count_u - 1, 1), "rear_rail", "web", (0, 1), spin_deg=90.0),
-        _conn("motor_fl", "left_rail", "flange_a", (3, 0), "motor_fl", "face", (0, 0), ((5, 0), (1, 0))),
+        _conn("motor_fl", "left_rail", "flange_a", (front_motor, 0), "motor_fl", "face", (0, 0), ((front_motor + 2, 0), (1, 0))),
         _conn("motor_rl", "left_rail", "flange_a", (rear_motor, 0), "motor_rl", "face", (0, 0), ((rear_motor + 2, 0), (1, 0))),
-        _conn("motor_fr", "right_rail", "flange_a", (3, 0), "motor_fr", "face", (0, 0), ((5, 0), (1, 0))),
+        _conn("motor_fr", "right_rail", "flange_a", (front_motor, 0), "motor_fr", "face", (0, 0), ((front_motor + 2, 0), (1, 0))),
         _conn("motor_rr", "right_rail", "flange_a", (rear_motor, 0), "motor_rr", "face", (0, 0), ((rear_motor + 2, 0), (1, 0))),
         _conn("plate_center", "front_rail", "web", (max(width_u // 2, 1), 1), "plate_center", "pattern", (0, 0), ((max(width_u // 2, 1) + 1, 1), (1, 0))),
         _conn("hub_center", "plate_center", "pattern", (2, 0), "hub_center", "pattern", (0, 0)),
@@ -311,7 +314,7 @@ def _instantiate_gobilda(recipe: dict[str, Any], parameters: dict[str, Any]) -> 
     ]
     for corner in _CORNERS:
         instances.append(_instance(f"motor_{corner}", motor_sku))
-        instances.append(_instance(f"wheel_{corner}", wheel_sku))
+        instances.append(_instance(f"wheel_{corner}", wheel_skus[corner]))
         connections.append(_conn(f"wheel_{corner}", f"motor_{corner}", "output", None, f"wheel_{corner}", "bore", None))
     if parameters["includeElectronics"]:
         servo_u = 11 if count_u > 14 else 6
@@ -352,8 +355,8 @@ def _instantiate_rev(recipe: dict[str, Any], parameters: dict[str, Any]) -> dict
     width_u, _ = _pattern_counts(width_sku, "slot")
     if length_u < 8 or width_u < 4:
         raise RecipeError(f"{length_sku}/{width_sku} slot pattern is too small for a drivebase recipe")
-    front_motor = 3
-    rear_motor = max(length_u - 5, front_motor + 2)
+    front_motor = 2
+    rear_motor = max(length_u - 4, front_motor + 2)
     instances = [
         _instance("left_rail", length_sku),
         _instance("front_rail", width_sku),

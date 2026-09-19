@@ -102,6 +102,33 @@
           }
         },
         {
+          "id": "flange_b",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": -0.9449
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 6,
+            "countV": 1
+          }
+        },
+        {
           "id": "end_a",
           "kind": "mating_face",
           "standard": "gobilda_pattern",
@@ -206,6 +233,33 @@
             "x": 0,
             "y": 0,
             "z": 0.9449
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 15,
+            "countV": 1
+          }
+        },
+        {
+          "id": "flange_b",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": -0.9449
           },
           "pattern": {
             "type": "grid",
@@ -328,6 +382,33 @@
           }
         },
         {
+          "id": "flange_b",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": -0.9449
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 24,
+            "countV": 1
+          }
+        },
+        {
           "id": "end_a",
           "kind": "mating_face",
           "standard": "gobilda_pattern",
@@ -441,6 +522,33 @@
           }
         },
         {
+          "id": "flange_b",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": -0.9449
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 42,
+            "countV": 1
+          }
+        },
+        {
           "id": "end_a",
           "kind": "mating_face",
           "standard": "gobilda_pattern",
@@ -545,6 +653,33 @@
             "x": 0,
             "y": 0,
             "z": 0.9449
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 8.0,
+            "countU": 54,
+            "countV": 1
+          }
+        },
+        {
+          "id": "flange_b",
+          "kind": "clearance_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 8.0,
+          "axis": [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": -0.9449
           },
           "pattern": {
             "type": "grid",
@@ -993,7 +1128,10 @@
         {
           "kind": "cylinder",
           "radiusIn": 0.7087,
-          "lengthIn": 4.3307
+          "lengthIn": 4.3307,
+          "pose": {
+            "z": -2.16535
+          }
         }
       ],
       "tags": [
@@ -1034,9 +1172,9 @@
           "standard": "gobilda_8mm_rex",
           "diameterMm": 8.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 20.0,
           "allowedHardware": [
@@ -1083,7 +1221,10 @@
         {
           "kind": "cylinder",
           "radiusIn": 0.7087,
-          "lengthIn": 3.937
+          "lengthIn": 3.937,
+          "pose": {
+            "z": -1.9685
+          }
         }
       ],
       "tags": [
@@ -1124,9 +1265,9 @@
           "standard": "gobilda_8mm_rex",
           "diameterMm": 8.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 20.0,
           "allowedHardware": [
@@ -1191,9 +1332,9 @@
           "standard": "gobilda_8mm_rex",
           "diameterMm": 8.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -1281,9 +1422,9 @@
           "standard": "gobilda_8mm_rex",
           "diameterMm": 8.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -1344,9 +1485,9 @@
           "standard": "gobilda_8mm_rex",
           "diameterMm": 8.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -1407,9 +1548,9 @@
           "standard": "gobilda_8mm_rex",
           "diameterMm": 8.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -1594,9 +1735,9 @@
           "standard": "gobilda_8mm_rex",
           "diameterMm": 8.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -1684,9 +1825,9 @@
           "standard": "gobilda_8mm_rex",
           "diameterMm": 8.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -2228,9 +2369,9 @@
           "standard": "gobilda_8mm_rex",
           "diameterMm": 8.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 20.0,
           "allowedHardware": [
@@ -2295,9 +2436,9 @@
           "standard": "gobilda_8mm_rex",
           "diameterMm": 8.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -2363,9 +2504,9 @@
           "standard": "gobilda_8mm_rex",
           "diameterMm": 8.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [

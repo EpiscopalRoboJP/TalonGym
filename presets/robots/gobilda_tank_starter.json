@@ -187,7 +187,7 @@
           "instanceId": "left_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            3,
+            2,
             0
           ]
         },
@@ -204,7 +204,7 @@
             "instanceId": "left_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              5,
+              4,
               0
             ]
           },
@@ -224,7 +224,7 @@
           "instanceId": "left_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            18,
+            20,
             0
           ]
         },
@@ -241,7 +241,7 @@
             "instanceId": "left_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              20,
+              22,
               0
             ]
           },
@@ -261,7 +261,7 @@
           "instanceId": "right_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            3,
+            2,
             0
           ]
         },
@@ -278,7 +278,7 @@
             "instanceId": "right_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              5,
+              4,
               0
             ]
           },
@@ -298,7 +298,7 @@
           "instanceId": "right_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            18,
+            20,
             0
           ]
         },
@@ -315,7 +315,7 @@
             "instanceId": "right_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              20,
+              22,
               0
             ]
           },
@@ -602,7 +602,7 @@
           "instanceId": "left_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            8,
+            6,
             0
           ]
         },
@@ -619,7 +619,7 @@
             "instanceId": "left_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              10,
+              8,
               0
             ]
           },
@@ -651,7 +651,7 @@
           "instanceId": "left_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            12,
+            9,
             0
           ]
         },
@@ -668,7 +668,7 @@
             "instanceId": "left_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              14,
+              11,
               0
             ]
           },
@@ -700,7 +700,7 @@
           "instanceId": "right_rail",
           "mountId": "flange_a",
           "patternIndex": [
-            8,
+            6,
             0
           ]
         },
@@ -717,7 +717,7 @@
             "instanceId": "right_rail",
             "mountId": "flange_a",
             "patternIndex": [
-              10,
+              8,
               0
             ]
           },
@@ -771,7 +771,7 @@
       "type": "tank",
       "wheelDiameterIn": 4.094,
       "trackWidthIn": 4.409,
-      "wheelbaseIn": 4.724
+      "wheelbaseIn": 5.984
     },
     "instanceRoles": {
       "left_rail": "structure",
@@ -806,13 +806,13 @@
     "type": "tank",
     "wheelDiameterIn": 4.094,
     "trackWidthIn": 4.409,
-    "wheelbaseIn": 4.724
+    "wheelbaseIn": 5.984
   },
   "chassis": {
     "lengthIn": 18,
     "widthIn": 18,
     "heightIn": 14,
-    "massKg": 5.735999999999999,
+    "massKg": 4.486,
     "collisionShape": "aabb"
   },
   "motors": {

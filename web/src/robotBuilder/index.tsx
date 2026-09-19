@@ -117,7 +117,7 @@ function useHistoryReducer() {
 export function RobotBuilderPage() {
   const { state, dispatch, getState } = useHistoryReducer();
   const [list, setList] = useState<PresetMeta[]>([]);
-  const [id, setId] = useState("mecanum_biobuzz_4cap");
+  const [id, setId] = useState("gobilda_mecanum_starter");
   const [saveAsId, setSaveAsId] = useState("");
   const [saving, setSaving] = useState(false);
   const [errs, setErrs] = useState<string[]>([]);

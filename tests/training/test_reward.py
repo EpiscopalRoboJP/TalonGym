@@ -45,7 +45,9 @@ def test_scoring_reward_used_when_training_omits():
     scoring = load_preset("scoring", "biobuzz_2026_scoring_v1")
     cfg = resolve_reward_config(scoring, {"algorithm": {"name": "recurrent_ppo"}})
     kinds = [t["kind"] for t in cfg["terms"]]
-    assert kinds == ["trueScoreDelta", "earlyVolumeBonus"]
+    assert kinds == ["trueScoreDelta", "collisionPenalty", "earlyVolumeBonus"]
+    penalty = next(t for t in cfg["terms"] if t["kind"] == "collisionPenalty")
+    assert penalty["wall"] == 0.02
     bonus = next(t for t in cfg["terms"] if t["kind"] == "earlyVolumeBonus")
     assert bonus["volumeTag"] == "park"
     assert bonus["requireAccumulator"] == "parked_auto"
@@ -210,3 +212,27 @@ def test_excluded_accumulators_are_not_multiplied():
         elements=PARK_ELEMENTS,
     )
     assert extra == 0.0
+
+
+def test_collision_penalty_shapes_wall_hits_only():
+    tracker = RewardTracker({"terms": [{"kind": "trueScoreDelta"}, {"kind": "collisionPenalty", "wall": 0.02}]})
+    reward, extra = tracker.step(
+        true_delta=3.0,
+        phase_end=False,
+        accumulators={},
+        true_score=3.0,
+        phase_duration=30.0,
+        wall_hit=True,
+    )
+    assert extra == pytest.approx(-0.02)
+    assert reward == pytest.approx(2.98)
+    clean, clean_extra = tracker.step(
+        true_delta=0.0,
+        phase_end=False,
+        accumulators={},
+        true_score=3.0,
+        phase_duration=30.0,
+        wall_hit=False,
+    )
+    assert clean_extra == 0.0
+    assert clean == 0.0

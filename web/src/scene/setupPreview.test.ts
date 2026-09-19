@@ -1,4 +1,4 @@
-import { buildSetupPreview, runMatchesSceneSelection, trainSceneFrame, type SetupFieldDoc } from "./setupPreview";
+import { buildSetupPreview, robotDesignFromPreset, runMatchesSceneSelection, trainSceneFrame, type SetupFieldDoc } from "./setupPreview";
 import type { Frame, RobotPreset } from "../api";
 
 function assert(cond: unknown, message: string): asserts cond {
@@ -98,6 +98,48 @@ const tests: Array<[string, () => void]> = [
     });
     assert(swapped === preview, "mismatch shows the selected bot");
     assert(runMatchesSceneSelection({ robotId: "old_bot", fieldId: "test_field" }, "other_field", "old_bot") === false, "field mismatch");
+  }],
+  ["catalog assembly preview hides 4-cap gizmos and the chassis lump", () => {
+    const assemblyBot: RobotPreset = {
+      ...robotDoc("gobilda_mecanum_starter", "goBILDA mecanum scoring starter"),
+      schemaVersion: "1.2.0",
+      assembly: { rootInstanceId: "left_rail", instances: [{ id: "left_rail", sku: "1120-0007-0192" }], connections: [] },
+      intakes: [{ id: "front_intake", poseOnRobot: { x: 9, y: 0, z: 2 }, widthIn: 14, reachIn: 5, heightIn: 4 }],
+      launchers: [{ id: "hood", poseOnRobot: { x: 10, y: 0, z: 12 } }],
+      rigidParts: undefined,
+    };
+    const design = robotDesignFromPreset(assemblyBot);
+    assert(design.intakes == null, "no 4-cap intake gizmos");
+    assert(design.launchers == null, "no 4-cap launcher gizmos");
+    assert((design.rigidParts || []).some((part) => part.id === "_catalog"), "placeholder hides chassis lump");
+    const compiled: RobotPreset = {
+      ...assemblyBot,
+      rigidParts: [
+        { id: "chassis", massKg: 1e-6, collision: [] },
+        { id: "left_rail", massKg: 0.2, collision: [{ kind: "box", sizeIn: [7, 1, 1] }] },
+        { id: "intake_wheel", massKg: 0.1, collision: [{ kind: "cylinder", radiusIn: 1, lengthIn: 2 }] },
+      ],
+    };
+    const compiledDesign = robotDesignFromPreset(compiled);
+    assert((compiledDesign.rigidParts || []).some((part) => part.id === "intake_wheel"), "catalog parts");
+    assert(!(compiledDesign.rigidParts || []).some((part) => part.id === "intake_roller"), "no 4-cap roller");
+    assert(compiledDesign.intakes == null, "compiled catalog still hides gizmos");
+  }],
+  ["schematic 4-cap keeps hull gizmos", () => {
+    const cap: RobotPreset = {
+      ...robotDoc("mecanum_biobuzz_4cap", "Mecanum (BIOBUZZ 4-capacity)"),
+      intakes: [{ id: "front_intake", poseOnRobot: { x: 9, y: 0, z: 2 }, widthIn: 14, reachIn: 5, heightIn: 4 }],
+      launchers: [{ id: "hood", poseOnRobot: { x: 10, y: 0, z: 12 } }],
+      rigidParts: [
+        { id: "chassis", massKg: 12.8, collision: [{ kind: "box", sizeIn: [18, 18, 1] }] },
+        { id: "intake_roller", massKg: 0.35, collision: [{ kind: "cylinder", radiusIn: 1, lengthIn: 13 }] },
+      ],
+    };
+    const design = robotDesignFromPreset(cap);
+    assert((design.intakes || []).length === 1, "4-cap intakes stay");
+    assert((design.launchers || []).length === 1, "4-cap launchers stay");
+    const chassis = (design.rigidParts || []).find((part) => part.id === "chassis");
+    assert((chassis?.collision || []).length > 0, "4-cap hull collision stays");
   }],
 ];
 

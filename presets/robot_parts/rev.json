@@ -486,9 +486,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 20.0,
           "allowedHardware": [
@@ -549,9 +549,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "transform": {
             "x": 0,
@@ -565,9 +565,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "transform": {
             "x": 0,
@@ -633,9 +633,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "transform": {
             "x": 0,
@@ -649,9 +649,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "transform": {
             "x": 0,
@@ -717,9 +717,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "transform": {
             "x": 0,
@@ -733,9 +733,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "transform": {
             "x": 0,
@@ -830,9 +830,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 20.0,
           "allowedHardware": [
@@ -922,9 +922,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 20.0,
           "allowedHardware": [
@@ -984,9 +984,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -1047,9 +1047,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -1110,9 +1110,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -1173,9 +1173,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -1236,9 +1236,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -1427,9 +1427,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 6.0,
           "allowedHardware": [
@@ -1551,9 +1551,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -1647,8 +1647,8 @@
           "spacingMm": 16.0,
           "axis": [
             0.0,
-            0.0,
-            1.0
+            1.0,
+            0.0
           ],
           "depthMm": 4.0,
           "allowedHardware": [
@@ -1972,9 +1972,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [
@@ -2040,9 +2040,9 @@
           "standard": "rev_5mm_hex",
           "diameterMm": 5.0,
           "axis": [
-            1.0,
             0.0,
-            0.0
+            0.0,
+            1.0
           ],
           "depthMm": 10.0,
           "allowedHardware": [

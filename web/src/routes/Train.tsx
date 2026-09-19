@@ -5,6 +5,7 @@ import { buildSetupPreview, trainSceneFrame, type SetupFieldDoc } from "../scene
 import { Sparkline } from "../Sparkline";
 import { theme } from "../theme";
 import {
+  catalogAssemblyCompilePath,
   getJson,
   loadReplayFrames,
   notify,
@@ -52,6 +53,8 @@ type Metrics = {
 const STARTUP_PHASE_LABEL: Record<string, string> = {
   creating_envs: "Creating envs…",
   bc_warmup: "BC warmup…",
+  ppo_update: "PPO update (env steps pause)…",
+  evaluating: "Held-out eval (training continues)…",
 };
 
 function startupPhaseLabel(phase?: string | null, nEnvs?: number) {
@@ -163,7 +166,7 @@ export function TrainPage() {
   const [scoring, setScoring] = useState<PresetMeta[]>([]);
   const [training, setTraining] = useState<PresetMeta[]>([]);
   const [fieldId, setFieldId] = useState("biobuzz_2026_field_v1");
-  const [robotId, setRobotId] = useState("mecanum_biobuzz_4cap");
+  const [robotId, setRobotId] = useState("gobilda_mecanum_starter");
   const [scoringId, setScoringId] = useState("biobuzz_2026_scoring_v1");
   const [trainingId, setTrainingId] = useState("biobuzz_auto_lightweight");
   const [profile, setProfile] = useState<Profile>("demo");
@@ -231,9 +234,43 @@ export function TrainPage() {
   }, [fieldId]);
 
   useEffect(() => {
-    getJson<RobotPreset>(`/presets/robot/${robotId}`)
-      .then(setRobotDoc)
-      .catch(() => setRobotDoc(null));
+    let cancelled = false;
+    void (async () => {
+      try {
+        const doc = await getJson<RobotPreset>(`/presets/robot/${robotId}`);
+        if (cancelled) return;
+        delete (doc as { _kind?: string })._kind;
+        if (!doc.assembly?.instances?.length) {
+          setRobotDoc(doc);
+          return;
+        }
+        try {
+          const compiled = await postJson<{ preset?: RobotPreset }>(catalogAssemblyCompilePath(), doc);
+          if (cancelled) return;
+          const preset = compiled.preset;
+          setRobotDoc(
+            preset
+              ? {
+                  ...doc,
+                  chassis: preset.chassis || doc.chassis,
+                  rigidParts: preset.rigidParts,
+                  joints: preset.joints,
+                  intakes: undefined,
+                  launchers: undefined,
+                  piecePath: undefined,
+                }
+              : doc,
+          );
+        } catch {
+          if (!cancelled) setRobotDoc(doc);
+        }
+      } catch {
+        if (!cancelled) setRobotDoc(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [robotId]);
 
   useEffect(() => {
@@ -401,8 +438,9 @@ export function TrainPage() {
   const liveFrame = rollout[rolloutI] || null;
   const busy = current?.state === "running" || current?.state === "queued";
   const progress = typeof metrics.progressFrac === "number" ? Math.max(0, Math.min(1, metrics.progressFrac)) : 0;
-  const startupNote = (metrics.envSteps ?? 0) === 0 ? startupPhaseLabel(metrics.startupPhase, metrics.nEnvs) : "";
-  const statusLine = log || startupNote;
+  const livePhase = startupPhaseLabel(metrics.startupPhase, metrics.nEnvs);
+  const startupNote = (metrics.envSteps ?? 0) === 0 || (busy && livePhase) ? livePhase : "";
+  const statusLine = startupNote || log;
   const presets = (current?.config?.presets || {}) as Partial<DefaultsBundle>;
   const previewFrame = useMemo(
     () => buildSetupPreview(fieldDoc, robotDoc, { robotSetup, customStarts }),
@@ -653,7 +691,7 @@ export function TrainPage() {
                 </span>
                 <span className="hint">
                   {metrics.evalCheckpointHealthy === false
-                    ? "unhealthy checkpoint skipped"
+                    ? "eval has not launched yet"
                     : metrics.evalCheckpointHealthy
                       ? "checkpoint healthy"
                       : "physical eval"}
@@ -669,7 +707,9 @@ export function TrainPage() {
             </div>
             {metrics.healthWarnings?.length || metrics.bestSkippedUnhealthy ? (
               <p className="note" data-testid="train-health-warnings" role="status">
-                {metrics.bestSkippedUnhealthy ? "Best checkpoint not updated: eval was unhealthy. " : ""}
+                {metrics.bestSkippedUnhealthy
+                  ? "Training is still running. Held-out eval has not launched yet, so best.zip was not updated. "
+                  : ""}
                 {(metrics.healthWarnings || []).join("; ")}
               </p>
             ) : null}

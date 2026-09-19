@@ -187,7 +187,7 @@ def test_recipe_and_compile_routes_cover_all_four_drivebases():
     missing = client.post("/api/v1/catalog/recipes/andymark_swerve/instantiate", json={})
     assert missing.status_code == 404
     expected_track = {
-        "gobilda_mecanum": 7.244,
+        "gobilda_mecanum": 12.913,
         "gobilda_tank": 4.409,
         "rev_mecanum": 8.189,
         "rev_tank": 8.189,

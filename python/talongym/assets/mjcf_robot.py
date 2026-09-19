@@ -499,6 +499,8 @@ def kinematic_part_transforms(
     for part_id, local in poses.items():
         if part_id == root_id:
             continue
+        if part_id in _MECHANISM_PART_IDS and not (parts.get(part_id) or {}).get("collision"):
+            continue
         world = robot_mat @ local
         pose = pose_from_matrix(world)
         quat = _robot_quat(pose).split()

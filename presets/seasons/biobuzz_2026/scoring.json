@@ -191,6 +191,12 @@
     "terms": [
       { "kind": "trueScoreDelta" },
       {
+        "kind": "collisionPenalty",
+        "wall": 0.02,
+        "robot": 0.0,
+        "piece": 0.0
+      },
+      {
         "kind": "earlyVolumeBonus",
         "volumeTag": "park",
         "requireAccumulator": "parked_auto",

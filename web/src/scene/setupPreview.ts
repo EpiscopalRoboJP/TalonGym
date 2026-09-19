@@ -29,20 +29,26 @@ export type SetupFieldDoc = {
 };
 
 export function robotDesignFromPreset(robot: RobotPreset): RobotDesign {
+  const catalog = Boolean(robot.assembly?.instances?.length);
+  const rigidParts = robot.rigidParts?.length
+    ? robot.rigidParts
+    : catalog
+      ? [{ id: "_catalog", massKg: 0, collision: [] }]
+      : robot.rigidParts;
   return {
     chassis: robot.chassis,
-    intakes: robot.intakes,
-    launchers: robot.launchers,
+    intakes: catalog ? undefined : robot.intakes,
+    launchers: catalog ? undefined : robot.launchers,
     visualAsset: robot.visualAsset,
     collisionAsset: robot.collisionAsset,
     visualOffset: robot.visualOffset,
     collisionShape: robot.collisionShape || robot.chassis?.collisionShape,
     sensors: robot.sensors,
-    rigidParts: robot.rigidParts,
+    rigidParts,
     joints: robot.joints,
-    actuators: robot.actuators,
+    actuators: catalog ? undefined : robot.actuators,
     powerSystem: robot.powerSystem,
-    piecePath: robot.piecePath,
+    piecePath: catalog ? undefined : robot.piecePath,
     mechanismSensors: robot.mechanismSensors,
   };
 }
