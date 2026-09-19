@@ -141,7 +141,7 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brand); outline-off
 .slider input { grid-column: 1 / -1; }
 
 /* ---------- App shell ---------- */
-.app { display: grid; grid-template-rows: var(--header-h) minmax(0, 1fr); height: 100%; }
+.app { display: grid; grid-template-rows: var(--header-h) minmax(0, 1fr) auto; height: 100%; }
 .header {
   display: flex; align-items: stretch; gap: 2rem; padding: 0 20px; color: #fff;
   background: var(--brand); border-top: 3px solid var(--gold);
@@ -175,6 +175,15 @@ input[type="range"]:focus-visible { outline: 2px solid var(--brand); outline-off
 .status i { width: 8px; height: 8px; border-radius: 50%; background: #9aa0a6; }
 .status.ok i { background: #4ade80; box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.2); }
 .status.down i { background: #ff8a80; box-shadow: 0 0 0 3px rgba(255, 138, 128, 0.2); }
+.app-credit {
+  padding: 0.28rem 20px;
+  background: var(--brand-deep);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-align: center;
+  line-height: 1.35;
+}
 
 .page {
   min-height: 0; height: 100%; padding: var(--gap); gap: var(--gap);

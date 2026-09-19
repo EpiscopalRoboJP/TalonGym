@@ -1,6 +1,6 @@
 # Contributing
 
-TalonGym is a training aid for FTC Autonomous, licensed **GPL-3.0-or-later**. PRs that keep that boundary — train offline, export a trajectory, paste into an AUTO OpMode — are welcome. By contributing, you license your work under the same terms. Exported Road Runner snippets stay CC0 (see the README) so team OpModes are not copylefted.
+TalonGym is a training aid for FTC Autonomous, licensed **GPL-3.0-or-later**, built by **FTC Team 17986 — 904 Robo Eagles** and **FTC Team 27268 — Talon Strike**. PRs that keep that boundary — train offline, export a trajectory, paste into an AUTO OpMode — are welcome. By contributing, you license your work under the same terms. Exported Road Runner snippets stay CC0 (see the README) so team OpModes are not copylefted.
 
 Named contributors for substantial work are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 

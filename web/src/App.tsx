@@ -2,6 +2,7 @@ import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getJson, type Health } from "./api";
 import { ToastHost } from "./ToastHost";
+import { CREDIT_LINE } from "./licenseNotice";
 import { BrandMark } from "./ui";
 import { ReplayPage } from "./routes/Replay";
 import { TrainPage } from "./routes/Train";
@@ -88,6 +89,7 @@ export function App() {
         <Route path="/compare" element={<ComparePage />} />
         <Route path="*" element={<Navigate to="/train" replace />} />
       </Routes>
+      <footer className="app-credit">{CREDIT_LINE}</footer>
     </div>
     <ToastHost />
     </>

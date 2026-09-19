@@ -17,6 +17,7 @@ def test_health_and_presets():
     assert h.status_code == 200
     body = h.json()
     assert body["ok"] is True
+    assert "17986" in body["credits"] and "27268" in body["credits"]
     assert body["computeProfile"] in {"lightweight_cpu", "workstation", "cloud"}
     assert body["nEnvs"] >= 1
     compute = client.get("/api/v1/compute")

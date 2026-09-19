@@ -20,7 +20,7 @@ cd web && npm run dev
 
 http://127.0.0.1:5173 — Vite proxies `/api` and `/api/v1/ws/…`.
 
-The top bar health chip is `GET /api/v1/health` (`engine`, `db`, ok). If it says **API offline**, the UI cannot train or load presets.
+The top bar health chip is `GET /api/v1/health` (`engine`, `db`, ok). If it says **API offline**, the UI cannot train or load presets. CLI and Lab startup print a GPL notice that credits **FTC Team 17986 — 904 Robo Eagles** and **FTC Team 27268 — Talon Strike**; the same line is in the Lab footer.
 
 ## Routes
 

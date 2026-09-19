@@ -133,6 +133,7 @@ export type Health = {
   version?: string;
   computeProfile?: string;
   nEnvs?: number;
+  credits?: string;
 };
 
 export type ComputeInfo = {
