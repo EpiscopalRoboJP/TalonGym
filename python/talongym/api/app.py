@@ -366,14 +366,16 @@ def get_replay(replay_id: str) -> dict[str, Any]:
         raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": replay_id}})
     meta = row["meta"]
     frames = row["frames"]
-    return {
-        "id": replay_id,
-        "duration": frames[-1]["t"] if frames else 0,
-        "hz": 25,
-        "nFrames": len(frames),
-        "trueScore": frames[-1].get("trueScore") if frames else 0,
-        **meta,
-    }
+    return db.attach_replay_run_name(
+        {
+            "id": replay_id,
+            "duration": frames[-1]["t"] if frames else 0,
+            "hz": 25,
+            "nFrames": len(frames),
+            "trueScore": frames[-1].get("trueScore") if frames else 0,
+            **meta,
+        }
+    )
 
 
 @app.get(f"{API}/replays/{{replay_id}}/chunks")
@@ -443,7 +445,14 @@ def start_eval(body: EvalBody) -> dict[str, Any]:
         objective=body.objective,
     )
     frames = report.pop("bestFrames", [])
-    replay_id = db.save_replay(frames, {"source": "eval", "trueScore": report.get("bestScore")}) if frames else None
+    replay_id = (
+        db.save_replay(
+            frames,
+            {"source": "eval", "trueScore": report.get("bestScore"), "runId": body.runId},
+        )
+        if frames
+        else None
+    )
     report["replayId"] = replay_id
     report["policy"] = body.policy
     report["runId"] = body.runId
@@ -702,7 +711,7 @@ def mount_frontend(application: FastAPI) -> None:
             candidate = (dist / full_path).resolve()
             if full_path and candidate.is_relative_to(dist.resolve()) and candidate.is_file():
                 return FileResponse(candidate)
-            return FileResponse(dist / "index.html")
+            return FileResponse(dist / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 mount_frontend(app)

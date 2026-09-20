@@ -1,4 +1,4 @@
-import { runLabel } from "./api";
+import { replayLabel, replayMetaLine, runLabel } from "./api";
 
 function assert(cond: unknown, message: string): asserts cond {
   if (!cond) throw new Error(message);
@@ -13,6 +13,22 @@ const tests: Array<[string, () => void]> = [
   }],
   ["blank names fall back to the run id", () => {
     assert(runLabel({ id: "abc123", name: "  ", config: { name: "" } }) === "abc123", "id");
+  }],
+  ["replay list prefers the run name", () => {
+    assert(replayLabel({ id: "rep1", name: "wall-slam 262k", runId: "run1", source: "train" }) === "wall-slam 262k", "name");
+  }],
+  ["unnamed train replays use the run id", () => {
+    assert(replayLabel({ id: "rep1", runId: "run1", source: "train" }) === "run1", "run id");
+  }],
+  ["demo replays keep the source label", () => {
+    assert(replayLabel({ id: "rep1", source: "demo" }) === "Scripted demo", "demo");
+  }],
+  ["named replay meta keeps the run id", () => {
+    assert(
+      replayMetaLine({ id: "rep1", name: "wall-slam 262k", runId: "run1", source: "train", algo: "recurrent_ppo" }) ===
+        "run1 · recurrent_ppo",
+      "meta",
+    );
   }],
 ];
 

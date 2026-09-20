@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FieldScene, type SceneView } from "../scene/FieldScene";
-import { getJson, loadReplayFrames, notify, postJson, type Frame, type FrameExplain } from "../api";
+import { getJson, loadReplayFrames, notify, postJson, replayLabel, replayMetaLine, type Frame, type FrameExplain, type ReplayListRow } from "../api";
 import { Empty, Icon, Panel, RoadRunnerDialog, Segmented, Switch } from "../ui";
 import { KeyValues } from "../KeyValues";
 import { namedQueues, resolveReplayId } from "../labHonesty";
 
-type ReplayMeta = { id: string; trueScore?: number; source?: string; runId?: string; algo?: string };
+type ReplayMeta = ReplayListRow;
 type Marker = { i: number; kind: "foul" | "contact" };
-
-const SOURCE_LABEL: Record<string, string> = { demo: "Scripted demo", train: "Training run", eval: "Evaluation" };
 
 function signedPoints(n: number) {
   if (n > 0) return `+${n}`;
@@ -194,8 +192,15 @@ export function ReplayPage() {
       <Panel
         className="grow"
         bodyClass="viewport"
-        title={meta ? SOURCE_LABEL[meta.source || ""] || "Replay" : "Replay"}
-        sub={selectedId ? <span className="mono">{selectedId}</span> : undefined}
+        title={meta ? replayLabel(meta) : "Replay"}
+        sub={
+          selectedId ? (
+            <span className="mono">
+              {meta?.runId && meta.runId !== replayLabel(meta) ? `${meta.runId} · ` : ""}
+              {selectedId}
+            </span>
+          ) : undefined
+        }
         actions={
           <>
             <Segmented
@@ -326,7 +331,7 @@ export function ReplayPage() {
           )}
         </Panel>
 
-        <Panel title="Field state" sub={frame ? `t ${frame.t.toFixed(2)} s` : undefined} bodyClass="panel-body scroll">
+        <Panel className="replay-field" title="Field state" sub={frame ? `t ${frame.t.toFixed(2)} s` : undefined} bodyClass="panel-body scroll">
           <p className="note">Queues {namedQueues(frame?.queues)}</p>
           <p className="label">Gates</p>
           <KeyValues data={frame?.gate as Record<string, unknown>} />
@@ -353,10 +358,9 @@ export function ReplayPage() {
               <li key={r.id}>
                 <button type="button" className={`list-item ${r.id === selectedId ? "on" : ""}`} onClick={() => selectReplay(r.id)}>
                   <span className="grow">
-                    <span className="title">{SOURCE_LABEL[r.source || ""] || r.source || "Replay"}</span>
+                    <span className="title">{replayLabel(r)}</span>
                     <span className="meta mono" style={{ display: "block" }}>
-                      {r.id}
-                      {r.algo ? ` · ${r.algo}` : ""}
+                      {replayMetaLine(r)}
                     </span>
                   </span>
                   <span className="end">

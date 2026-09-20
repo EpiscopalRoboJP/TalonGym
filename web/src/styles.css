@@ -463,6 +463,14 @@ dialog.modal .panel-body { overflow: auto; }
 
 /* Page layouts */
 .layout-replay { grid-template-columns: minmax(0, 1fr) 360px; }
+.layout-replay > .col > .replay-field {
+  flex: 0 1 auto;
+  max-height: min(28vh, 16rem);
+}
+.layout-replay > .col > .panel.grow {
+  flex: 1 1 18rem;
+  min-height: 14rem;
+}
 .layout-train { grid-template-columns: 340px minmax(0, 1fr); }
 .layout-train > .col > .panel:first-child { flex: 1 1 22rem; min-height: 16rem; }
 .train-main { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gap); min-height: 0; }

@@ -994,3 +994,36 @@ export function runLabel(row: Pick<RunRow, "id" | "name" | "config">): string {
   const fromConfig = row.config && typeof row.config.name === "string" ? row.config.name.trim() : "";
   return fromConfig || row.id;
 }
+
+const REPLAY_SOURCE_LABEL: Record<string, string> = {
+  demo: "Scripted demo",
+  train: "Training run",
+  eval: "Evaluation",
+};
+
+export type ReplayListRow = {
+  id: string;
+  name?: string | null;
+  runId?: string | null;
+  source?: string | null;
+  algo?: string | null;
+  trueScore?: number;
+};
+
+/** Prefer the training run's name, then its run id, then the replay source. */
+export function replayLabel(row: Pick<ReplayListRow, "id" | "name" | "runId" | "source">): string {
+  const named = typeof row.name === "string" && row.name.trim() ? row.name.trim() : "";
+  if (named) return named;
+  if (row.runId) return row.runId;
+  return REPLAY_SOURCE_LABEL[row.source || ""] || row.source || row.id;
+}
+
+export function replayMetaLine(row: ReplayListRow): string {
+  const title = replayLabel(row);
+  const bits: string[] = [];
+  if (row.runId && title !== row.runId) bits.push(row.runId);
+  else if (title !== row.id) bits.push(row.id);
+  if (row.source === "eval") bits.push("evaluation");
+  if (row.algo) bits.push(row.algo);
+  return bits.join(" · ");
+}

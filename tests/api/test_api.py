@@ -237,10 +237,18 @@ def test_named_run_can_be_renamed_and_continued(monkeypatch):
     assert row["hasCheckpoint"] is True
     listed = client.get("/api/v1/runs").json()
     assert any(r["id"] == run_id and r["name"] == "flower fix" for r in listed)
+    replay_id = row.get("metrics", {}).get("replayId")
+    assert replay_id
+    replays = client.get("/api/v1/replays").json()
+    match = next(r for r in replays if r["id"] == replay_id)
+    assert match["runId"] == run_id
+    assert match["name"] == "flower fix"
 
     patched = client.patch(f"/api/v1/runs/{run_id}", json={"name": "flower-fix v2"})
     assert patched.status_code == 200
     assert patched.json()["name"] == "flower-fix v2"
+    renamed = client.get("/api/v1/replays").json()
+    assert next(r for r in renamed if r["id"] == replay_id)["name"] == "flower-fix v2"
 
     cont = client.post(
         f"/api/v1/runs/{run_id}/continue",

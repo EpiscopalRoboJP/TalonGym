@@ -326,10 +326,41 @@ def get_replay(replay_id: str) -> dict[str, Any] | None:
     return {"id": replay_id, "meta": json.loads(row["meta"]), "frames": json.loads(row["frames"])}
 
 
+def _names_for_run_ids(run_ids: list[str]) -> dict[str, str]:
+    unique = [rid for rid in dict.fromkeys(run_ids) if rid]
+    if not unique:
+        return {}
+    placeholders = ",".join("?" * len(unique))
+    with _session() as conn:
+        rows = conn.execute(f"SELECT id, config FROM runs WHERE id IN ({placeholders})", unique).fetchall()
+    names: dict[str, str] = {}
+    for row in rows:
+        config = json.loads(row["config"] or "{}")
+        name = clean_run_name(config.get("name") if isinstance(config, dict) else None)
+        if name:
+            names[str(row["id"])] = name
+    return names
+
+
+def attach_replay_run_name(item: dict[str, Any], names: dict[str, str] | None = None) -> dict[str, Any]:
+    presented = dict(item)
+    run_id = presented.get("runId")
+    if not run_id:
+        return presented
+    if names is None:
+        names = _names_for_run_ids([str(run_id)])
+    name = names.get(str(run_id))
+    if name:
+        presented["name"] = name
+    return presented
+
+
 def list_replays() -> list[dict[str, Any]]:
     with _session() as conn:
         rows = conn.execute("SELECT id, meta FROM replays ORDER BY created_at DESC").fetchall()
-    return [{"id": r["id"], **json.loads(r["meta"])} for r in rows]
+    items = [{"id": r["id"], **json.loads(r["meta"])} for r in rows]
+    names = _names_for_run_ids([str(item.get("runId") or "") for item in items])
+    return [attach_replay_run_name(item, names) for item in items]
 
 
 RUN_NAME_MAX = 80
