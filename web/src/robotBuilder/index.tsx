@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  catalogAssemblyCompilePath,
   getCatalogPart,
   getJson,
   listCatalogParts,
@@ -41,7 +42,20 @@ import { ValidationPanel } from "./ValidationPanel";
 import { BuilderViewport } from "./Viewport";
 import { childSubtree, emptyAssembly } from "./assemblyMath";
 import { pointerPose } from "./pointer";
-import { validateAssembly } from "./validation";
+import { replacementError, validateAssembly } from "./validation";
+
+function removeSubtree(assembly: NonNullable<RobotPreset["assembly"]>, instanceId: string) {
+  const drop = new Set(childSubtree(assembly, instanceId));
+  const instances = assembly.instances.filter((row) => !drop.has(row.id));
+  return {
+    ...assembly,
+    rootInstanceId: drop.has(assembly.rootInstanceId || "") ? instances[0]?.id : assembly.rootInstanceId,
+    instances,
+    connections: assembly.connections.filter(
+      (row) => !drop.has(row.parent.instanceId) && !drop.has(row.child.instanceId),
+    ),
+  };
+}
 
 function SaveAsDialog({
   value,
@@ -136,7 +150,10 @@ export function RobotBuilderPage() {
   const [previewHood, setPreviewHood] = useState(0.6);
   const [replacing, setReplacing] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
-  const [sidePanel, setSidePanel] = useState<"assembly" | "inspector" | "validation" | null>("assembly");
+  const [sidePanel, setSidePanel] = useState<"assembly" | "inspector" | "validation" | null>("inspector");
+  const [assemblyOpen, setAssemblyOpen] = useState(true);
+  const [draftStatus, setDraftStatus] = useState<"saved" | "saving" | "unsaved" | "failed">("saved");
+  const [simulationCheck, setSimulationCheck] = useState<{ state: "idle" | "checking" | "passed" | "failed"; message?: string }>({ state: "idle" });
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const [mateMount, setMateMount] = useState<MountTarget | null>(null);
   const [compatibleSkus, setCompatibleSkus] = useState<Set<string> | null | undefined>(undefined);
@@ -184,6 +201,7 @@ export function RobotBuilderPage() {
       if (cancelled) return;
       delete (d as { _kind?: string })._kind;
       dispatch({ type: "hydrate", doc: d });
+      setDraftStatus("saved");
       setErrs([]);
       setSaveAsId("");
     })();
@@ -229,12 +247,22 @@ export function RobotBuilderPage() {
 
   useEffect(() => {
     if (!doc || !state.dirty) return;
-    if (presetIsShipped(list.find((row) => row.id === doc.id) || { id: doc.id })) return;
+    if (presetIsShipped(list.find((row) => row.id === doc.id) || { id: doc.id })) {
+      setDraftStatus("unsaved");
+      return;
+    }
+    setDraftStatus("unsaved");
     const handle = window.setTimeout(() => {
-      void saveRobotDraft(doc.id, doc);
+      setDraftStatus("saving");
+      void saveRobotDraft(doc.id, doc)
+        .then(() => {
+          dispatch({ type: "markSaved", doc });
+          setDraftStatus("saved");
+        })
+        .catch(() => setDraftStatus("failed"));
     }, 800);
     return () => window.clearTimeout(handle);
-  }, [doc, state.dirty, list]);
+  }, [doc, state.dirty, list, dispatch]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -314,16 +342,9 @@ export function RobotBuilderPage() {
       }
       if ((e.key === "Delete" || e.key === "Backspace") && !state.drag && state.sel.kind === "instance" && doc?.assembly) {
         e.preventDefault();
-        const drop = new Set(childSubtree(doc.assembly, state.sel.id));
         dispatch({
           type: "setAssembly",
-          assembly: {
-            ...doc.assembly,
-            instances: doc.assembly.instances.filter((row) => !drop.has(row.id)),
-            connections: doc.assembly.connections.filter(
-              (row) => !drop.has(row.parent.instanceId) && !drop.has(row.child.instanceId),
-            ),
-          },
+          assembly: removeSubtree(doc.assembly, state.sel.id),
         });
       }
       if (e.key === "Escape") {
@@ -357,6 +378,9 @@ export function RobotBuilderPage() {
       setErrs(res.errors || ["Invalid robot preset."]);
       return false;
     }
+    if (target.assembly?.instances.length) {
+      await postJson(catalogAssemblyCompilePath(), target);
+    }
     if (method === "post") await postJson("/presets/robot", target);
     else await putJson(`/presets/robot/${target.id}`, target);
     return true;
@@ -366,6 +390,29 @@ export function RobotBuilderPage() {
     doc && (list.length ? list.some((row) => row.id === doc.id && presetIsShipped(row)) : presetIsShipped({ id: doc.id })),
   );
   const saveBlocked = Boolean(doc?.assembly && validation.blocking.length);
+
+  async function makeEditableCopy() {
+    if (!doc) return;
+    const base = slugify(`${doc.id}_copy`);
+    let nid = base;
+    let suffix = 2;
+    while (list.some((row) => row.id === nid)) nid = `${base}_${suffix++}`;
+    const next = { ...doc, id: nid, displayName: `${doc.displayName} copy` };
+    setSaving(true);
+    try {
+      await saveRobotDraft(nid, next);
+      userPickedRobot.current = true;
+      setList((rows) => [...rows, { id: nid, displayName: next.displayName, shipped: false }]);
+      dispatch({ type: "hydrate", doc: next });
+      setId(nid);
+      setDraftStatus("saved");
+      notify(`Created editable draft ${next.displayName}.`);
+    } catch (error) {
+      setErrs([error instanceof Error ? error.message : String(error)]);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function save() {
     if (!doc) return;
@@ -377,7 +424,7 @@ export function RobotBuilderPage() {
     try {
       if (!(await validateAndSave(doc, "put"))) return;
       setErrs([]);
-      dispatch({ type: "hydrate", doc });
+      dispatch({ type: "markSaved", doc });
       notify(`Saved robot preset ${doc.id}.`);
     } catch (e) {
       setErrs([e instanceof Error ? e.message : String(e)]);
@@ -414,9 +461,21 @@ export function RobotBuilderPage() {
   async function beginPlace(sku: string) {
     const current = state.sel;
     if (replacing && current.kind === "instance") {
-      dispatch({ type: "replace", instanceId: current.id, sku });
-      setReplacing(false);
-      setPartsOpen(false);
+      try {
+        const part = partCache[sku] || (await getCatalogPart(sku));
+        setPartCache((prev) => ({ ...prev, [sku]: part }));
+        const assembly = doc?.assembly || emptyAssembly();
+        const error = replacementError(assembly, current.id, part, partsByInstance);
+        if (error) {
+          notify(error, "error", "Cannot replace part");
+          return;
+        }
+        dispatch({ type: "replace", instanceId: current.id, sku });
+        setReplacing(false);
+        setPartsOpen(false);
+      } catch (error) {
+        notify(error instanceof Error ? error.message : String(error), "error", "Cannot replace part");
+      }
       return;
     }
     try {
@@ -502,6 +561,69 @@ export function RobotBuilderPage() {
           )[0] || null
         : bestSnap(assembly, validation.poses, partsByInstance, part, current.drag.pointer, spinIndex, exclude);
     dispatch({ type: "updateDrag", pointer: current.drag.pointer, candidate, spinIndex });
+  }
+
+  function cyclePendingMount(delta: number) {
+    const current = getState();
+    if (!current.drag || !current.doc || !mateMount) return;
+    const part = partCache[current.drag.sku];
+    const parentPart = partsByInstance[mateMount.instanceId];
+    const parentPose = validation.poses[mateMount.instanceId];
+    if (!part || !parentPart || !parentPose) return;
+    const options = candidatesForMount(
+      mateMount,
+      parentPart,
+      parentPose,
+      part,
+      ORIENTATION_SPINS[current.drag.spinIndex],
+    );
+    if (!options.length) return;
+    const at = options.findIndex((option) =>
+      option.childMountId === current.drag?.candidate?.childMountId &&
+      option.childIndex?.[0] === current.drag?.candidate?.childIndex?.[0] &&
+      option.childIndex?.[1] === current.drag?.candidate?.childIndex?.[1]
+    );
+    const index = ((Math.max(at, 0) + delta) % options.length + options.length) % options.length;
+    dispatch({ type: "updateDrag", pointer: current.drag.pointer, candidate: options[index] });
+  }
+
+  async function checkSimulation() {
+    if (!doc || validation.blocking.length) return;
+    setSimulationCheck({ state: "checking" });
+    try {
+      const result = await postJson<{ physical?: boolean; instancePoses?: Record<string, { x?: number; y?: number; z?: number; rollDeg?: number; pitchDeg?: number; yawDeg?: number }>; warnings?: { message?: string }[]; report?: { confirmed?: boolean } }>(
+        catalogAssemblyCompilePath(),
+        doc,
+      );
+      let maxPositionError = 0;
+      let maxAngleError = 0;
+      for (const [instanceId, localPose] of Object.entries(validation.poses)) {
+        const compiledPose = result.instancePoses?.[instanceId];
+        if (!compiledPose) throw new Error(`Compiler did not return pose for ${instanceId}.`);
+        maxPositionError = Math.max(
+          maxPositionError,
+          Math.hypot(
+            (localPose.x || 0) - (compiledPose.x || 0),
+            (localPose.y || 0) - (compiledPose.y || 0),
+            (localPose.z || 0) - (compiledPose.z || 0),
+          ),
+        );
+        for (const key of ["rollDeg", "pitchDeg", "yawDeg"] as const) {
+          const raw = Math.abs((localPose[key] || 0) - (compiledPose[key] || 0)) % 360;
+          maxAngleError = Math.max(maxAngleError, Math.min(raw, 360 - raw));
+        }
+      }
+      if (maxPositionError > 1e-6 || maxAngleError > 1e-5) {
+        throw new Error(`Editor/compiler geometry mismatch (${maxPositionError.toExponential(2)} in, ${maxAngleError.toExponential(2)}°).`);
+      }
+      const warningCount = result.warnings?.length || 0;
+      setSimulationCheck({
+        state: "passed",
+        message: `${result.physical ? "Physical robot compiled" : "Robot compiled"}${result.report?.confirmed ? " with confirmed behavior" : " in waypoint mode"}. Editor/compiler poses agree within ${maxPositionError.toExponential(1)} in${warningCount ? ` · ${warningCount} warning(s)` : ""}.`,
+      });
+    } catch (error) {
+      setSimulationCheck({ state: "failed", message: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   function commitDrag() {
@@ -678,6 +800,11 @@ export function RobotBuilderPage() {
           <button type="button" className="btn" data-testid="new-drivebase" onClick={() => setWizard(true)} disabled={!recipes.length}>
             New robot
           </button>
+          {shipped && (
+            <button type="button" className="btn" data-testid="edit-copy" onClick={() => void makeEditableCopy()} disabled={saving}>
+              Edit a copy
+            </button>
+          )}
           <button type="button" className="btn sm" aria-label="Undo" title="Undo" disabled={!state.canUndo} onClick={() => dispatch({ type: "undo" })}>
             Undo
           </button>
@@ -687,7 +814,10 @@ export function RobotBuilderPage() {
         </div>
         <span className="spacer" />
         <div className="toolbar-cluster">
-          <button type="button" className={`btn ${sidePanel === "assembly" ? "primary" : ""}`} data-testid="toggle-assembly" onClick={() => setSidePanel(sidePanel === "assembly" ? null : "assembly")}>
+          <span className={`builder-save-state ${draftStatus}`} role="status">
+            {draftStatus === "saving" ? "Saving draft…" : draftStatus === "failed" ? "Draft save failed" : draftStatus === "unsaved" ? "Unsaved changes" : "Draft saved"}
+          </span>
+          <button type="button" className={`btn ${assemblyOpen ? "primary" : ""}`} data-testid="toggle-assembly" onClick={() => setAssemblyOpen((open) => !open)}>
             Assembly
           </button>
           <button type="button" className={`btn ${sidePanel === "inspector" ? "primary" : ""}`} data-testid="toggle-inspector" onClick={() => setSidePanel(sidePanel === "inspector" ? null : "inspector")}>
@@ -705,7 +835,37 @@ export function RobotBuilderPage() {
         </div>
       </div>
 
-      <div className={`builder-workspace${state.drag ? " is-dragging" : ""}${sidePanel ? " has-side-panel" : ""}`}>
+      <nav className="builder-progress" aria-label="Robot build workflow">
+        <span className="done"><b>1</b> Start</span>
+        <span className={doc.assembly?.instances.length ? "done" : "active"}><b>2</b> Assemble</span>
+        <span className={doc.functionalBindings?.confirmed ? "done" : doc.assembly?.instances.length ? "active" : ""}><b>3</b> Configure</span>
+        <span className={validation.blocking.length ? "" : "active"}><b>4</b> Check &amp; test</span>
+        <span className={!state.dirty && !validation.blocking.length && !shipped ? "active" : ""}><b>5</b> Use in training</span>
+      </nav>
+
+      <div className={`builder-workspace${state.drag ? " is-dragging" : ""}${sidePanel ? " has-side-panel" : ""}${assemblyOpen ? " has-assembly-panel" : ""}`}>
+        {assemblyOpen && (
+          <aside className="builder-assembly-rail" data-testid="builder-assembly-rail">
+            <div className="side-drawer-head">
+              <strong>Assembly</strong>
+              <button type="button" className="btn icon" aria-label="Close assembly panel" onClick={() => setAssemblyOpen(false)}>×</button>
+            </div>
+            <button type="button" className="btn primary block assembly-add" onClick={() => {
+              setMateMount(null);
+              setCompatibleSkus(undefined);
+              setPartsOpen(true);
+            }}>+ Browse parts</button>
+            <AssemblyTree
+              assembly={doc.assembly || emptyAssembly()}
+              parts={partsByInstance}
+              sel={sel}
+              onSelect={(nextSel) => {
+                dispatch({ type: "select", sel: nextSel });
+                if (nextSel.kind === "instance") setSidePanel("inspector");
+              }}
+            />
+          </aside>
+        )}
         <Panel className="grow builder-stage game-stage" bodyClass="panel-body flush viewport-body">
           <BuilderViewport
             doc={doc}
@@ -739,6 +899,7 @@ export function RobotBuilderPage() {
             }}
             onMountSelect={(target) => void chooseMount(target)}
             onRotate={rotatePending}
+            onCycleMount={cyclePendingMount}
             onFreePose={(instanceId, pose) => {
               const current = getState().doc;
               if (current) dispatch({ type: "patchDoc", doc: applyInstancePose(current, instanceId, pose) });
@@ -784,7 +945,7 @@ export function RobotBuilderPage() {
               <strong>{sidePanel === "assembly" ? "Assembly" : sidePanel === "inspector" ? "Inspector" : "Robot check"}</strong>
               <button type="button" className="btn icon" aria-label="Close side panel" onClick={() => setSidePanel(null)}>×</button>
             </div>
-            {sidePanel === "assembly" && (
+            {sidePanel === "assembly" && !assemblyOpen && (
               <AssemblyTree
                 assembly={doc.assembly || emptyAssembly()}
                 parts={partsByInstance}
@@ -804,15 +965,24 @@ export function RobotBuilderPage() {
             onPatchDoc={(next) => dispatch({ type: "patchDoc", doc: next })}
             onPatchPose={(pose) => {
               if (!selectedInstance) return;
+              const isComponentRoot = !(doc.assembly?.connections || []).some((row) => row.child.instanceId === selectedInstance.id);
+              if (!isComponentRoot) {
+                notify("Connected child poses are controlled by their mounting points. Detach this part to position it directly.", "error");
+                return;
+              }
               dispatch({
                 type: "setAssembly",
                 assembly: {
                   ...(doc.assembly || emptyAssembly()),
-                  instances: (doc.assembly?.instances || []).map((row) => (row.id === selectedInstance.id && row.id === doc.assembly?.rootInstanceId ? { ...row, pose } : row)),
+                  instances: (doc.assembly?.instances || []).map((row) => (row.id === selectedInstance.id ? { ...row, pose } : row)),
                 },
               });
             }}
-            onDetach={() => selectedInstance && dispatch({ type: "detach", instanceId: selectedInstance.id })}
+            onDetach={() => {
+              if (!selectedInstance) return;
+              const pose = validation.poses[selectedInstance.id];
+              if (pose) dispatch({ type: "detach", instanceId: selectedInstance.id, pose });
+            }}
             onPickUp={() => {
               if (!selectedInstance) return;
               const connected = doc.assembly?.connections.some((row) => row.child.instanceId === selectedInstance.id);
@@ -828,19 +998,11 @@ export function RobotBuilderPage() {
               setSidePanel(null);
               setPartsOpen(true);
             }}
-            onDuplicate={() => selectedInstance && dispatch({ type: "duplicate", instanceId: selectedInstance.id })}
-            onMirror={() => selectedInstance && dispatch({ type: "mirror", instanceId: selectedInstance.id })}
-            onPattern={() => selectedInstance && dispatch({ type: "pattern", instanceId: selectedInstance.id, count: 2 })}
             onRemove={() => {
               if (!selectedInstance || !doc.assembly) return;
-              const drop = new Set(childSubtree(doc.assembly, selectedInstance.id));
               dispatch({
                 type: "setAssembly",
-                assembly: {
-                  ...doc.assembly,
-                  instances: doc.assembly.instances.filter((row) => !drop.has(row.id)),
-                  connections: doc.assembly.connections.filter((row) => !drop.has(row.parent.instanceId) && !drop.has(row.child.instanceId)),
-                },
+                assembly: removeSubtree(doc.assembly, selectedInstance.id),
               });
             }}
               />
@@ -848,6 +1010,15 @@ export function RobotBuilderPage() {
             {sidePanel === "validation" && (
               <div className="side-drawer-scroll">
                 <ValidationPanel result={validation} />
+                <button type="button" className="btn primary block" data-testid="check-simulation" onClick={() => void checkSimulation()} disabled={simulationCheck.state === "checking" || validation.blocking.length > 0}>
+                  {simulationCheck.state === "checking" ? "Compiling simulation…" : "Check simulation model"}
+                </button>
+                {simulationCheck.state !== "idle" && simulationCheck.message && (
+                  <Alert kind={simulationCheck.state === "failed" ? "bad" : "ok"}>
+                    <b>{simulationCheck.state === "failed" ? "Simulation model failed" : "Simulation model ready"}</b>
+                    <div>{simulationCheck.message}</div>
+                  </Alert>
+                )}
                 <button type="button" className="btn block" data-testid="confirm-inference" onClick={() => dispatch({ type: "setInferenceOpen", open: true })} disabled={!inference}>
                   Confirm inferred mechanisms
                 </button>

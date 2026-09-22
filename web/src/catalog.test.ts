@@ -11,6 +11,8 @@ import { cadPlaceholderLabel, cacheBatchProgressPercent, cacheBatchStateLabel, c
 import { composeRigidPartPoses, catalogPartToRigid, ftcSizeToThree, proxyColor } from "./robotBuilder/partVisual";
 import { slugify } from "./robotBuilder/ids";
 import { identity4 } from "./robotBuilder/transforms";
+import { solveDraftAssemblyPoses } from "./robotBuilder/assemblyMath";
+import { replacementError } from "./robotBuilder/validation";
 import { presetIsShipped, type CatalogPart, type DrivebaseRecipe, type DrivebaseRecipeParameters, type RobotPreset } from "./api";
 
 function assert(cond: unknown, message: string): asserts cond {
@@ -216,12 +218,50 @@ const tests: Array<[string, () => void]> = [
     assert(replaced.state.doc?.assembly?.instances.find((row) => row.id === "motor")?.sku === "mot2", "replaced");
     const duplicated = apply(replaced.state, replaced.history, { type: "duplicate", instanceId: "motor" });
     assert((duplicated.state.doc?.assembly?.instances.length || 0) > (replaced.state.doc?.assembly?.instances.length || 0), "duplicated");
-    const detached = apply(duplicated.state, duplicated.history, { type: "detach", instanceId: "motor" });
+    const detached = apply(duplicated.state, duplicated.history, { type: "detach", instanceId: "motor", pose: { x: 1, y: 2, z: 3 } });
     assert(!detached.state.doc?.assembly?.connections.some((row) => row.child.instanceId === "motor"), "detached");
+    assert(detached.state.doc?.assembly?.instances.find((row) => row.id === "motor")?.pose?.x === 1, "detach keeps world pose");
     const undone = apply(detached.state, detached.history, { type: "undo" });
     assert(undone.state.doc?.assembly?.connections.some((row) => row.child.instanceId === "motor"), "undo restore");
     const redone = apply(undone.state, undone.history, { type: "redo" });
     assert(!redone.state.doc?.assembly?.connections.some((row) => row.child.instanceId === "motor"), "redo detach");
+  }],
+  ["part replacement preserves every existing mount contract", () => {
+    const assembly = {
+      rootInstanceId: "rail",
+      instances: [{ id: "rail", sku: gobildaClear.sku }, { id: "motor", sku: gobildaThread.sku }],
+      connections: [{
+        id: "rail_motor",
+        parent: { instanceId: "rail", mountId: "face", patternIndex: [2, 0] as [number, number] },
+        child: { instanceId: "motor", mountId: "face", patternIndex: [0, 0] as [number, number] },
+      }],
+    };
+    const catalog = { rail: gobildaClear, motor: gobildaThread };
+    assert(replacementError(assembly, "motor", gobildaThread, catalog) === null, "compatible replacement should be accepted");
+    assert(replacementError(assembly, "motor", revThread, catalog)?.includes("incompatible") === true, "cross-brand replacement should be rejected");
+    const missingMount = fixturePart("plain", "gobilda", "threaded_hole", "gobilda_pattern", { mounts: [] });
+    assert(replacementError(assembly, "motor", missingMount, catalog)?.includes("no mount") === true, "missing mount should be rejected");
+  }],
+  ["editable forests preserve loose component poses while publish history stays intact", () => {
+    const assembly = {
+      rootInstanceId: "rail",
+      instances: [
+        { id: "rail", sku: "ch", pose: { x: 0, y: 0, z: 0 } },
+        { id: "motor", sku: "mot", pose: { x: 4, y: 2, z: 1 } },
+      ],
+      connections: [],
+    };
+    const solved = solveDraftAssemblyPoses(assembly, { rail: gobildaClear, motor: gobildaThread });
+    assert(solved.roots.length === 2, "two component roots");
+    assert(solved.poses.motor.x === 4 && solved.poses.motor.y === 2 && solved.poses.motor.z === 1, "loose pose retained");
+
+    const hydrated = apply(createBuilderState(), { past: [], future: [] }, { type: "hydrate", doc: sampleDoc() });
+    const changedDoc = { ...hydrated.state.doc!, displayName: "Changed" };
+    const changed = apply(hydrated.state, hydrated.history, { type: "patchDoc", doc: changedDoc });
+    const staleAck = apply(changed.state, changed.history, { type: "markSaved", doc: sampleDoc() });
+    assert(staleAck.state.dirty, "stale save cannot clear newer changes");
+    const exactAck = apply(staleAck.state, staleAck.history, { type: "markSaved", doc: changedDoc });
+    assert(!exactAck.state.dirty && exactAck.state.canUndo, "save acknowledgement preserves undo history");
   }],
   ["inference stays unconfirmed until explicit confirm and blocks competitive save", () => {
     const part = fixturePart("ch", "gobilda", "clearance_hole", "gobilda_pattern", { tags: ["channel"] });

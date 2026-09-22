@@ -248,6 +248,70 @@ export function solveAssemblyPoses(
   return poses;
 }
 
+/**
+ * Solve the editable assembly forest. Every component root owns a world pose;
+ * connected children are still solved exclusively from their mate. Publishing
+ * uses solveAssemblyPoses(), which deliberately retains the single-tree gate.
+ */
+export function solveDraftAssemblyPoses(
+  assembly: RobotAssembly,
+  catalogParts: Record<string, CatalogPart>,
+): { poses: Record<string, Transform3>; roots: string[] } {
+  const instances = indexInstances(assembly);
+  const parents = parentMap(assembly, instances);
+  const byChild = new Map<string, AssemblyConnection>();
+  for (const connection of assembly.connections) byChild.set(connection.child.instanceId, connection);
+  const roots = [...instances.keys()].filter((ident) => !parents.has(ident));
+  if (!roots.length) throw new AssemblyGraphError("assembly connection cycle has no component root");
+
+  const matrices: Record<string, number[][]> = {};
+  const visiting = new Set<string>();
+  const solved = new Set<string>();
+  const solve = (ident: string) => {
+    if (solved.has(ident)) return;
+    if (visiting.has(ident)) throw new AssemblyGraphError(`assembly connection cycle at ${ident}`);
+    visiting.add(ident);
+    const connection = byChild.get(ident);
+    if (!connection) {
+      matrices[ident] = instances.get(ident)?.pose ? matrixFromPose(instances.get(ident)?.pose) : identity4();
+    } else {
+      const parentId = connection.parent.instanceId;
+      solve(parentId);
+      const parentPart = catalogParts[parentId];
+      const childPart = catalogParts[ident];
+      if (!parentPart || !childPart) throw new AssemblyGraphError(`catalog part missing for ${parentId} or ${ident}`);
+      const parentMount = partMount(parentPart, connection.parent.mountId);
+      const childMount = partMount(childPart, connection.child.mountId);
+      mountsCompatible(parentPart, parentMount, childPart, childMount);
+      if (instances.get(ident)?.pose) {
+        throw new AssemblyGraphError(`instance ${ident} pose is solved from connections and must be omitted`);
+      }
+      const secondary = connection.secondary
+        ? {
+            parentMount: partMount(parentPart, connection.secondary.parent.mountId),
+            childMount: partMount(childPart, connection.secondary.child.mountId),
+            parentIndex: patternIndex(connection.secondary.parent),
+            childIndex: patternIndex(connection.secondary.child),
+          }
+        : undefined;
+      matrices[ident] = solveMountTransform(matrices[parentId], parentMount, childMount, {
+        parentIndex: patternIndex(connection.parent),
+        childIndex: patternIndex(connection.child),
+        spinDeg: connection.spinDeg || 0,
+        secondary,
+      });
+    }
+    visiting.delete(ident);
+    solved.add(ident);
+  };
+  for (const ident of instances.keys()) solve(ident);
+  const occupied = occupancyError(assembly.connections);
+  if (occupied) throw new AssemblyGraphError(occupied);
+  const poses: Record<string, Transform3> = {};
+  for (const [ident, matrix] of Object.entries(matrices)) poses[ident] = poseFromMatrix(matrix);
+  return { poses, roots };
+}
+
 export function childSubtree(assembly: RobotAssembly, instanceId: string): string[] {
   const children = new Map<string, string[]>();
   for (const connection of assembly.connections) {

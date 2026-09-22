@@ -153,7 +153,9 @@ function PointerBridge({
       raycaster.setFromCamera(ndc, camera);
       const hits = raycaster.intersectObjects(scene.children, true).filter((row) => !row.object.userData?.ghost);
       const meshId = hits.map((row) => instanceIdFromObject(row.object)).find((value) => value);
-      const id = nearestInstance(ev.clientX, ev.clientY) || meshId;
+      // Visible geometry is authoritative. The projected-origin fallback only
+      // helps with proxy/asset gaps where the raycaster has no useful hit.
+      const id = meshId || nearestInstance(ev.clientX, ev.clientY);
       if (!id) return;
       const point = worldFromClient(ev.clientX, ev.clientY);
       if (!point) return;
@@ -383,6 +385,7 @@ export function BuilderViewport({
   onInstanceDown,
   onMountSelect,
   onRotate,
+  onCycleMount,
   onFreePose,
 }: {
   doc: RobotPreset;
@@ -406,6 +409,7 @@ export function BuilderViewport({
   onInstanceDown: (id: string, point: [number, number, number]) => void;
   onMountSelect: (target: MountTarget) => void;
   onRotate: (delta: number) => void;
+  onCycleMount: (delta: number) => void;
   onFreePose: (instanceId: string, pose: Transform3) => void;
 }) {
   const assembly = doc.assembly;
@@ -450,8 +454,7 @@ export function BuilderViewport({
     const rows = pendingPart
       ? highlightMounts(part, matrixFromPose(pose), pendingPart)
       : worldMountHoles(part, matrixFromPose(pose)).map((row) => ({ ...row, mountId: row.mount.id, compatible: true }));
-    const stride = Math.max(1, Math.ceil(rows.length / 6));
-    return rows.filter((_row, index) => index % stride === 0).map((row) => ({
+    return rows.map((row) => ({
       ...row,
       instanceId: selectedId,
       occupied: assembly.connections.some(
@@ -571,7 +574,7 @@ export function BuilderViewport({
       {dragging && (
         <div className="placement-hud" data-testid="placement-hud">
           <span className="placement-hud-title">{pendingPart?.displayName || "Placing part"}</span>
-          <span className="placement-hud-keys">Q/E rotate · R cycle · LMB place · Esc cancel</span>
+          <span className="placement-hud-keys">Q/E rotate · choose mount · LMB place · Esc cancel</span>
         </div>
       )}
       {selectedId && !dragging && (
@@ -597,11 +600,18 @@ export function BuilderViewport({
         <button type="button" className="cube-face cube-right" title="Right view" onClick={() => window.__talonBuilder?.snapCamera?.("right")}>Right</button>
         <button type="button" className="cube-face cube-iso" title="Isometric view" onClick={() => window.__talonBuilder?.snapCamera?.("iso")}>Iso</button>
         {dragging && (
-          <div className="cube-rotation" data-testid="mate-rotation-controls">
-            <button type="button" aria-label="Rotate mate counterclockwise" onClick={() => onRotate(-1)}>−90°</button>
-            <output>{yaw}°</output>
-            <button type="button" aria-label="Rotate mate clockwise" onClick={() => onRotate(1)}>+90°</button>
-          </div>
+          <>
+            <div className="cube-rotation" data-testid="mate-rotation-controls">
+              <button type="button" aria-label="Rotate mate counterclockwise" onClick={() => onRotate(-1)}>−90°</button>
+              <output>{yaw}°</output>
+              <button type="button" aria-label="Rotate mate clockwise" onClick={() => onRotate(1)}>+90°</button>
+            </div>
+            <div className="cube-rotation mate-choice" data-testid="mate-choice-controls">
+              <button type="button" aria-label="Previous child mount" onClick={() => onCycleMount(-1)}>‹</button>
+              <output title={candidate?.childMountId}>{candidate?.childMountId || "No mate"}</output>
+              <button type="button" aria-label="Next child mount" onClick={() => onCycleMount(1)}>›</button>
+            </div>
+          </>
         )}
       </div>
       <div className="keybind-help">

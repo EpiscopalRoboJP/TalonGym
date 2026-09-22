@@ -62,13 +62,21 @@ async function closeParts(page: Page) {
 
 async function openSide(page: Page, name: "assembly" | "inspector" | "validation") {
   const expected = name === "assembly" ? "Assembly" : name === "inspector" ? "Inspector" : "Robot check";
-  const heading = page.locator(".side-drawer-head strong");
+  if (name === "assembly") {
+    const rail = page.getByTestId("builder-assembly-rail");
+    if (!(await rail.isVisible().catch(() => false))) await page.getByTestId("toggle-assembly").click();
+    await expect(rail).toBeVisible();
+    await expect(rail.locator(".side-drawer-head strong")).toHaveText(expected);
+    return;
+  }
+  const drawer = page.getByTestId("builder-side-drawer");
+  const heading = drawer.locator(".side-drawer-head strong");
   const current = (await heading.allTextContents())[0]?.trim();
   if (current !== expected) {
     const buttonName = name === "validation" ? /^(Check|Problems)/ : new RegExp(`^${expected}$`);
     await page.getByRole("button", { name: buttonName }).click();
   }
-  await expect(page.getByTestId("builder-side-drawer")).toBeVisible();
+  await expect(drawer).toBeVisible();
   await expect(heading).toHaveText(expected);
 }
 
@@ -195,12 +203,22 @@ async function openMountPicker(page: Page) {
       await page.getByLabel("Close side panel").click();
     }
     await expect.poll(async () => page.evaluate((id) => (window.__talonBuilder?.mounts || []).filter((mount) => mount.instanceId === id).length, parentId)).toBeGreaterThan(0);
-    const mount = await page.evaluate(
-      (id) => (window.__talonBuilder?.mounts || []).find((row) => row.instanceId === id && !row.occupied) || null,
-      parentId,
-    );
-    expect(mount).toBeTruthy();
-    await page.mouse.click(mount!.x, mount!.y);
+    const webMounts = page.getByRole("button", { name: /^Available mount web/ });
+    const mounts = await ((await webMounts.count()) ? webMounts : page.getByRole("button", { name: /^Available mount/ })).all();
+    let clicked = false;
+    for (const mount of mounts.reverse()) {
+      if (!(await mount.isVisible())) continue;
+      const uncovered = await mount.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return top === element || Boolean(top && element.contains(top));
+      });
+      if (!uncovered) continue;
+      await mount.click();
+      clicked = true;
+      break;
+    }
+    expect(clicked, "an available mount marker should be clickable").toBe(true);
     await expect(page.getByTestId("catalog-panel")).toBeVisible();
   } else {
     await openParts(page);

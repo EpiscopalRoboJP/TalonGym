@@ -264,6 +264,17 @@ def ftc_soft_warnings(
                 "message": "inferred drivetrain is incomplete; wheel/motor bindings still require confirmation",
             }
         )
+    if report.drivetrain:
+        warnings.append(
+            {
+                "code": "drivetrain_model",
+                "severity": "info",
+                "message": (
+                    "drivetrain motion uses the calibrated chassis-force approximation; "
+                    "catalog wheel geometry does not imply per-wheel contact dynamics"
+                ),
+            }
+        )
     return tuple(warnings)
 
 

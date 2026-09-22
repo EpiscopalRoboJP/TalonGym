@@ -183,19 +183,39 @@ def validate(body: ValidateBody) -> dict[str, Any]:
 def create_preset(kind: str, document: dict[str, Any]) -> dict[str, str]:
     if kind not in {"field", "robot", "scoring", "training"}:
         raise HTTPException(400, {"error": {"code": "BAD_KIND", "message": kind}})
+    if db.get_preset(str(document.get("id") or "")):
+        raise HTTPException(409, {"error": {"code": "ALREADY_EXISTS", "message": str(document.get("id") or "")}})
     errs = validate_document(kind, document)
     if errs:
         raise HTTPException(422, {"error": {"code": "SCHEMA", "message": "; ".join(errs[:12])}})
+    if kind == "robot" and str(document.get("schemaVersion")) == "1.2.0":
+        from talongym.robot.assembly import compile_assembly_to_preset
+        from talongym.robot.contract import AssemblyError, RobotContractError
+
+        try:
+            compile_assembly_to_preset(document, competitive=True)
+        except (AssemblyError, RobotContractError) as exc:
+            raise HTTPException(422, {"error": {"code": "ROBOT_COMPILE", "message": str(exc)}}) from exc
     db.upsert_preset(kind, document)
     return {"id": document["id"]}
 
 
 @app.put(f"{API}/presets/{{kind}}/{{preset_id}}")
 def replace_preset(kind: str, preset_id: str, document: dict[str, Any]) -> dict[str, str]:
+    if kind == "robot" and is_shipped_preset("robot", preset_id):
+        raise HTTPException(409, {"error": {"code": "SHIPPED", "message": "Shipped presets stay immutable. Use Save as."}})
     document["id"] = preset_id
     errs = validate_document(kind, document)
     if errs:
         raise HTTPException(422, {"error": {"code": "SCHEMA", "message": "; ".join(errs[:12])}})
+    if kind == "robot" and str(document.get("schemaVersion")) == "1.2.0":
+        from talongym.robot.assembly import compile_assembly_to_preset
+        from talongym.robot.contract import AssemblyError, RobotContractError
+
+        try:
+            compile_assembly_to_preset(document, competitive=True)
+        except (AssemblyError, RobotContractError) as exc:
+            raise HTTPException(422, {"error": {"code": "ROBOT_COMPILE", "message": str(exc)}}) from exc
     db.upsert_preset(kind, document)
     return {"id": preset_id}
 

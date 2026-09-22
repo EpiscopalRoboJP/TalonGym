@@ -111,6 +111,21 @@ def test_import_zip_of_stl(tmp_path: Path):
         delete_robot_assets(robot_id)
 
 
+def test_archive_selection_requires_exact_identity_when_multiple_models_exist(tmp_path: Path):
+    import zipfile
+
+    first = write_ascii_box_stl(tmp_path / "SKU-100.step.stl", 1, 1, 1)
+    second = write_ascii_box_stl(tmp_path / "SKU-200.step.stl", 2, 2, 2)
+    zipped = tmp_path / "catalog.zip"
+    with zipfile.ZipFile(zipped, "w") as zf:
+        zf.write(first, "models/SKU-100.stl")
+        zf.write(second, "models/SKU-200.stl")
+    with pytest.raises(RobotCadError, match="multiple models"):
+        extract_cad_archive(zipped, tmp_path / "ambiguous")
+    selected = extract_cad_archive(zipped, tmp_path / "selected", preferred_name="SKU-200")
+    assert selected.name == "SKU-200.stl"
+
+
 def test_step_without_cascadio_is_cad_extra(tmp_path: Path, monkeypatch):
     pytest.importorskip("trimesh")
     import builtins

@@ -10,7 +10,7 @@ import pytest
 from talongym.presets.loader import load_preset, validate_document
 from talongym.robot.assembly import compile_assembly_to_preset
 from talongym.robot.catalog import get_part
-from talongym.robot.collision import validate_assembly_collisions
+from talongym.robot.collision import connected_overlap_warnings, validate_assembly_collisions
 from talongym.robot.contract import (
     ASSEMBLY_SCHEMA_VERSION,
     PHYSICAL_SCHEMA_VERSION,
@@ -200,6 +200,18 @@ def test_duplicate_occupancy_and_unconnected_collision_are_hard_errors():
             }
         ],
     )
+    connected = connected_overlap_warnings(
+        {"a": pose, "b": pose, "c": pose},
+        {"a": {"id": "a"}, "b": {"id": "b"}, "c": {"id": "c"}},
+        {"a": left, "b": right, "c": left},
+        [
+            {"parent": {"instanceId": "a"}, "child": {"instanceId": "b"}},
+            {"parent": {"instanceId": "b"}, "child": {"instanceId": "c"}},
+        ],
+    )
+    assert len(connected) == 1
+    assert connected[0]["code"] == "connected_proxy_overlap"
+    assert "a/c" in connected[0]["message"]
 
 
 def test_golden_three_part_compiles_through_assembly_and_competitive_validator():

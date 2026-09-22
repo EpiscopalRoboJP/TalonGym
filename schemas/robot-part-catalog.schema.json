@@ -137,6 +137,7 @@
       "properties": {
         "sourceUrl": { "type": "string", "format": "uri" },
         "filename": { "type": "string", "minLength": 1 },
+        "memberFilename": { "type": "string", "minLength": 1, "description": "Exact model filename inside an archive; required when SKU matching is ambiguous." },
         "format": { "type": "string", "enum": ["zip", "step", "glb", "stl"] },
         "sha256": { "$ref": "#/$defs/sha256" },
         "revision": { "type": "string" },

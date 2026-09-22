@@ -20,7 +20,9 @@ export function AssemblyTree({
     list.push(connection.child.instanceId);
     children.set(connection.parent.instanceId, list);
   }
-  const root = assembly.rootInstanceId || assembly.instances[0]?.id;
+  const childIds = new Set(assembly.connections.map((row) => row.child.instanceId));
+  const roots = assembly.instances.map((row) => row.id).filter((id) => !childIds.has(id));
+  const primaryRoot = roots.includes(assembly.rootInstanceId || "") ? assembly.rootInstanceId : roots[0];
   function Node({ id, depth }: { id: string; depth: number }) {
     const instance = assembly.instances.find((row) => row.id === id);
     const part = parts[id];
@@ -51,7 +53,13 @@ export function AssemblyTree({
   return (
     <Panel className="assembly-tree" title="Assembly tree" bodyClass="panel-body flush scroll">
       <ul className="list" data-testid="assembly-tree">
-        {root ? <Node id={root} depth={0} /> : <li className="note" style={{ padding: "0.75rem 1rem" }}>No catalog instances yet.</li>}
+        {primaryRoot ? <Node id={primaryRoot} depth={0} /> : <li className="note" style={{ padding: "0.75rem 1rem" }}>No catalog instances yet.</li>}
+        {roots.filter((id) => id !== primaryRoot).map((id) => (
+          <li key={`loose-${id}`}>
+            <div className="assembly-loose-label">Loose subassembly</div>
+            <Node id={id} depth={0} />
+          </li>
+        ))}
         <li>
           <button type="button" className={`list-item ${sameSel(sel, { kind: "chassis" }) ? "on" : ""}`} data-testid="assembly-chassis" onClick={() => onSelect({ kind: "chassis" })}>
             <span className="dot" style={{ background: theme.chassis }} />

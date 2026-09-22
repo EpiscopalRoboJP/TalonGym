@@ -132,3 +132,44 @@ def validate_assembly_collisions(
             raise AssemblyError(
                 f"interpenetration between {left_id} and {right_id} outside mating clearance"
             )
+
+
+def connected_overlap_warnings(
+    poses: dict[str, np.ndarray],
+    instances: dict[str, dict[str, Any]],
+    catalog_parts: dict[str, dict[str, Any]],
+    connections: list[dict[str, Any]],
+) -> tuple[dict[str, Any], ...]:
+    """Report overlaps that legacy origin-centred proxies cannot safely reject yet."""
+    direct = {
+        frozenset({str(row["parent"]["instanceId"]), str(row["child"]["instanceId"])})
+        for row in connections
+    }
+    boxes = {ident: part_aabbs(poses[ident], catalog_parts[ident]) for ident in instances}
+    overlaps: list[tuple[str, str]] = []
+    ordered = list(instances)
+    for index, left_id in enumerate(ordered):
+        for right_id in ordered[index + 1 :]:
+            if frozenset({left_id, right_id}) in direct:
+                continue
+            if any(
+                aabbs_overlap(left_box, right_box)
+                for left_box in boxes[left_id]
+                for right_box in boxes[right_id]
+            ):
+                overlaps.append((left_id, right_id))
+    if not overlaps:
+        return ()
+    examples = ", ".join(f"{left}/{right}" for left, right in overlaps[:3])
+    suffix = "" if len(overlaps) <= 3 else f", plus {len(overlaps) - 3} more"
+    return (
+        {
+            "code": "connected_proxy_overlap",
+            "severity": "warning",
+            "message": (
+                f"{len(overlaps)} connected proxy pair(s) overlap ({examples}{suffix}); "
+                "verify authored collision origins and clearance before relying on contact physics"
+            ),
+            "instanceId": overlaps[0][0],
+        },
+    )
