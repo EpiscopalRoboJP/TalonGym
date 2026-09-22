@@ -27,9 +27,6 @@ export function Inspector({
   onDetach,
   onPickUp,
   onReplace,
-  onDuplicate,
-  onMirror,
-  onPattern,
   onRemove,
 }: {
   doc: RobotPreset;
@@ -41,9 +38,6 @@ export function Inspector({
   onDetach: () => void;
   onPickUp: () => void;
   onReplace: () => void;
-  onDuplicate: () => void;
-  onMirror: () => void;
-  onPattern: () => void;
   onRemove: () => void;
 }) {
   const camera = doc.sensors?.find((s) => s.kind === "apriltag_camera") || doc.sensors?.[0];
@@ -64,15 +58,6 @@ export function Inspector({
             </button>
             <button type="button" className="btn sm" onClick={onReplace}>
               Replace
-            </button>
-            <button type="button" className="btn sm" onClick={onDuplicate}>
-              Duplicate
-            </button>
-            <button type="button" className="btn sm" onClick={onMirror}>
-              Mirror
-            </button>
-            <button type="button" className="btn sm" onClick={onPattern}>
-              Pattern
             </button>
             <button type="button" className="btn sm danger" onClick={onRemove}>
               Remove
@@ -97,7 +82,7 @@ export function Inspector({
               <NumberField id="inst-yaw" label="Yaw" unit="°" value={pose.yawDeg || 0} onChange={(n) => onPatchPose({ ...pose, yawDeg: n })} />
             </div>
           )}
-          <p className="note">Root pose is numeric. Child poses are solved from hole/shaft snaps. Drag in the viewport to re-parent.</p>
+          <p className="note">Loose-root poses are numeric. Connected child poses are solved from exact hole and shaft snaps. Drag in the viewport to re-parent.</p>
         </Section>
       )}
       {(sel.kind === "chassis" || sel.kind === "camera") && (

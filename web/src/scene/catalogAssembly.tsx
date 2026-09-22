@@ -1,11 +1,11 @@
 import { Component, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Html, useGLTF } from "@react-three/drei";
-import { Box3, BufferGeometry, DoubleSide, Group, Matrix4, Mesh, Object3D, Vector3 } from "three";
+import { Box3, BufferGeometry, DoubleSide, Mesh, Object3D, Vector3 } from "three";
 import type { CatalogPart, CollisionShapeSpec, RigidPartSpec, RobotDesign, RobotPartTransform, Transform3 } from "../api";
 import { API } from "../api";
 import { theme } from "../theme";
 import { ftcToThreePosition, hasYupQuaternion } from "./cadAssets";
-import { cadShouldShowMesh, type CadCollisionFit, type Vec3 } from "./cadFit";
+import type { Vec3 } from "./cadFit";
 import { cadPlaceholderLabel } from "../robotBuilder/cadVisual";
 import { catalogPartToRigid, collisionSpan, ftcSizeToThree, proxyColor } from "../robotBuilder/partVisual";
 import { poseEulerRad } from "../robotBuilder/transforms";
@@ -59,33 +59,6 @@ export function measureCadScene(scene: Object3D): { triangleCount: number; span:
   return { triangleCount: triangles, span: Math.max(size[0], size[1], size[2], 0), size, center };
 }
 
-function applyCadCollisionFit(scene: Object3D, fit: CadCollisionFit) {
-  const wrapper = new Group();
-  wrapper.add(scene);
-  wrapper.scale.setScalar(fit.scale);
-  const m = new Matrix4().set(
-    fit.rotation[0],
-    fit.rotation[1],
-    fit.rotation[2],
-    0,
-    fit.rotation[3],
-    fit.rotation[4],
-    fit.rotation[5],
-    0,
-    fit.rotation[6],
-    fit.rotation[7],
-    fit.rotation[8],
-    0,
-    0,
-    0,
-    0,
-    1,
-  );
-  wrapper.quaternion.setFromRotationMatrix(m);
-  wrapper.position.set(fit.translation[0], fit.translation[1], fit.translation[2]);
-  return wrapper;
-}
-
 function applyCadOpacity(scene: Object3D, opacity: number) {
   if (!(opacity < 1)) return;
   scene.traverse((obj) => {
@@ -117,26 +90,20 @@ export function RobotCad({
   url,
   onReady,
   opacity = 1,
-  targetSpan,
-  targetSize,
 }: {
   url: string;
   onReady?: () => void;
   opacity?: number;
-  targetSpan?: number;
-  targetSize?: Vec3;
 }) {
   const gltf = useGLTF(url);
   const prepared = useMemo(() => {
     const cloned = gltf.scene.clone(true);
     prepareCadScene(cloned);
     const stats = measureCadScene(cloned);
-    const size = targetSize || (targetSpan != null ? ([targetSpan, targetSpan, targetSpan] as Vec3) : undefined);
-    const verdict = cadShouldShowMesh(stats.triangleCount, stats.span, targetSpan ?? (size ? Math.max(...size) : undefined), stats.size, stats.center, size);
-    const fitted = verdict.ready ? applyCadCollisionFit(cloned, verdict.fit) : cloned;
+    const ready = stats.triangleCount > 0 && stats.span > 1e-8;
     applyCadOpacity(cloned, opacity);
-    return { scene: fitted, ready: verdict.ready };
-  }, [gltf.scene, opacity, targetSpan, targetSize?.[0], targetSize?.[1], targetSize?.[2]]);
+    return { scene: cloned, ready };
+  }, [gltf.scene, opacity]);
   useEffect(() => {
     if (prepared.ready) onReady?.();
     // Load completion is tied to the cloned scene, not the parent callback identity.
@@ -279,8 +246,6 @@ export function PartVisual({
     ready: cadReady,
   });
   const cadMissing = !cadUrl || failed || !cadReady;
-  const proxySpan = collisionSpan(part);
-  const targetSpan = Math.max(proxySpan[0], proxySpan[1], proxySpan[2]);
   return (
     <>
       {cadUrl && !failed && (
@@ -292,7 +257,7 @@ export function PartVisual({
           fallback={null}
         >
           <Suspense fallback={null}>
-            <RobotCad url={cadUrl} opacity={opacity} targetSpan={targetSpan} targetSize={proxySpan} onReady={() => setCadReady(true)} />
+            <RobotCad url={cadUrl} opacity={opacity} onReady={() => setCadReady(true)} />
           </Suspense>
         </CadErrorBoundary>
       )}
@@ -326,8 +291,6 @@ export function RobotPartActor({
     if (cadUrl) queueCadPreload(cadUrl);
   }, [cadUrl]);
   const orient = partQuaternion(part);
-  const proxySpan = collisionSpan(spec || { collision: [{ kind: "box", sizeIn: [4, 4, 2] }] });
-  const targetSpan = Math.max(proxySpan[0], proxySpan[1], proxySpan[2]);
   return (
     <group
       userData={{ instanceId: part.id }}
@@ -347,7 +310,7 @@ export function RobotPartActor({
           fallback={null}
         >
           <Suspense fallback={null}>
-            <RobotCad url={cadUrl} opacity={opacity} targetSpan={targetSpan} targetSize={proxySpan} onReady={() => setCadReady(true)} />
+            <RobotCad url={cadUrl} opacity={opacity} onReady={() => setCadReady(true)} />
           </Suspense>
         </CadErrorBoundary>
       )}

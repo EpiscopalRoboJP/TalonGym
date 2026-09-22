@@ -1,6 +1,6 @@
 import type { CatalogPart, RobotAssembly, Transform3 } from "../api";
-import { AssemblyGraphError, solveAssemblyPoses, validateAssemblyGraph } from "./assemblyMath";
-import { occupancyError } from "./mounts";
+import { solveDraftAssemblyPoses } from "./assemblyMath";
+import { mountCompatibilityError, occupancyError, partMount, patternHoles } from "./mounts";
 import { matrixFromPose, transformPoint } from "./transforms";
 
 export type ValidationIssue = {
@@ -92,14 +92,6 @@ export function validateAssembly(assembly: RobotAssembly, catalog: Record<string
   if (!assembly.instances.length) {
     return { blocking: [{ code: "empty", severity: "error", message: "Assembly has no parts yet." }], warnings, poses };
   }
-  try {
-    validateAssemblyGraph(assembly);
-  } catch (err) {
-    blocking.push({ code: "graph", severity: "error", message: err instanceof Error ? err.message : String(err) });
-    return { blocking, warnings, poses };
-  }
-  const occupied = occupancyError(assembly.connections);
-  if (occupied) blocking.push({ code: "occupancy", severity: "error", message: occupied });
   const missingCatalog = assembly.instances.filter((row) => !catalog[row.id]);
   if (missingCatalog.length) {
     warnings.push({
@@ -109,16 +101,27 @@ export function validateAssembly(assembly: RobotAssembly, catalog: Record<string
     });
     return { blocking, warnings, poses };
   }
+  let roots: string[] = [];
   try {
-    poses = solveAssemblyPoses(assembly, catalog);
+    const solved = solveDraftAssemblyPoses(assembly, catalog);
+    poses = solved.poses;
+    roots = solved.roots;
   } catch (err) {
-    if (!(err instanceof AssemblyGraphError) || !blocking.length) {
-      blocking.push({ code: "snap", severity: "error", message: err instanceof Error ? err.message : String(err) });
-    }
+    blocking.push({ code: "graph", severity: "error", message: err instanceof Error ? err.message : String(err) });
     return { blocking, warnings, poses };
+  }
+  const occupied = occupancyError(assembly.connections);
+  if (occupied) blocking.push({ code: "occupancy", severity: "error", message: occupied });
+  if (roots.length > 1) {
+    blocking.push({
+      code: "loose_subassembly",
+      severity: "error",
+      message: `${roots.length - 1} loose subassembly root(s) must be attached before this robot can be published.`,
+    });
   }
   const mated = new Set(assembly.connections.map((row) => [row.parent.instanceId, row.child.instanceId].sort().join("|")));
   const ids = assembly.instances.map((row) => row.id);
+  const connectedOverlaps: [string, string][] = [];
   const parent: Record<string, string> = {};
   for (const id of ids) parent[id] = id;
   const find = (ident: string): string => {
@@ -134,18 +137,30 @@ export function validateAssembly(assembly: RobotAssembly, catalog: Record<string
   for (let i = 0; i < ids.length; i += 1) {
     for (let j = i + 1; j < ids.length; j += 1) {
       const pair = [ids[i], ids[j]].sort().join("|");
-      if (mated.has(pair) || find(ids[i]) === find(ids[j])) continue;
+      if (mated.has(pair)) continue;
+      const sameComponent = find(ids[i]) === find(ids[j]);
       const left = catalog[ids[i]] && poses[ids[i]] ? partAabb(matrixFromPose(poses[ids[i]]), catalog[ids[i]]) : null;
       const right = catalog[ids[j]] && poses[ids[j]] ? partAabb(matrixFromPose(poses[ids[j]]), catalog[ids[j]]) : null;
       if (left && right && overlap(left, right)) {
-        blocking.push({
+        if (sameComponent) connectedOverlaps.push([ids[i], ids[j]]);
+        else blocking.push({
           code: "collision",
           severity: "error",
-          message: `interpenetration between ${ids[i]} and ${ids[j]} outside mating clearance`,
+          message: `Interpenetration between ${ids[i]} and ${ids[j]} outside mating clearance.`,
           instanceId: ids[i],
         });
       }
     }
+  }
+  if (connectedOverlaps.length) {
+    const examples = connectedOverlaps.slice(0, 3).map(([left, right]) => `${left}/${right}`).join(", ");
+    const suffix = connectedOverlaps.length > 3 ? `, plus ${connectedOverlaps.length - 3} more` : "";
+    warnings.push({
+      code: "connected_proxy_overlap",
+      severity: "warning",
+      message: `${connectedOverlaps.length} connected proxy pair(s) overlap (${examples}${suffix}). Verify authored collision origins and clearance before relying on contact physics.`,
+      instanceId: connectedOverlaps[0][0],
+    });
   }
   let minX = Infinity;
   let maxX = -Infinity;
@@ -185,4 +200,47 @@ export function validateAssembly(assembly: RobotAssembly, catalog: Record<string
 
 export function canSaveAssembly(result: ValidationResult): boolean {
   return result.blocking.length === 0;
+}
+
+export function replacementError(
+  assembly: RobotAssembly,
+  instanceId: string,
+  replacement: CatalogPart,
+  catalog: Record<string, CatalogPart>,
+): string | null {
+  const mountFor = (
+    part: CatalogPart,
+    mountId: string,
+    patternIndex?: [number, number],
+  ): { mount: ReturnType<typeof partMount> } | { error: string } => {
+    let mount;
+    try {
+      mount = partMount(part, mountId);
+    } catch {
+      return { error: `Replacement has no mount named ${mountId}.` };
+    }
+    if (patternIndex && !patternHoles(mount).some(([u, v]) => u === patternIndex[0] && v === patternIndex[1])) {
+      return { error: `Replacement mount ${mountId} has no hole at [${patternIndex.join(", ")}].` };
+    }
+    return { mount };
+  };
+
+  for (const connection of assembly.connections) {
+    const pairs = [
+      [connection.parent, connection.child],
+      ...(connection.secondary ? [[connection.secondary.parent, connection.secondary.child]] : []),
+    ] as const;
+    for (const [parentRef, childRef] of pairs) {
+      const parentPart = parentRef.instanceId === instanceId ? replacement : catalog[parentRef.instanceId];
+      const childPart = childRef.instanceId === instanceId ? replacement : catalog[childRef.instanceId];
+      if (!parentPart || !childPart) return "Wait for all connected catalog parts to finish loading.";
+      const parentResult = mountFor(parentPart, parentRef.mountId, parentRef.patternIndex);
+      if ("error" in parentResult) return parentResult.error;
+      const childResult = mountFor(childPart, childRef.mountId, childRef.patternIndex);
+      if ("error" in childResult) return childResult.error;
+      const error = mountCompatibilityError(parentPart, parentResult.mount, childPart, childResult.mount);
+      if (error) return `Replacement is incompatible with ${connection.id}: ${error}.`;
+    }
+  }
+  return null;
 }

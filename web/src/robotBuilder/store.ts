@@ -74,7 +74,7 @@ export type BuilderAction =
   | { type: "setAssembly"; assembly: RobotAssembly }
   | { type: "snapPlace"; instanceId: string; sku: string; candidate: SnapCandidate }
   | { type: "placeRoot"; instanceId: string; sku: string; pose: Transform3 }
-  | { type: "detach"; instanceId: string }
+  | { type: "detach"; instanceId: string; pose: Transform3 }
   | { type: "replace"; instanceId: string; sku: string }
   | { type: "duplicate"; instanceId: string }
   | { type: "mirror"; instanceId: string }
@@ -84,6 +84,7 @@ export type BuilderAction =
   | { type: "cancelDrag" }
   | { type: "undo" }
   | { type: "redo" }
+  | { type: "markSaved"; doc: RobotPreset }
   | { type: "setInferenceOpen"; open: boolean }
   | { type: "confirmInference"; bindings: FunctionalBindings };
 
@@ -159,6 +160,10 @@ export function reduceBuilder(state: BuilderState, history: History, action: Bui
       history: { past: [...history.past, { doc: cloneDoc(state.doc) }], future: history.future.slice(1) },
     };
   }
+  if (action.type === "markSaved") {
+    if (!state.doc || JSON.stringify(state.doc) !== JSON.stringify(action.doc)) return { state, history };
+    return { state: { ...state, dirty: false }, history };
+  }
   if (!state.doc) return { state, history };
 
   if (action.type === "patchDoc") {
@@ -179,7 +184,7 @@ export function reduceBuilder(state: BuilderState, history: History, action: Bui
     return {
       state: {
         ...state,
-        doc: withAssembly(state.doc, action.assembly),
+        doc: { ...withAssembly(state.doc, action.assembly), functionalBindings: state.doc.functionalBindings ? { ...state.doc.functionalBindings, confirmed: false } : undefined },
         dirty: true,
         canUndo: true,
         canRedo: false,
@@ -192,7 +197,7 @@ export function reduceBuilder(state: BuilderState, history: History, action: Bui
     const assembly = ensureAssembly(state.doc);
     const existing = assembly.instances.find((row) => row.id === action.instanceId);
     const instances = existing
-      ? assembly.instances
+      ? assembly.instances.map((row) => row.id === action.instanceId ? { id: row.id, sku: action.sku } : row)
       : [...assembly.instances, { id: action.instanceId, sku: action.sku }];
     const connections = [
       ...assembly.connections.filter((row) => row.child.instanceId !== action.instanceId),
@@ -202,12 +207,12 @@ export function reduceBuilder(state: BuilderState, history: History, action: Bui
     return {
       state: {
         ...state,
-        doc: withAssembly(state.doc, {
+        doc: { ...withAssembly(state.doc, {
           ...assembly,
           rootInstanceId: assembly.rootInstanceId || assembly.instances[0]?.id || action.instanceId,
           instances,
           connections,
-        }),
+        }), functionalBindings: state.doc.functionalBindings ? { ...state.doc.functionalBindings, confirmed: false } : undefined },
         sel: { kind: "instance", id: action.instanceId },
         dirty: true,
         canUndo: true,
@@ -228,12 +233,12 @@ export function reduceBuilder(state: BuilderState, history: History, action: Bui
     return {
       state: {
         ...state,
-        doc: withAssembly(state.doc, {
+        doc: { ...withAssembly(state.doc, {
           ...assembly,
           rootInstanceId: rootId,
           instances: instances.map((row) => (row.id === rootId ? { ...row, pose: action.pose } : row)),
           connections: assembly.connections,
-        }),
+        }), functionalBindings: state.doc.functionalBindings ? { ...state.doc.functionalBindings, confirmed: false } : undefined },
         sel: { kind: "instance", id: action.instanceId },
         dirty: true,
         canUndo: true,
@@ -250,10 +255,11 @@ export function reduceBuilder(state: BuilderState, history: History, action: Bui
     return {
       state: {
         ...state,
-        doc: withAssembly(state.doc, {
+        doc: { ...withAssembly(state.doc, {
           ...assembly,
+          instances: assembly.instances.map((row) => row.id === action.instanceId ? { ...row, pose: action.pose } : row),
           connections: assembly.connections.filter((row) => row.child.instanceId !== action.instanceId),
-        }),
+        }), functionalBindings: state.doc.functionalBindings ? { ...state.doc.functionalBindings, confirmed: false } : undefined },
         dirty: true,
         canUndo: true,
         canRedo: false,
@@ -267,10 +273,10 @@ export function reduceBuilder(state: BuilderState, history: History, action: Bui
     return {
       state: {
         ...state,
-        doc: withAssembly(state.doc, {
+        doc: { ...withAssembly(state.doc, {
           ...assembly,
           instances: assembly.instances.map((row) => (row.id === action.instanceId ? { ...row, sku: action.sku } : row)),
-        }),
+        }), functionalBindings: state.doc.functionalBindings ? { ...state.doc.functionalBindings, confirmed: false } : undefined },
         dirty: true,
         canUndo: true,
         canRedo: false,
@@ -341,7 +347,7 @@ export function reduceBuilder(state: BuilderState, history: History, action: Bui
     return {
       state: {
         ...state,
-        doc: withAssembly(state.doc, { ...assembly, instances, connections }),
+        doc: { ...withAssembly(state.doc, { ...assembly, instances, connections }), functionalBindings: state.doc.functionalBindings ? { ...state.doc.functionalBindings, confirmed: false } : undefined },
         sel: { kind: "instance", id: lastId },
         dirty: true,
         canUndo: true,
@@ -372,10 +378,13 @@ export function applyInstancePose(doc: RobotPreset, instanceId: string, pose: Tr
   const freeMounted =
     instanceId === assembly.rootInstanceId ||
     !assembly.connections.some((connection) => connection.child.instanceId === instanceId);
-  return withAssembly(doc, {
-    ...assembly,
-    instances: assembly.instances.map((row) => (row.id === instanceId && freeMounted ? { ...row, pose } : row)),
-  });
+  return {
+    ...withAssembly(doc, {
+      ...assembly,
+      instances: assembly.instances.map((row) => (row.id === instanceId && freeMounted ? { ...row, pose } : row)),
+    }),
+    functionalBindings: doc.functionalBindings ? { ...doc.functionalBindings, confirmed: false } : undefined,
+  };
 }
 
 export function patchList<T extends { id: string }>(rows: T[] | undefined, id: string, partial: Partial<T>): T[] {

@@ -355,6 +355,7 @@ export type CatalogPart = CatalogPartSummary & {
   cad?: {
     sourceUrl?: string;
     filename?: string;
+    memberFilename?: string;
     format?: string;
     units?: string;
     origin?: string;

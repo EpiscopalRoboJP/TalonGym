@@ -117,10 +117,28 @@ def extract_cad_archive(source: Path, dest_dir: Path, *, preferred_name: str | N
                     meshes.append(info)
                     if preferred and name.lower() == preferred:
                         chosen = info
+            if chosen is None and preferred and meshes:
+                preferred_stem = Path(preferred).stem.lower()
+                exact_stem = [info for info in meshes if Path(info.filename).stem.lower() == preferred_stem]
+                sku_matches = [
+                    info
+                    for info in meshes
+                    if Path(info.filename).stem.lower().startswith(preferred_stem)
+                    or preferred_stem in Path(info.filename).stem.lower()
+                ]
+                matches = exact_stem or sku_matches
+                if len(matches) == 1:
+                    chosen = matches[0]
+                elif len(matches) > 1:
+                    names = sorted(Path(info.filename).name for info in matches)
+                    raise RobotCadError(f"CAD archive member is ambiguous for {preferred}: {names}")
+            if chosen is None and len(meshes) == 1:
+                chosen = meshes[0]
             if chosen is None and meshes:
-                steps = [info for info in meshes if Path(info.filename).suffix.lower() in {".step", ".stp"}]
-                pool = steps or meshes
-                chosen = max(pool, key=lambda info: info.file_size)
+                names = sorted(Path(info.filename).name for info in meshes)
+                raise RobotCadError(
+                    f"CAD archive contains multiple models; set an exact member filename: {names}"
+                )
             if chosen is None:
                 raise RobotCadError("ZIP contains no GLB, glTF, STL, OBJ, or STEP file")
             target = dest_dir / Path(chosen.filename).name

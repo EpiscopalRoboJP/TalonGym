@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const lab = process.env.TALONGYM_LAB_URL || "http://127.0.0.1:8765";
+const python = process.env.TALONGYM_PYTHON || (process.platform === "win32" ? "../.venv/Scripts/python.exe" : "../.venv/bin/python");
+const quotedPython = `"${python.replaceAll('"', '\\"')}"`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -24,7 +26,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "../.venv/bin/python -m talongym lab --host 127.0.0.1 --port 8765",
+    command: `${quotedPython} -m talongym lab --host 127.0.0.1 --port 8765`,
     url: `${lab}/api/v1/health`,
     reuseExistingServer: true,
     timeout: 120_000,

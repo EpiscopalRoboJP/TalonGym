@@ -265,7 +265,7 @@ def convert_catalog_part(sku: str, *, force: bool = False, source: Path | None =
                 visual_transform=part.get("visualTransform"),
                 collision=part.get("collision") if isinstance(part.get("collision"), list) else None,
                 expected_sha256=str(expected) if expected else None,
-                preferred_name=filename if filename.lower().endswith((".step", ".stp", ".glb", ".stl", ".obj")) else None,
+                preferred_name=str(cad.get("memberFilename") or part_sku),
                 max_bytes=MAX_CATALOG_DOWNLOAD_BYTES,
             )
         except RobotCadError as exc:

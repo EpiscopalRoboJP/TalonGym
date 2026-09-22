@@ -10,7 +10,7 @@ import numpy as np
 
 from talongym.presets.loader import validate_document
 from talongym.robot.catalog import cache_entry, cad_extra_available, get_part
-from talongym.robot.collision import validate_assembly_collisions
+from talongym.robot.collision import connected_overlap_warnings, validate_assembly_collisions
 from talongym.robot.contract import (
     ASSEMBLY_SCHEMA_VERSION,
     PHYSICAL_SCHEMA_VERSION,
@@ -639,10 +639,11 @@ def compile_assembly_to_preset(
     preset = materialize_physical_preset(document, instances, catalog_parts, root_id, poses, by_child, report)
     compiled = compile_robot_preset(preset, competitive=competitive)
     document_warnings = tuple(document["warnings"]) if isinstance(document.get("warnings"), list) else ()
+    overlap_warnings = connected_overlap_warnings(poses, instances, catalog_parts, connections)
     return CompiledAssembly(
         preset=compiled.preset,
         compiled=compiled,
         instance_poses={ident: pose_from_matrix(matrix) for ident, matrix in poses.items()},
         report=report,
-        warnings=document_warnings + inferred_warnings + _cad_warnings(catalog_parts),
+        warnings=document_warnings + inferred_warnings + overlap_warnings + _cad_warnings(catalog_parts),
     )

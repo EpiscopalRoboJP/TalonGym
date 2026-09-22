@@ -568,7 +568,7 @@ dialog.modal .panel-body { overflow: auto; }
 
 /* ---------- Robot game editor ---------- */
 .layout-builder {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   padding: 10px;
   gap: 10px;
 }
@@ -591,7 +591,51 @@ dialog.modal .panel-body { overflow: auto; }
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   background: var(--scene);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
 }
+.builder-workspace.has-assembly-panel { grid-template-columns: minmax(230px, 280px) minmax(0, 1fr); }
+.builder-workspace.has-side-panel { grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); }
+.builder-workspace.has-assembly-panel.has-side-panel { grid-template-columns: minmax(230px, 280px) minmax(0, 1fr) minmax(300px, 360px); }
+.builder-progress {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  gap: 0.35rem;
+  padding: 0.15rem;
+}
+.builder-progress span {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0.35rem;
+  padding: 0.32rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 700;
+}
+.builder-progress b { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); }
+.builder-progress .active { color: #fff; border-color: var(--brand); background: var(--brand); }
+.builder-progress .done b { color: #fff; background: #278457; }
+.builder-save-state { white-space: nowrap; color: var(--muted); font-size: 11px; font-weight: 700; }
+.builder-save-state.failed { color: var(--danger, #d84b58); }
+.builder-save-state.unsaved { color: var(--warning, #d6a545); }
+.builder-assembly-rail {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+.builder-assembly-rail > .panel { flex: 1 1 auto; min-height: 0; border-radius: 0; box-shadow: none; }
+.builder-assembly-rail > .panel .panel-head { display: none; }
+.assembly-add { margin: 0.65rem; width: calc(100% - 1.3rem); }
 .builder-stage,
 .game-stage {
   width: 100%;
@@ -691,17 +735,17 @@ dialog.modal .panel-body { overflow: auto; }
   margin: 0 0.5rem 0.5rem 0;
 }
 .builder-side-drawer {
-  position: absolute;
+  position: relative;
   z-index: 15;
-  top: 10px;
-  right: 10px;
-  bottom: 10px;
-  width: min(360px, calc(100% - 20px));
+  top: auto;
+  right: auto;
+  bottom: auto;
+  width: auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  border-radius: var(--radius);
+  border-radius: 0;
   background: var(--surface);
   box-shadow: -8px 0 28px rgba(0, 0, 0, 0.3);
 }
@@ -731,6 +775,14 @@ dialog.modal .panel-body { overflow: auto; }
   padding: 0.75rem;
 }
 .side-drawer-scroll > .panel { flex: 0 0 auto; box-shadow: none; border: 1px solid var(--line); }
+.assembly-loose-label {
+  padding: 0.55rem 0.75rem 0.25rem;
+  color: var(--warning, #d6a545);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .save-as-modal { width: min(480px, calc(100vw - 32px)); }
 .save-as-body { padding: 1rem; }
 .orientation-cube {
@@ -750,7 +802,7 @@ dialog.modal .panel-body { overflow: auto; }
   box-shadow: 0 5px 18px rgba(0,0,0,0.3);
 }
 @media (min-width: 901px) {
-  .builder-workspace.has-side-panel .orientation-cube { right: 384px; }
+  .builder-workspace.has-side-panel .orientation-cube { right: 14px; }
 }
 .cube-face {
   min-width: 0;
@@ -785,6 +837,7 @@ dialog.modal .panel-body { overflow: auto; }
   font-weight: 700;
 }
 .cube-rotation output { min-width: 30px; color: #fff; font: 11px var(--mono); text-align: center; }
+.cube-rotation.mate-choice output { max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .keybind-help {
   position: absolute;
   left: 14px;
@@ -837,7 +890,7 @@ dialog.modal .panel-body { overflow: auto; }
   border-color: #fff;
   background: #39a7ff;
 }
-.mount-overlay-node.occupied { background: #777178; border-color: #aaa3a5; box-shadow: none; cursor: not-allowed; }
+.mount-overlay-node.occupied { background: #777178; border-color: #aaa3a5; box-shadow: none; cursor: not-allowed; pointer-events: none; }
 .catalog-part-spec { margin-top: 0.22rem; }
 .catalog-detail {
   flex: 0 0 auto;
@@ -870,6 +923,14 @@ dialog.modal .panel-body { overflow: auto; }
   }
   .game-toolbar select { width: 11rem; }
   .builder-workspace { min-height: 0; }
+  .builder-workspace,
+  .builder-workspace.has-assembly-panel,
+  .builder-workspace.has-side-panel,
+  .builder-workspace.has-assembly-panel.has-side-panel { grid-template-columns: minmax(0, 1fr); }
+  .builder-assembly-rail,
+  .builder-side-drawer { position: absolute; z-index: 15; inset: 8px; width: auto; border-radius: var(--radius); }
+  .builder-assembly-rail { right: auto; width: min(360px, calc(100% - 16px)); }
+  .builder-workspace.has-side-panel .builder-assembly-rail { visibility: hidden; pointer-events: none; }
   .parts-drawer-backdrop { position: fixed; inset: var(--header-h) 0 0; padding: 8px; }
   .parts-drawer { width: 100%; }
   .parts-drawer .catalog-filters {
@@ -881,7 +942,7 @@ dialog.modal .panel-body { overflow: auto; }
     grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     padding: 0.65rem;
   }
-  .builder-side-drawer { inset: 8px; width: auto; }
+  .builder-side-drawer { inset: 8px 8px 8px auto; width: min(360px, calc(100% - 16px)); }
 }
 
 @media (max-width: 620px) {
