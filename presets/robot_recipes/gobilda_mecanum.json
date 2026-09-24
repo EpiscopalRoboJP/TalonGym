@@ -36,20 +36,16 @@
     },
     "wheelSku": {
       "label": "Left mecanum wheel",
-      "default": "3213-3606-0001",
+      "default": "3606-0000-0096",
       "choices": [
-        "3213-3606-0001",
-        "3213-3606-0002",
-        "3213-3606-0003"
+        "3606-0000-0096"
       ]
     },
     "wheelSkuOpposite": {
       "label": "Right mecanum wheel",
-      "default": "3213-3606-0002",
+      "default": "3606-0100-0096",
       "choices": [
-        "3213-3606-0001",
-        "3213-3606-0002",
-        "3213-3606-0003"
+        "3606-0100-0096"
       ]
     },
     "includeElectronics": {

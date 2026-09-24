@@ -1930,15 +1930,14 @@
     {
       "sku": "REV-41-1631",
       "displayName": "2 in Compliant Wheel",
-      "productUrl": "https://www.revrobotics.com/rev-41-1631/",
+      "productUrl": "https://www.revrobotics.com/duo-compliant-wheels/",
       "cad": {
-        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1631.STEP",
         "filename": "REV-41-1631.STEP",
         "format": "step",
         "units": "mm",
         "origin": "manufacturer",
-        "downloadEnabled": true,
-        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+        "downloadEnabled": false,
+        "terms": "No verified manufacturer CAD or product page for this catalog proxy; download is disabled."
       },
       "massKg": 0.028,
       "inertiaKgM2": [
@@ -1998,15 +1997,14 @@
     {
       "sku": "REV-41-2473",
       "displayName": "4 in Compliant Wheel",
-      "productUrl": "https://www.revrobotics.com/rev-41-2473/",
+      "productUrl": "https://www.revrobotics.com/ION-Compliant-Wheels/",
       "cad": {
-        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-2473.STEP",
         "filename": "REV-41-2473.STEP",
         "format": "step",
         "units": "mm",
         "origin": "manufacturer",
-        "downloadEnabled": true,
-        "terms": "Official REV Robotics STEP/ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+        "downloadEnabled": false,
+        "terms": "No verified manufacturer CAD or product page for this catalog proxy; download is disabled."
       },
       "massKg": 0.086,
       "inertiaKgM2": [

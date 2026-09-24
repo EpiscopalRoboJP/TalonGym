@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from talongym.assets.import_catalog_cad import assert_allowlisted_url
+from talongym.robot import catalog as catalog_mod
 from talongym.robot.catalog import (
     CatalogError,
     cache_status,
@@ -21,6 +22,35 @@ def test_catalog_manifests_match_schema():
         assert validate_catalog_document(document) == []
         assert document["manufacturer"] == name
         assert document["parts"]
+
+
+def test_cad_availability_requires_step_converter(monkeypatch):
+    monkeypatch.setattr(catalog_mod, "find_spec", lambda name: object() if name == "trimesh" else None)
+    assert catalog_mod.cad_extra_available() is False
+    monkeypatch.setattr(catalog_mod, "find_spec", lambda name: object())
+    assert catalog_mod.cad_extra_available() is True
+
+
+def test_unverified_wheel_cad_is_not_downloadable():
+    for sku in (
+        "3606-0014-0064",
+        "3606-0014-0120",
+        "REV-41-1631",
+        "REV-41-2473",
+        "3213-3606-0001",
+        "3213-3606-0002",
+        "3213-3606-0003",
+    ):
+        assert get_part(sku)["cad"]["downloadEnabled"] is False
+
+
+def test_mecanum_wheels_select_distinct_models_from_official_set():
+    left = get_part("3606-0000-0096")
+    right = get_part("3606-0100-0096")
+    assert left["cad"]["sourceUrl"] == right["cad"]["sourceUrl"]
+    assert left["cad"]["memberFilename"] == "3606-0000-0096 assembly.STEP"
+    assert right["cad"]["memberFilename"] == "3606-0100-0096 assembly.STEP"
+    assert left["massKg"] == right["massKg"] == 0.207
 
 
 def test_catalog_seeds_drivebase_and_optional_electronics():

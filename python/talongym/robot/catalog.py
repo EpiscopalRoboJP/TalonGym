@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from functools import lru_cache
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -152,11 +153,7 @@ def search_parts(
 
 
 def cad_extra_available() -> bool:
-    try:
-        import trimesh  # noqa: F401
-    except ImportError:
-        return False
-    return True
+    return find_spec("trimesh") is not None and find_spec("cascadio") is not None
 
 
 def part_summary(part: dict[str, Any], *, cache: dict[str, Any] | None = None) -> dict[str, Any]:
