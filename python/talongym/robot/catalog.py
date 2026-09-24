@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from functools import lru_cache
 from importlib.util import find_spec
@@ -223,6 +224,12 @@ def cache_meta_path(manufacturer: str, sku: str) -> Path:
     return catalog_part_dir(manufacturer, sku) / "cache.json"
 
 
+def cad_conversion_fingerprint(part: dict[str, Any]) -> str:
+    inputs = {key: part.get(key) for key in ("cad", "visualTransform", "collision")}
+    payload = json.dumps(inputs, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def cache_entry(manufacturer: str, sku: str) -> dict[str, Any]:
     path = cache_meta_path(manufacturer, sku)
     if not path.is_file():
@@ -237,7 +244,14 @@ def cache_entry(manufacturer: str, sku: str) -> dict[str, Any]:
     visual_ok = bool(visual) and (robot_parts_root().parent / str(visual)).is_file()
     collision_ok = bool(collision) and (robot_parts_root().parent / str(collision)).is_file()
     thumbnail_ok = bool(thumbnail) and (robot_parts_root().parent / str(thumbnail)).is_file()
-    if document.get("stale"):
+    part = get_part(sku)
+    from talongym.assets.cad_common import CATALOG_CAD_GENERATOR_VERSION
+
+    obsolete = (
+        document.get("generatorVersion") != CATALOG_CAD_GENERATOR_VERSION
+        or document.get("conversionFingerprint") != cad_conversion_fingerprint(part)
+    )
+    if document.get("stale") or obsolete:
         state = "stale"
     elif visual_ok and collision_ok and thumbnail_ok:
         state = "ready"

@@ -23,6 +23,7 @@ from talongym.robot.catalog import (
     CatalogError,
     cache_entry,
     cache_meta_path,
+    cad_conversion_fingerprint,
     cad_extra_available,
     catalog_part_dir,
     get_part,
@@ -148,7 +149,11 @@ def cache_is_fresh(part: dict[str, Any]) -> bool:
         document = json.loads(meta_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return False
-    if document.get("stale") or document.get("generatorVersion") != CATALOG_CAD_GENERATOR_VERSION:
+    if (
+        document.get("stale")
+        or document.get("generatorVersion") != CATALOG_CAD_GENERATOR_VERSION
+        or document.get("conversionFingerprint") != cad_conversion_fingerprint(part)
+    ):
         return False
     expected = (part.get("cad") or {}).get("sha256")
     if expected and document.get("sha256") != str(expected).lower():
@@ -279,6 +284,7 @@ def convert_catalog_part(sku: str, *, force: bool = False, source: Path | None =
             "sku": part_sku,
             "manufacturer": manufacturer,
             "generatorVersion": CATALOG_CAD_GENERATOR_VERSION,
+            "conversionFingerprint": cad_conversion_fingerprint(part),
             "sha256": digest,
             "sourceFilename": source_path.name,
             "visualAsset": imported["visualAsset"],
