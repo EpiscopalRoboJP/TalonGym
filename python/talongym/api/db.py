@@ -231,6 +231,8 @@ def upsert_preset(kind: str, document: dict[str, Any]) -> str:
             "INSERT INTO presets(id, kind, document) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document, kind=excluded.kind, updated_at=CURRENT_TIMESTAMP",
             (pid, kind, json.dumps(document)),
         )
+        if kind == "robot":
+            conn.execute("DELETE FROM robot_drafts WHERE id=?", (pid,))
         conn.commit()
     return pid
 
