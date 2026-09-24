@@ -201,7 +201,7 @@ def part_summary(part: dict[str, Any], *, cache: dict[str, Any] | None = None) -
 def part_preview(part: dict[str, Any], status: dict[str, Any] | None = None) -> dict[str, Any]:
     cache = status or {}
     visual = cache.get("visualAsset")
-    ready = cache.get("state") in {"ready", "stale"} and bool(visual)
+    ready = cache.get("state") == "ready" and bool(visual)
     collision = next((row for row in (part.get("collision") or []) if isinstance(row, dict)), {}) or {}
     kind = str(collision.get("kind") or "box")
     preview: dict[str, Any] = {
@@ -257,11 +257,12 @@ def cache_entry(manufacturer: str, sku: str) -> dict[str, Any]:
         state = "ready"
     else:
         state = "incomplete"
+    usable = state == "ready"
     return {
         "state": state,
-        "visualAsset": visual if visual_ok else None,
-        "collisionAsset": collision if collision_ok else None,
-        "thumbnailAsset": thumbnail if thumbnail_ok else None,
+        "visualAsset": visual if usable and visual_ok else None,
+        "collisionAsset": collision if usable and collision_ok else None,
+        "thumbnailAsset": thumbnail if usable and thumbnail_ok else None,
         "sha256": document.get("sha256"),
         "generatorVersion": document.get("generatorVersion"),
     }
