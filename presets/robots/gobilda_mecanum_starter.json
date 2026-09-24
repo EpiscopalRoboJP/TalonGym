@@ -98,7 +98,7 @@
       },
       {
         "id": "intake_wheel",
-        "sku": "3606-0014-0064"
+        "sku": "3615-4008-0072"
       },
       {
         "id": "conveyor_motor",
@@ -106,7 +106,7 @@
       },
       {
         "id": "conveyor_wheel",
-        "sku": "3606-0014-0064"
+        "sku": "3615-4008-0072"
       },
       {
         "id": "launcher_motor",
@@ -114,7 +114,7 @@
       },
       {
         "id": "flywheel_wheel",
-        "sku": "3606-0014-0120"
+        "sku": "3615-4008-0096"
       },
       {
         "id": "hood_plate",
@@ -815,7 +815,7 @@
     "lengthIn": 18,
     "widthIn": 18,
     "heightIn": 14,
-    "massKg": 5.328,
+    "massKg": 5.028999999999999,
     "collisionShape": "aabb"
   },
   "motors": {

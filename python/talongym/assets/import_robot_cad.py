@@ -226,6 +226,15 @@ def _unique_long_axis(size: list[float]) -> int | None:
     return None
 
 
+def _unique_short_axis(size: list[float]) -> int | None:
+    abs_size = [abs(float(v)) for v in size]
+    short = min(range(3), key=lambda i: abs_size[i])
+    rest = min(abs_size[j] for j in range(3) if j != short)
+    if rest > CAD_LONG_AXIS_RATIO * max(abs_size[short], 1e-12):
+        return short
+    return None
+
+
 def _rotation_aligning(src: list[float], dst: list[float]) -> list[list[float]]:
     def _norm(vec: list[float]) -> list[float]:
         length = (vec[0] ** 2 + vec[1] ** 2 + vec[2] ** 2) ** 0.5
@@ -299,8 +308,10 @@ def cad_collision_fit(
     mesh_size: list[float],
     mesh_center: list[float],
     target_size: list[float] | None,
+    *,
+    align_short_axis: bool = False,
 ) -> dict[str, Any]:
-    """Scale, swing the unique long axis onto the proxy, and center end-origin bars."""
+    """Scale, align bar or wheel axes to the proxy, and center end-origin bars."""
     size = [abs(float(v)) for v in mesh_size[:3]]
     while len(size) < 3:
         size.append(0.0)
@@ -314,6 +325,8 @@ def cad_collision_fit(
     center = [float(mesh_center[i]) * scale if i < len(mesh_center) else 0.0 for i in range(3)]
     mesh_long = _unique_long_axis(fitted)
     target_long = _unique_long_axis(target)
+    mesh_short = _unique_short_axis(fitted) if align_short_axis else None
+    target_short = _unique_short_axis(target) if align_short_axis else None
     rotation = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     rotated = list(center)
     if mesh_long is not None and target_long is not None and mesh_long != target_long:
@@ -327,6 +340,12 @@ def cad_collision_fit(
             rotation[1][0] * center[0] + rotation[1][1] * center[1] + rotation[1][2] * center[2],
             rotation[2][0] * center[0] + rotation[2][1] * center[1] + rotation[2][2] * center[2],
         ]
+    elif mesh_short is not None and target_short is not None and mesh_short != target_short:
+        src = [0.0, 0.0, 0.0]
+        dst = [0.0, 0.0, 0.0]
+        src[mesh_short] = 1.0
+        dst[target_short] = 1.0
+        rotation = _rotation_aligning(src, dst)
     translation = [0.0, 0.0, 0.0]
     long = target_long if target_long is not None else mesh_long
     if long is not None and abs(rotated[long]) > 0.2 * max(fitted[mesh_long if mesh_long is not None else long], 1e-12):
@@ -341,7 +360,8 @@ def _align_mesh_to_collision(mesh: Any, collision: list[Any] | None) -> None:
     extents = [float(v) for v in mesh.extents]
     bounds = mesh.bounds
     center = [0.5 * (float(bounds[0][i]) + float(bounds[1][i])) for i in range(3)]
-    fit = cad_collision_fit(extents, center, target)
+    is_cylinder = bool(collision and isinstance(collision[0], dict) and collision[0].get("kind") == "cylinder")
+    fit = cad_collision_fit(extents, center, target, align_short_axis=is_cylinder)
     if abs(float(fit["scale"]) - 1.0) > 1e-9:
         mesh.apply_scale(float(fit["scale"]))
     rotation = fit["rotation"]

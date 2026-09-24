@@ -152,8 +152,15 @@ def search_parts(
     return out
 
 
+@lru_cache(maxsize=1)
 def cad_extra_available() -> bool:
-    return find_spec("trimesh") is not None and find_spec("cascadio") is not None
+    if find_spec("trimesh") is None or find_spec("cascadio") is None:
+        return False
+    try:
+        import cascadio  # noqa: F401
+    except ImportError:
+        return False
+    return True
 
 
 def part_summary(part: dict[str, Any], *, cache: dict[str, Any] | None = None) -> dict[str, Any]:

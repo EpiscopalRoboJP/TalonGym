@@ -4,16 +4,43 @@ from __future__ import annotations
 
 import copy
 
+import numpy as np
 import pytest
 
 from talongym.presets.loader import load_preset, preset_index, validate_document
 from talongym.robot.assembly import compile_assembly_to_preset
-from talongym.robot.starters import STARTER_IDS, starter_skus
+from talongym.robot.starters import STARTER_IDS, build_starter_document, starter_skus
+
+
+@pytest.mark.parametrize("starter_id", STARTER_IDS)
+def test_scoring_wheels_align_with_motor_outputs(starter_id: str):
+    from talongym.robot.catalog import get_part
+    from talongym.robot.mounts import hole_in_part, mount_axis, part_mount
+    from talongym.robot.transforms import matrix_from_pose, transform_direction, transform_point
+
+    document = load_preset("robot", starter_id)
+    compiled = compile_assembly_to_preset(document, competitive=True)
+    instances = {row["id"]: row for row in document["assembly"]["instances"]}
+    poses = {ident: matrix_from_pose(pose) for ident, pose in compiled.instance_poses.items()}
+    for motor_id, wheel_id in (
+        ("intake_motor", "intake_wheel"),
+        ("conveyor_motor", "conveyor_wheel"),
+        ("launcher_motor", "flywheel_wheel"),
+    ):
+        motor_mount = part_mount(get_part(instances[motor_id]["sku"]), "output")
+        wheel_mount = part_mount(get_part(instances[wheel_id]["sku"]), "bore")
+        motor_axis = transform_direction(poses[motor_id], mount_axis(motor_mount))
+        wheel_axis = transform_direction(poses[wheel_id], mount_axis(wheel_mount))
+        motor_hole = transform_point(poses[motor_id], hole_in_part(motor_mount, None))
+        wheel_hole = transform_point(poses[wheel_id], hole_in_part(wheel_mount, None))
+        assert float(np.dot(motor_axis, wheel_axis)) == pytest.approx(-1.0, abs=1e-8)
+        assert float(np.linalg.norm(motor_hole - wheel_hole)) < 1e-8
 
 
 @pytest.mark.parametrize("starter_id", STARTER_IDS)
 def test_starters_are_schema_1_2_scoring_assemblies(starter_id: str):
     document = load_preset("robot", starter_id)
+    assert document == build_starter_document(starter_id)
     assert validate_document("robot", document) == []
     assert document["schemaVersion"] == "1.2.0"
     assert document["functionalBindings"]["confirmed"] is True
