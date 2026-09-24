@@ -222,4 +222,9 @@ def test_cache_is_fresh_requires_visual_and_thumbnail(tmp_path, monkeypatch):
     meta["generatorVersion"] = "1.2.0"
     catalog_mod.cache_meta_path(part["manufacturer"], part["sku"]).write_text(json.dumps(meta), encoding="utf-8")
     assert cache_is_fresh(part) is False
-    assert catalog_mod.cache_entry(part["manufacturer"], part["sku"])["state"] == "stale"
+    stale = catalog_mod.cache_entry(part["manufacturer"], part["sku"])
+    assert stale["state"] == "stale"
+    assert stale["visualAsset"] is None
+    assert stale["collisionAsset"] is None
+    assert stale["thumbnailAsset"] is None
+    assert catalog_mod.part_preview(part, stale)["source"] == "proxy"
