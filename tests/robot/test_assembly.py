@@ -200,6 +200,16 @@ def test_duplicate_occupancy_and_unconnected_collision_are_hard_errors():
             }
         ],
     )
+    with pytest.raises(AssemblyError, match="coincident collision volumes"):
+        validate_assembly_collisions(
+            {"a": pose, "b": pose, "c": pose},
+            {"a": {"id": "a"}, "b": {"id": "b"}, "c": {"id": "c"}},
+            {"a": left, "b": right, "c": left},
+            [
+                {"parent": {"instanceId": "a"}, "child": {"instanceId": "b"}},
+                {"parent": {"instanceId": "b"}, "child": {"instanceId": "c"}},
+            ],
+        )
     connected = connected_overlap_warnings(
         {"a": pose, "b": pose, "c": pose},
         {"a": {"id": "a"}, "b": {"id": "b"}, "c": {"id": "c"}},
@@ -253,3 +263,24 @@ def test_materialized_robot_updates_after_source_edit_and_is_copy_safe():
     document["displayName"] = "edited assembly"
     updated = materialize_sim_robot(document)
     assert updated["displayName"] == "edited assembly"
+
+
+def test_renamed_flywheel_binds_to_actual_catalog_joint():
+    from talongym.presets.loader import load_preset
+
+    document = copy.deepcopy(load_preset("robot", "gobilda_mecanum_starter"))
+    document["id"] = "renamed_flywheel_test"
+    for row in document["assembly"]["instances"]:
+        if row["id"] == "flywheel_wheel":
+            row["id"] = "custom_shooter"
+    for row in document["assembly"]["connections"]:
+        for side in ("parent", "child"):
+            if row[side]["instanceId"] == "flywheel_wheel":
+                row[side]["instanceId"] = "custom_shooter"
+    roles = document["functionalBindings"]["instanceRoles"]
+    roles["custom_shooter"] = roles.pop("flywheel_wheel")
+    compiled = compile_assembly_to_preset(document)
+    actuator = next(row for row in compiled.preset["actuators"] if row["id"] == "flywheel")
+    joint = next(row for row in compiled.preset["joints"] if row["id"] == actuator["jointId"])
+    assert joint["childPartId"] == "custom_shooter"
+    assert "flywheel" not in {row["id"] for row in compiled.preset["rigidParts"]}

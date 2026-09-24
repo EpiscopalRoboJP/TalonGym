@@ -62,6 +62,10 @@ def aabbs_overlap(left: tuple[np.ndarray, np.ndarray], right: tuple[np.ndarray, 
     return bool(np.all(left[0] < right[1] - _OVERLAP_EPS) and np.all(right[0] < left[1] - _OVERLAP_EPS))
 
 
+def aabbs_coincident(left: tuple[np.ndarray, np.ndarray], right: tuple[np.ndarray, np.ndarray]) -> bool:
+    return bool(np.allclose(left[0], right[0], atol=1e-3, rtol=0) and np.allclose(left[1], right[1], atol=1e-3, rtol=0))
+
+
 def union_aabb(boxes: list[tuple[np.ndarray, np.ndarray]]) -> tuple[np.ndarray, np.ndarray] | None:
     if not boxes:
         return None
@@ -125,9 +129,14 @@ def validate_assembly_collisions(
             if not overlapping:
                 continue
             if find(left_id) == find(right_id):
-                # Origin-centered catalog proxies overlap for any compact tree; direct
-                # mates are already exempt, and remaining same-component hits are not
-                # hard errors until authored face offsets exist.
+                # Legacy proxy origins produce many ambiguous intersections, but two
+                # identical volumes at one pose cannot represent distinct parts.
+                if any(
+                    aabbs_coincident(left_box, right_box)
+                    for left_box in boxes[left_id]
+                    for right_box in boxes[right_id]
+                ):
+                    raise AssemblyError(f"coincident collision volumes between {left_id} and {right_id}")
                 continue
             raise AssemblyError(
                 f"interpenetration between {left_id} and {right_id} outside mating clearance"
