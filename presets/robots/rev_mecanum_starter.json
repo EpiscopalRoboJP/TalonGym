@@ -139,7 +139,7 @@
       },
       {
         "id": "intake_wheel",
-        "sku": "REV-41-1631"
+        "sku": "REV-41-2034"
       },
       {
         "id": "conveyor_up",
@@ -151,7 +151,7 @@
       },
       {
         "id": "conveyor_wheel",
-        "sku": "REV-41-1631"
+        "sku": "REV-41-2034"
       },
       {
         "id": "launcher_up",
@@ -163,7 +163,7 @@
       },
       {
         "id": "flywheel_wheel",
-        "sku": "REV-41-2473"
+        "sku": "REV-41-1267"
       },
       {
         "id": "hood_plate",
@@ -1221,7 +1221,7 @@
     "lengthIn": 18.720461811023625,
     "widthIn": 12.362176377952755,
     "heightIn": 14.0,
-    "massKg": 4.104999999999999,
+    "massKg": 4.087199999999999,
     "collisionShape": "aabb"
   },
   "motors": {

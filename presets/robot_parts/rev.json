@@ -1928,22 +1928,23 @@
       ]
     },
     {
-      "sku": "REV-41-1631",
-      "displayName": "2 in Compliant Wheel",
+      "sku": "REV-41-2034",
+      "displayName": "2 in Medium Compliant Wheel (5 mm Hex)",
       "productUrl": "https://www.revrobotics.com/duo-compliant-wheels/",
       "cad": {
-        "filename": "REV-41-1631.STEP",
+        "filename": "REV-40-2032.STEP",
         "format": "step",
         "units": "mm",
         "origin": "manufacturer",
-        "downloadEnabled": false,
-        "terms": "No verified manufacturer CAD or product page for this catalog proxy; download is disabled."
+        "downloadEnabled": true,
+        "terms": "Official manufacturer CAD for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD.",
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-40-2032.STEP"
       },
-      "massKg": 0.028,
+      "massKg": 0.0181,
       "inertiaKgM2": [
-        1.8e-05,
-        3.2e-05,
-        1.8e-05
+        3.163e-06,
+        3.163e-06,
+        5.839e-06
       ],
       "visualTransform": {
         "scaleToInches": 0.03937007874015748,
@@ -1958,7 +1959,7 @@
         {
           "kind": "cylinder",
           "radiusIn": 1.0,
-          "lengthIn": 0.9843
+          "lengthIn": 0.5
         }
       ],
       "tags": [
@@ -1995,22 +1996,23 @@
       ]
     },
     {
-      "sku": "REV-41-2473",
-      "displayName": "4 in Compliant Wheel",
-      "productUrl": "https://www.revrobotics.com/ION-Compliant-Wheels/",
+      "sku": "REV-41-1267",
+      "displayName": "90 mm Grip Wheel (5 mm Hex)",
+      "productUrl": "https://www.revrobotics.com/rev-41-1267/",
       "cad": {
-        "filename": "REV-41-2473.STEP",
+        "filename": "REV-41-1267.STEP",
         "format": "step",
         "units": "mm",
         "origin": "manufacturer",
-        "downloadEnabled": false,
-        "terms": "No verified manufacturer CAD or product page for this catalog proxy; download is disabled."
+        "downloadEnabled": true,
+        "terms": "Official manufacturer CAD for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD.",
+        "sourceUrl": "https://www.revrobotics.com/content/cad/REV-41-1267.STEP"
       },
-      "massKg": 0.086,
+      "massKg": 0.088,
       "inertiaKgM2": [
-        0.00012,
-        0.00022,
-        0.00012
+        4.9133e-05,
+        4.9133e-05,
+        8.91e-05
       ],
       "visualTransform": {
         "scaleToInches": 0.03937007874015748,
@@ -2024,8 +2026,8 @@
       "collision": [
         {
           "kind": "cylinder",
-          "radiusIn": 2.0,
-          "lengthIn": 1.1811
+          "radiusIn": 1.77165,
+          "lengthIn": 0.98425
         }
       ],
       "tags": [

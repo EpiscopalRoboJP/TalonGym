@@ -2571,22 +2571,24 @@
       ]
     },
     {
-      "sku": "3606-0014-0064",
-      "displayName": "64 mm Compliant Wheel",
-      "productUrl": "https://www.gobilda.com/",
+      "sku": "3615-4008-0072",
+      "displayName": "72 mm Boot-Wheel (8 mm REX)",
+      "productUrl": "https://www.gobilda.com/3615-series-boot-wheel-8mm-rex-bore-72mm-diameter-30a-durometer/",
       "cad": {
-        "filename": "3606-0014-0064.zip",
+        "filename": "3615-4008-0072.zip",
         "format": "zip",
         "units": "mm",
         "origin": "manufacturer",
-        "downloadEnabled": false,
-        "terms": "No verified manufacturer CAD or product page for this catalog proxy; download is disabled."
+        "downloadEnabled": true,
+        "terms": "Official manufacturer CAD for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD.",
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3615-4008-0072.zip",
+        "memberFilename": "3615-4008-0072 assembly.STEP"
       },
-      "massKg": 0.042,
+      "massKg": 0.014,
       "inertiaKgM2": [
-        4.2e-05,
-        7.8e-05,
-        4.2e-05
+        4.611e-06,
+        4.611e-06,
+        9.072e-06
       ],
       "visualTransform": {
         "scaleToInches": 0.03937007874015748,
@@ -2600,8 +2602,8 @@
       "collision": [
         {
           "kind": "cylinder",
-          "radiusIn": 1.2598,
-          "lengthIn": 0.9843
+          "radiusIn": 1.41732,
+          "lengthIn": 0.31496
         }
       ],
       "tags": [
@@ -2638,22 +2640,24 @@
       ]
     },
     {
-      "sku": "3606-0014-0120",
-      "displayName": "120 mm Compliant Wheel",
-      "productUrl": "https://www.gobilda.com/",
+      "sku": "3615-4008-0096",
+      "displayName": "96 mm Boot-Wheel (8 mm REX)",
+      "productUrl": "https://www.gobilda.com/3615-series-boot-wheel-8mm-rex-bore-96mm-diameter-30a-durometer/",
       "cad": {
-        "filename": "3606-0014-0120.zip",
+        "filename": "3615-4008-0096.zip",
         "format": "zip",
         "units": "mm",
         "origin": "manufacturer",
-        "downloadEnabled": false,
-        "terms": "No verified manufacturer CAD or product page for this catalog proxy; download is disabled."
+        "downloadEnabled": true,
+        "terms": "Official manufacturer CAD for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD.",
+        "sourceUrl": "https://www.gobilda.com/content/step_files/3615-4008-0096.zip",
+        "memberFilename": "3615-4008-0096.step"
       },
-      "massKg": 0.118,
+      "massKg": 0.037,
       "inertiaKgM2": [
-        0.00016,
-        0.00028,
-        0.00016
+        2.1756e-05,
+        2.1756e-05,
+        4.2624e-05
       ],
       "visualTransform": {
         "scaleToInches": 0.03937007874015748,
@@ -2667,8 +2671,8 @@
       "collision": [
         {
           "kind": "cylinder",
-          "radiusIn": 2.3622,
-          "lengthIn": 1.1811
+          "radiusIn": 1.88976,
+          "lengthIn": 0.47244
         }
       ],
       "tags": [

@@ -253,6 +253,19 @@ def test_cad_collision_fit_swings_end_origin_bar_onto_x():
     assert collision_size_yup([{"kind": "box", "sizeIn": [16.5354, 0.5906, 0.5906]}]) == pytest.approx([16.5354, 0.5906, 0.5906])
 
 
+def test_cad_collision_fit_turns_wheel_bore_onto_cylinder_axis():
+    fit = cad_collision_fit(
+        [2.83, 2.83, 0.5],
+        [0.0, 0.0, 0.0],
+        [2.83, 0.5, 2.83],
+        align_short_axis=True,
+    )
+    source_bore = [fit["rotation"][row][2] for row in range(3)]
+    assert abs(source_bore[1]) == pytest.approx(1.0, abs=1e-8)
+    assert abs(source_bore[0]) < 1e-8
+    assert abs(source_bore[2]) < 1e-8
+
+
 def test_catalog_extrusion_aligns_long_axis_to_collision(tmp_path: Path):
     trimesh = pytest.importorskip("trimesh")
     stl = write_ascii_box_stl(tmp_path / "rail.stl", 0.015, 0.015, 0.420)

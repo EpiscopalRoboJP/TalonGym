@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sys
+from types import ModuleType
+
 import pytest
 
 from talongym.assets.import_catalog_cad import assert_allowlisted_url
@@ -25,23 +28,38 @@ def test_catalog_manifests_match_schema():
 
 
 def test_cad_availability_requires_step_converter(monkeypatch):
+    catalog_mod.cad_extra_available.cache_clear()
     monkeypatch.setattr(catalog_mod, "find_spec", lambda name: object() if name == "trimesh" else None)
     assert catalog_mod.cad_extra_available() is False
     monkeypatch.setattr(catalog_mod, "find_spec", lambda name: object())
+    monkeypatch.setitem(sys.modules, "cascadio", ModuleType("cascadio"))
+    catalog_mod.cad_extra_available.cache_clear()
     assert catalog_mod.cad_extra_available() is True
+    catalog_mod.cad_extra_available.cache_clear()
 
 
 def test_unverified_wheel_cad_is_not_downloadable():
     for sku in (
-        "3606-0014-0064",
-        "3606-0014-0120",
-        "REV-41-1631",
-        "REV-41-2473",
         "3213-3606-0001",
         "3213-3606-0002",
         "3213-3606-0003",
     ):
         assert get_part(sku)["cad"]["downloadEnabled"] is False
+
+
+def test_scoring_wheels_have_manufacturer_cad_and_matching_bores():
+    for sku, manufacturer, bore_mm, diameter_mm in (
+        ("3615-4008-0072", "gobilda", 8.0, 72.0),
+        ("3615-4008-0096", "gobilda", 8.0, 96.0),
+        ("REV-41-2034", "rev", 5.0, 50.8),
+        ("REV-41-1267", "rev", 5.0, 90.0),
+    ):
+        part = get_part(sku)
+        assert part["manufacturer"] == manufacturer
+        assert part["cad"]["downloadEnabled"] is True
+        assert_allowlisted_url(part["cad"]["sourceUrl"])
+        assert part_mount(part, "bore")["diameterMm"] == bore_mm
+        assert 2 * part["collision"][0]["radiusIn"] * 25.4 == pytest.approx(diameter_mm, abs=0.01)
 
 
 def test_mecanum_wheels_select_distinct_models_from_official_set():
