@@ -203,6 +203,7 @@ def test_cache_is_fresh_requires_visual_and_thumbnail(tmp_path, monkeypatch):
         "sku": part["sku"],
         "manufacturer": part["manufacturer"],
         "generatorVersion": CATALOG_CAD_GENERATOR_VERSION,
+        "conversionFingerprint": catalog_mod.cad_conversion_fingerprint(part),
         "sha256": str((part.get("cad") or {}).get("sha256") or "aa" * 32).lower(),
         "visualAsset": str(visual.relative_to(var / "assets")).replace("\\", "/"),
         "collisionAsset": str(collision.relative_to(var / "assets")).replace("\\", "/"),
@@ -214,6 +215,11 @@ def test_cache_is_fresh_requires_visual_and_thumbnail(tmp_path, monkeypatch):
     meta["thumbnailAsset"] = str(thumb.relative_to(var / "assets")).replace("\\", "/")
     catalog_mod.cache_meta_path(part["manufacturer"], part["sku"]).write_text(json.dumps(meta), encoding="utf-8")
     assert cache_is_fresh(part) is True
+    changed = dict(part)
+    changed["collision"] = [{"kind": "box", "sizeIn": [100, 100, 100]}]
+    assert cache_is_fresh(changed) is False
+    assert catalog_mod.cache_entry(part["manufacturer"], part["sku"])["state"] == "ready"
     meta["generatorVersion"] = "1.2.0"
     catalog_mod.cache_meta_path(part["manufacturer"], part["sku"]).write_text(json.dumps(meta), encoding="utf-8")
     assert cache_is_fresh(part) is False
+    assert catalog_mod.cache_entry(part["manufacturer"], part["sku"])["state"] == "stale"

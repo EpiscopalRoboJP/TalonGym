@@ -160,7 +160,7 @@ def aggregate_mass_properties(
             local = np.diag([float(listed[0]), float(listed[1]), float(listed[2])])
             rotated = pose[:3, :3] @ local @ pose[:3, :3].T
         else:
-            local = np.diag(_box_inertia_kg_m2(mass, _part_size_in(part, pose)))
+            local = np.diag(_box_inertia_kg_m2(mass, _part_size_in(part, np.eye(4))))
             rotated = pose[:3, :3] @ local @ pose[:3, :3].T
         inertia += rotated + mass * (float(np.dot(offset_m, offset_m)) * np.eye(3) - np.outer(offset_m, offset_m))
     aabb = assembly_aabb(poses, {ident: catalog_parts[ident] for ident in instances if ident in poses})

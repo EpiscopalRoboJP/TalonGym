@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from talongym.presets.loader import load_preset, validate_document
-from talongym.robot.assembly import compile_assembly_to_preset
+from talongym.robot.assembly import clear_materialize_cache, compile_assembly_to_preset, materialize_sim_robot
 from talongym.robot.catalog import get_part
 from talongym.robot.collision import connected_overlap_warnings, validate_assembly_collisions
 from talongym.robot.contract import (
@@ -241,3 +241,15 @@ def test_golden_three_part_compiles_through_assembly_and_competitive_validator()
     parent_hole = transform_point(channel_pose, hole_in_part(part_mount(channel, "web"), (2, 1)))
     child_hole = transform_point(motor_pose, hole_in_part(part_mount(motor, "face"), (0, 0)))
     assert np.allclose(parent_hole, child_hole, atol=1e-6)
+
+
+def test_materialized_robot_updates_after_source_edit_and_is_copy_safe():
+    document = golden_three_part_assembly()
+    clear_materialize_cache()
+    first = materialize_sim_robot(document)
+    first["displayName"] = "mutated result"
+    cached = materialize_sim_robot(document)
+    assert cached["displayName"] != "mutated result"
+    document["displayName"] = "edited assembly"
+    updated = materialize_sim_robot(document)
+    assert updated["displayName"] == "edited assembly"

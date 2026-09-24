@@ -9,7 +9,8 @@ import pytest
 
 from talongym.robot.assembly import compile_assembly_to_preset
 from talongym.robot.contract import ASSEMBLY_SCHEMA_VERSION, AssemblyError
-from talongym.robot.inference import build_inference_report
+from talongym.robot.inference import aggregate_mass_properties, build_inference_report
+from talongym.robot.transforms import matrix_from_pose
 from talongym.robot.transmissions import infer_transmissions
 from talongym.robot.validation import (
     ftc_soft_warnings,
@@ -18,6 +19,18 @@ from talongym.robot.validation import (
     validate_travel_envelopes,
     validate_wheel_floor_contact,
 )
+
+
+def test_derived_inertia_is_invariant_under_whole_part_rotation():
+    part = {"massKg": 1.0, "collision": [{"kind": "box", "sizeIn": [2.0, 4.0, 6.0]}]}
+    traces = []
+    for yaw in (0, 45, 90):
+        props = aggregate_mass_properties(
+            {"box": {}}, {"box": part}, {"box": matrix_from_pose({"yawDeg": yaw})}
+        )
+        assert props is not None
+        traces.append(sum(props.inertia_kg_m2))
+    assert traces == pytest.approx([traces[0]] * 3)
 
 
 def _pose(x: float, y: float, z: float) -> np.ndarray:

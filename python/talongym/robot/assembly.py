@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any
 
@@ -589,8 +592,9 @@ def _cad_warnings(catalog_parts: dict[str, dict[str, Any]]) -> tuple[dict[str, A
     return tuple(warnings)
 
 
-# Compiled 1.1 presets keyed by the source assembly object. Treat values as read-only.
-_MATERIALIZED_ROBOTS: dict[tuple[int, bool], dict[str, Any]] = {}
+# Include source content and catalog inputs so edits cannot reuse an obsolete robot.
+_MATERIALIZED_ROBOTS: OrderedDict[str, dict[str, Any]] = OrderedDict()
+_MATERIALIZED_CACHE_LIMIT = 16
 
 
 def clear_materialize_cache() -> None:
@@ -601,12 +605,24 @@ def materialize_sim_robot(preset: dict[str, Any], *, competitive: bool = True) -
     """Return a 1.1 physical preset, compiling schema 1.2 assemblies when needed."""
     if str(preset.get("schemaVersion")) != ASSEMBLY_SCHEMA_VERSION:
         return preset
-    key = (id(preset), bool(competitive))
+    instances = ((preset.get("assembly") or {}).get("instances") or [])
+    skus = sorted({str(row.get("sku") or "") for row in instances})
+    catalog_inputs = []
+    for sku in skus:
+        part = get_part(sku)
+        catalog_inputs.append((part, cache_entry(str(part["manufacturer"]), sku)))
+    payload = json.dumps(
+        (preset, bool(competitive), catalog_inputs), sort_keys=True, separators=(",", ":"), default=str
+    )
+    key = hashlib.sha256(payload.encode("utf-8")).hexdigest()
     cached = _MATERIALIZED_ROBOTS.get(key)
     if cached is not None:
-        return cached
+        _MATERIALIZED_ROBOTS.move_to_end(key)
+        return copy.deepcopy(cached)
     compiled = compile_assembly_to_preset(preset, competitive=competitive).preset
-    _MATERIALIZED_ROBOTS[key] = compiled
+    _MATERIALIZED_ROBOTS[key] = copy.deepcopy(compiled)
+    if len(_MATERIALIZED_ROBOTS) > _MATERIALIZED_CACHE_LIMIT:
+        _MATERIALIZED_ROBOTS.popitem(last=False)
     return compiled
 
 
