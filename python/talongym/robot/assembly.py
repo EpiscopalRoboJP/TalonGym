@@ -133,8 +133,13 @@ def _ghost_topology_part(row: dict[str, Any]) -> dict[str, Any]:
     return part
 
 
-def _rewire_scoring_actuators(preset: dict[str, Any], template: dict[str, Any]) -> None:
-    """Bind scoring actuators to catalog hinges; ghost 4-cap hood/gate parts only if needed."""
+def _rewire_scoring_actuators(
+    preset: dict[str, Any],
+    template: dict[str, Any],
+    bindings: dict[str, Any],
+    catalog_parts: dict[str, dict[str, Any]],
+) -> None:
+    """Bind rotating scoring hardware to its actual catalog joint."""
     joints = list(preset.get("joints") or [])
     parts = list(preset.get("rigidParts") or [])
     by_child = {str(row.get("childPartId") or ""): row for row in joints}
@@ -143,6 +148,24 @@ def _rewire_scoring_actuators(preset: dict[str, Any], template: dict[str, Any]) 
     template_parts = {str(row.get("id") or ""): row for row in template.get("rigidParts") or []}
     template_joints = {str(row.get("id") or ""): row for row in template.get("joints") or []}
     template_by_child = {str(row.get("childPartId") or ""): row for row in template.get("joints") or []}
+    roles = bindings.get("instanceRoles") if isinstance(bindings.get("instanceRoles"), dict) else {}
+
+    def rotating_child(actuator_id: str) -> str | None:
+        preferred = _ACTUATOR_CATALOG_CHILDREN.get(actuator_id, ())
+        if actuator_id == "flywheel":
+            candidates = [
+                child_id for child_id, part in catalog_parts.items()
+                if roles.get(child_id) == "flywheel" or "flywheel" in part.get("tags", [])
+            ]
+            if len(candidates) == 1:
+                return candidates[0]
+            if len(candidates) > 1:
+                raise AssemblyError("multiple flywheels need an unambiguous scoring binding")
+            return None
+        return next(
+            (child_id for child_id in preferred if child_id in catalog_parts and "intake_roller" in catalog_parts[child_id].get("tags", [])),
+            None,
+        )
 
     def ensure_ghost_child(child_id: str) -> None:
         if child_id in part_ids or child_id == "chassis":
@@ -168,18 +191,16 @@ def _rewire_scoring_actuators(preset: dict[str, Any], template: dict[str, Any]) 
             continue
         actuator = copy.deepcopy(row)
         ident = str(actuator.get("id") or "")
-        catalog_joint = next(
-            (
-                by_child[child_id]
-                for child_id in _ACTUATOR_CATALOG_CHILDREN.get(ident, ())
-                if child_id in by_child and str(by_child[child_id].get("type") or "fixed") != "fixed"
-            ),
-            None,
-        )
+        rotating = rotating_child(ident) if ident in {"intake", "conveyor", "flywheel"} else None
+        catalog_joint = by_child.get(rotating) if rotating else None
         if catalog_joint is not None:
+            if str(catalog_joint.get("type") or "fixed") == "fixed":
+                raise AssemblyError(f"{ident} scoring part {rotating} must have a moving joint")
             actuator["jointId"] = catalog_joint["id"]
             actuators.append(actuator)
             continue
+        if ident in {"intake", "conveyor", "flywheel"}:
+            raise AssemblyError(f"{ident} scoring actuator needs a connected catalog wheel with a moving joint")
         joint_id = str(actuator.get("jointId") or "")
         if joint_id in joint_ids:
             actuators.append(actuator)
@@ -546,7 +567,7 @@ def materialize_physical_preset(
     preset["rigidParts"] = list(preset.get("rigidParts") or []) + catalog_parts_out
     preset["joints"] = list(preset.get("joints") or []) + catalog_joints
     if include_scoring:
-        _rewire_scoring_actuators(preset, full_template)
+        _rewire_scoring_actuators(preset, full_template, bindings, catalog_parts)
     _apply_inferred_contract(preset, report, bindings, include_scoring=include_scoring)
     return preset
 

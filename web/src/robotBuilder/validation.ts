@@ -85,6 +85,10 @@ function overlap(a: { min: [number, number, number]; max: [number, number, numbe
   return a.min[0] < b.max[0] - 1e-4 && a.min[1] < b.max[1] - 1e-4 && a.min[2] < b.max[2] - 1e-4 && b.min[0] < a.max[0] - 1e-4 && b.min[1] < a.max[1] - 1e-4 && b.min[2] < a.max[2] - 1e-4;
 }
 
+function coincident(a: { min: [number, number, number]; max: [number, number, number] }, b: { min: [number, number, number]; max: [number, number, number] }) {
+  return [0, 1, 2].every((axis) => Math.abs(a.min[axis] - b.min[axis]) <= 1e-3 && Math.abs(a.max[axis] - b.max[axis]) <= 1e-3);
+}
+
 export function validateAssembly(assembly: RobotAssembly, catalog: Record<string, CatalogPart>): ValidationResult {
   const blocking: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
@@ -142,7 +146,13 @@ export function validateAssembly(assembly: RobotAssembly, catalog: Record<string
       const left = catalog[ids[i]] && poses[ids[i]] ? partAabb(matrixFromPose(poses[ids[i]]), catalog[ids[i]]) : null;
       const right = catalog[ids[j]] && poses[ids[j]] ? partAabb(matrixFromPose(poses[ids[j]]), catalog[ids[j]]) : null;
       if (left && right && overlap(left, right)) {
-        if (sameComponent) connectedOverlaps.push([ids[i], ids[j]]);
+        if (sameComponent && coincident(left, right)) blocking.push({
+          code: "collision",
+          severity: "error",
+          message: `Coincident collision volumes between ${ids[i]} and ${ids[j]}.`,
+          instanceId: ids[i],
+        });
+        else if (sameComponent) connectedOverlaps.push([ids[i], ids[j]]);
         else blocking.push({
           code: "collision",
           severity: "error",
