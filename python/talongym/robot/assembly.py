@@ -197,6 +197,19 @@ def _rewire_scoring_actuators(
             if str(catalog_joint.get("type") or "fixed") == "fixed":
                 raise AssemblyError(f"{ident} scoring part {rotating} must have a moving joint")
             actuator["jointId"] = catalog_joint["id"]
+            if ident == "flywheel" and rotating:
+                motor_part = catalog_parts.get(str(catalog_joint.get("parentPartId") or ""), {})
+                curve = motor_part.get("outputMotorCurve")
+                if isinstance(curve, dict):
+                    free_speed = float(curve["freeSpeedRpm"])
+                    actuator["motor"] = copy.deepcopy(curve)
+                    actuator["gearRatio"] = 1.0  # Curve is measured at the output shaft.
+                    actuator["efficiency"] = 1.0
+                    actuator["currentLimitA"] = min(float(actuator["currentLimitA"]), float(curve["stallCurrentA"]))
+                    actuator["targetRpm"] = min(float(actuator.get("targetRpm") or free_speed), 0.8 * free_speed)
+                    inertia = catalog_parts[rotating].get("inertiaKgM2")
+                    if isinstance(inertia, list) and len(inertia) == 3:
+                        actuator["loadInertiaKgM2"] = float(inertia[2])
             actuators.append(actuator)
             continue
         if ident in {"intake", "conveyor", "flywheel"}:
@@ -677,10 +690,21 @@ def compile_assembly_to_preset(
     compiled = compile_robot_preset(preset, competitive=competitive)
     document_warnings = tuple(document["warnings"]) if isinstance(document.get("warnings"), list) else ()
     overlap_warnings = connected_overlap_warnings(poses, instances, catalog_parts, connections)
+    motor_warnings: tuple[dict[str, Any], ...] = ()
+    if _scoring_topology_requested(bindings, instances, catalog_parts):
+        flywheel = next((row for row in preset.get("actuators") or [] if row.get("id") == "flywheel"), None)
+        flywheel_joint = next((row for row in preset.get("joints") or [] if flywheel and row.get("id") == flywheel.get("jointId")), None)
+        source = catalog_parts.get(str((flywheel_joint or {}).get("parentPartId") or ""), {})
+        if not source.get("outputMotorCurve"):
+            motor_warnings = ({
+                "code": "launcher_motor_unverified",
+                "severity": "warning",
+                "message": "Launcher output motor curve or gearbox ratio is not verified for this assembly; launcher physics must not be treated as calibrated.",
+            },)
     return CompiledAssembly(
         preset=compiled.preset,
         compiled=compiled,
         instance_poses={ident: pose_from_matrix(matrix) for ident, matrix in poses.items()},
         report=report,
-        warnings=document_warnings + inferred_warnings + overlap_warnings + _cad_warnings(catalog_parts),
+        warnings=document_warnings + inferred_warnings + overlap_warnings + motor_warnings + _cad_warnings(catalog_parts),
     )

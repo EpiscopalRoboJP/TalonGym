@@ -160,6 +160,18 @@
         "cad": { "$ref": "#/$defs/cad" },
         "massKg": { "type": "number", "exclusiveMinimum": 0 },
         "gearRatio": { "type": "number", "exclusiveMinimum": 0 },
+        "outputMotorCurve": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nominalVoltageV", "freeSpeedRpm", "stallTorqueNm", "stallCurrentA", "freeCurrentA"],
+          "properties": {
+            "nominalVoltageV": { "type": "number", "exclusiveMinimum": 0 },
+            "freeSpeedRpm": { "type": "number", "exclusiveMinimum": 0 },
+            "stallTorqueNm": { "type": "number", "exclusiveMinimum": 0 },
+            "stallCurrentA": { "type": "number", "exclusiveMinimum": 0 },
+            "freeCurrentA": { "type": "number", "minimum": 0 }
+          }
+        },
         "inertiaKgM2": {
           "type": "array",
           "items": { "type": "number" },

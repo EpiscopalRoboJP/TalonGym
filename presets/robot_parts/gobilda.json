@@ -1110,6 +1110,13 @@
         "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
       },
       "massKg": 0.315,
+      "outputMotorCurve": {
+        "nominalVoltageV": 12,
+        "freeSpeedRpm": 312,
+        "stallTorqueNm": 2.383,
+        "stallCurrentA": 9.2,
+        "freeCurrentA": 0.25
+      },
       "inertiaKgM2": [
         0.00012,
         0.00012,

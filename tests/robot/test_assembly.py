@@ -284,3 +284,22 @@ def test_renamed_flywheel_binds_to_actual_catalog_joint():
     joint = next(row for row in compiled.preset["joints"] if row["id"] == actuator["jointId"])
     assert joint["childPartId"] == "custom_shooter"
     assert "flywheel" not in {row["id"] for row in compiled.preset["rigidParts"]}
+
+
+def test_gobilda_launcher_uses_catalog_output_motor_curve():
+    from talongym.presets.loader import load_preset
+
+    result = compile_assembly_to_preset(load_preset("robot", "gobilda_mecanum_starter"))
+    flywheel = next(row for row in result.preset["actuators"] if row["id"] == "flywheel")
+    assert flywheel["motor"]["freeSpeedRpm"] == 312
+    assert flywheel["targetRpm"] <= 312
+    assert flywheel["gearRatio"] == 1
+    assert flywheel["loadInertiaKgM2"] == pytest.approx(4.2624e-05)
+    assert not any(row["code"] == "launcher_motor_unverified" for row in result.warnings)
+
+
+def test_rev_launcher_reports_unverified_output_curve():
+    from talongym.presets.loader import load_preset
+
+    result = compile_assembly_to_preset(load_preset("robot", "rev_mecanum_starter"))
+    assert any(row["code"] == "launcher_motor_unverified" for row in result.warnings)
