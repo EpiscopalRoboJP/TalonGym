@@ -627,7 +627,7 @@ export function RobotBuilderPage() {
     if (!doc || validation.blocking.length) return;
     setSimulationCheck({ state: "checking" });
     try {
-      const result = await postJson<{ physical?: boolean; instancePoses?: Record<string, { x?: number; y?: number; z?: number; rollDeg?: number; pitchDeg?: number; yawDeg?: number }>; warnings?: { message?: string }[]; report?: { confirmed?: boolean } }>(
+      const result = await postJson<{ physical?: boolean; physicsInputsVerified?: boolean; instancePoses?: Record<string, { x?: number; y?: number; z?: number; rollDeg?: number; pitchDeg?: number; yawDeg?: number }>; warnings?: { code?: string; message?: string }[]; report?: { confirmed?: boolean } }>(
         catalogAssemblyCompilePath(),
         doc,
       );
@@ -654,9 +654,10 @@ export function RobotBuilderPage() {
       }
       const warningCount = result.warnings?.length || 0;
       if (latestDoc.current !== doc) return;
+      const unresolved = (result.warnings || []).filter((row) => ["launcher_motor_unverified", "scoring_geometry_unverified", "connected_proxy_overlap"].includes(row.code || ""));
       setSimulationCheck({
         state: "passed",
-        message: `${result.physical ? "Physical assembly compiled" : "Assembly compiled"}${result.report?.confirmed ? " with confirmed behavior" : " in waypoint mode"}. Editor/compiler poses agree within ${maxPositionError.toExponential(1)} in${warningCount ? ` · ${warningCount} warning(s)` : ""}. Physics has not been run.`,
+        message: `${result.physical ? "Physical assembly compiled" : "Assembly compiled"}${result.report?.confirmed ? " with confirmed behavior" : " in waypoint mode"}. Editor/compiler poses agree within ${maxPositionError.toExponential(1)} in${warningCount ? ` · ${warningCount} warning(s)` : ""}. ${result.physicsInputsVerified ? "Physics inputs verified; simulation has not been run." : `Physics inputs need review${unresolved.length ? `: ${unresolved.map((row) => row.message).join(" ")}` : "."}`}`,
       });
     } catch (error) {
       if (latestDoc.current === doc) setSimulationCheck({ state: "failed", message: error instanceof Error ? error.message : String(error) });

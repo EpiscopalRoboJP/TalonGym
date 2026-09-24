@@ -3,7 +3,7 @@
 
 [package]
 name = "talongym-engine"
-version = "0.5.6"
+version = "0.5.7"
 edition = "2021"
 license = "GPL-3.0-or-later"
 authors = [
