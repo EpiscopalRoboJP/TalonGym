@@ -26,11 +26,11 @@ _active_batch_id: str | None = None
 
 
 def cache_concurrency() -> int:
-    raw = os.environ.get("TALONGYM_CAD_CACHE_CONCURRENCY", "2")
+    raw = os.environ.get("TALONGYM_CAD_CACHE_CONCURRENCY", "1")
     try:
         value = int(raw)
     except ValueError:
-        value = 2
+        value = 1
     return max(1, min(4, value))
 
 

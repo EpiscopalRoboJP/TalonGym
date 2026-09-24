@@ -87,7 +87,7 @@ def test_cache_all_queues_bounded_jobs_cancel_and_retry(monkeypatch):
 
     monkeypatch.setattr(import_catalog_cad, "convert_catalog_part", fake_convert)
     client = TestClient(app)
-    skus = ["1207-0001-0001", "5203-2402-0019", "3213-3606-0002"]
+    skus = ["1207-0001-0001", "5203-2402-0019", "3606-0100-0096"]
     t0 = time.perf_counter()
     started_res = client.post("/api/v1/catalog/cache/all", json={"skus": skus, "force": True})
     elapsed = time.perf_counter() - t0

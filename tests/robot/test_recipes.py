@@ -79,8 +79,8 @@ def test_gobilda_recipes_include_rails_motors_wheels_brackets_and_electronics():
     assert {f"wheel_{corner}" for corner in ("fl", "fr", "rl", "rr")} <= ids
     assert {"plate_center", "hub_center", "bracket_fl", "bracket_fr", "sensor_imu", "servo_front"} <= ids
     assert skus["motor_fl"] == "5203-2402-0019"
-    assert skus["wheel_fl"] == "3213-3606-0001"
-    assert skus["wheel_fr"] == "3213-3606-0002"
+    assert skus["wheel_fl"] == "3606-0000-0096"
+    assert skus["wheel_fr"] == "3606-0100-0096"
     compiled = instantiate_and_compile("gobilda_mecanum")
     assert compiled.report.drivetrain.get("complete") is True
     assert compiled.preset["motors"]["count"] == 4
@@ -96,7 +96,6 @@ def test_gobilda_parameter_choices_and_electronics_toggle_recompile():
             "lengthSku": "1120-0013-0336",
             "widthSku": "1120-0004-0120",
             "motorSku": "5202-2402-0003",
-            "wheelSku": "3213-3606-0002",
             "includeElectronics": False,
         },
     )
@@ -105,7 +104,7 @@ def test_gobilda_parameter_choices_and_electronics_toggle_recompile():
     assert skus["left_rail"] == "1120-0013-0336"
     assert skus["front_rail"] == "1120-0004-0120"
     assert skus["motor_rr"] == "5202-2402-0003"
-    assert skus["wheel_rl"] == "3213-3606-0002"
+    assert skus["wheel_rl"] == "3606-0000-0096"
     assert "sensor_imu" not in ids
     assert "servo_front" not in ids
     compiled = instantiate_and_compile(
