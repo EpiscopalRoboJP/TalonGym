@@ -1218,7 +1218,7 @@
     "lengthIn": 18.917360236220475,
     "widthIn": 11.968476377952754,
     "heightIn": 14.0,
-    "massKg": 3.7441999999999993,
+    "massKg": 3.864199999999999,
     "collisionShape": "aabb"
   },
   "motors": {
