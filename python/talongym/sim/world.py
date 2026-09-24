@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import math
 import os
@@ -33,8 +34,8 @@ from talongym.sim.physics import Body, WorldStep, default_backend, gate_open_fra
 
 # A launched piece that has not scored this long after leaving the launcher counts as a miss.
 LAUNCH_SCORE_WINDOW_S = 2.0
-# Field MJCF for identical field+robot objects. Values are read-only after insert.
-_COLLISION_XML_CACHE: dict[tuple[int, int, float, float, float, str], tuple[str, Any, Any, str | None, str | None]] = {}
+# Field MJCF for identical field and robot contents. Values are read-only after insert.
+_COLLISION_XML_CACHE: dict[tuple[str, float, float, float, str], tuple[str, Any, Any, str | None, str | None]] = {}
 
 
 def clear_collision_xml_cache() -> None:
@@ -344,7 +345,9 @@ class World:
 
         mesh = self._robot_mesh_path()
         mesh_key = str(mesh.resolve()) if mesh is not None else ""
-        cache_key = (id(self.field), id(self.robot), self.robot_hx, self.robot_hy, self.robot_hz, mesh_key)
+        source = json.dumps((self.field, self.robot), sort_keys=True, separators=(",", ":"))
+        source_key = hashlib.sha256(source.encode("utf-8")).hexdigest()
+        cache_key = (source_key, self.robot_hx, self.robot_hy, self.robot_hz, mesh_key)
         cached = _COLLISION_XML_CACHE.get(cache_key)
         if cached is not None:
             xml, xml_path, built, cad_sha, cad_ver = cached

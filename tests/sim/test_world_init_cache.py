@@ -11,7 +11,7 @@ from talongym.robot import assembly
 from talongym.robot.assembly import clear_materialize_cache, materialize_sim_robot
 
 
-def test_materialize_sim_robot_caches_by_preset_identity(monkeypatch):
+def test_materialize_sim_robot_caches_by_content_without_sharing_mutable_results(monkeypatch):
     clear_materialize_cache()
     calls = {"n": 0}
     orig = assembly.compile_assembly_to_preset
@@ -25,8 +25,13 @@ def test_materialize_sim_robot_caches_by_preset_identity(monkeypatch):
     first = materialize_sim_robot(robot)
     second = materialize_sim_robot(robot)
     assert calls["n"] == 1
-    assert first is second
+    assert first == second
+    assert first is not second
     materialize_sim_robot(copy.deepcopy(robot))
+    assert calls["n"] == 1
+    edited = copy.deepcopy(robot)
+    edited["displayName"] = "Changed"
+    materialize_sim_robot(edited)
     assert calls["n"] == 2
 
 
