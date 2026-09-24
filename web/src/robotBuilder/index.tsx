@@ -158,8 +158,22 @@ export function RobotBuilderPage() {
   const [mateMount, setMateMount] = useState<MountTarget | null>(null);
   const [compatibleSkus, setCompatibleSkus] = useState<Set<string> | null | undefined>(undefined);
   const userPickedRobot = useRef(false);
+  const draftWrite = useRef<Promise<void>>(Promise.resolve());
+  const publishing = useRef(false);
 
   const doc = state.doc;
+  const latestDoc = useRef(doc);
+  latestDoc.current = doc;
+
+  function enqueueDraftSave(target: RobotPreset): Promise<void> {
+    const write = draftWrite.current.catch(() => undefined).then(() => saveRobotDraft(target.id, target)).then(() => undefined);
+    draftWrite.current = write;
+    return write;
+  }
+
+  useEffect(() => {
+    setSimulationCheck({ state: "idle" });
+  }, [doc]);
 
   useEffect(() => {
     getJson<PresetMeta[]>("/presets/robot").then(setList);
@@ -253,13 +267,16 @@ export function RobotBuilderPage() {
     }
     setDraftStatus("unsaved");
     const handle = window.setTimeout(() => {
+      if (publishing.current) return;
       setDraftStatus("saving");
-      void saveRobotDraft(doc.id, doc)
+      void enqueueDraftSave(doc)
         .then(() => {
           dispatch({ type: "markSaved", doc });
-          setDraftStatus("saved");
+          if (latestDoc.current === doc) setDraftStatus("saved");
         })
-        .catch(() => setDraftStatus("failed"));
+        .catch(() => {
+          if (latestDoc.current === doc) setDraftStatus("failed");
+        });
     }, 800);
     return () => window.clearTimeout(handle);
   }, [doc, state.dirty, list, dispatch]);
@@ -421,14 +438,30 @@ export function RobotBuilderPage() {
       return;
     }
     setSaving(true);
+    publishing.current = true;
     try {
+      await draftWrite.current.catch(() => undefined);
       if (!(await validateAndSave(doc, "put"))) return;
       setErrs([]);
       dispatch({ type: "markSaved", doc });
+      if (latestDoc.current === doc) setDraftStatus("saved");
       notify(`Saved robot preset ${doc.id}.`);
     } catch (e) {
       setErrs([e instanceof Error ? e.message : String(e)]);
     } finally {
+      publishing.current = false;
+      if (latestDoc.current && latestDoc.current !== doc && latestDoc.current.id === doc.id) {
+        const changed = latestDoc.current;
+        setDraftStatus("saving");
+        void enqueueDraftSave(changed)
+          .then(() => {
+            dispatch({ type: "markSaved", doc: changed });
+            if (latestDoc.current === changed) setDraftStatus("saved");
+          })
+          .catch(() => {
+            if (latestDoc.current === changed) setDraftStatus("failed");
+          });
+      }
       setSaving(false);
     }
   }
@@ -442,7 +475,9 @@ export function RobotBuilderPage() {
       displayName: saveAsId ? `${doc.displayName} (${nid})` : `${doc.displayName} copy`,
     };
     setSaving(true);
+    publishing.current = true;
     try {
+      await draftWrite.current.catch(() => undefined);
       if (!(await validateAndSave(next, "post"))) return;
       setErrs([]);
       notify(`Created robot preset ${nid}.`);
@@ -454,6 +489,7 @@ export function RobotBuilderPage() {
     } catch (e) {
       setErrs([e instanceof Error ? e.message : String(e)]);
     } finally {
+      publishing.current = false;
       setSaving(false);
     }
   }
@@ -617,12 +653,13 @@ export function RobotBuilderPage() {
         throw new Error(`Editor/compiler geometry mismatch (${maxPositionError.toExponential(2)} in, ${maxAngleError.toExponential(2)}°).`);
       }
       const warningCount = result.warnings?.length || 0;
+      if (latestDoc.current !== doc) return;
       setSimulationCheck({
         state: "passed",
-        message: `${result.physical ? "Physical robot compiled" : "Robot compiled"}${result.report?.confirmed ? " with confirmed behavior" : " in waypoint mode"}. Editor/compiler poses agree within ${maxPositionError.toExponential(1)} in${warningCount ? ` · ${warningCount} warning(s)` : ""}.`,
+        message: `${result.physical ? "Physical assembly compiled" : "Assembly compiled"}${result.report?.confirmed ? " with confirmed behavior" : " in waypoint mode"}. Editor/compiler poses agree within ${maxPositionError.toExponential(1)} in${warningCount ? ` · ${warningCount} warning(s)` : ""}. Physics has not been run.`,
       });
     } catch (error) {
-      setSimulationCheck({ state: "failed", message: error instanceof Error ? error.message : String(error) });
+      if (latestDoc.current === doc) setSimulationCheck({ state: "failed", message: error instanceof Error ? error.message : String(error) });
     }
   }
 
@@ -1011,11 +1048,11 @@ export function RobotBuilderPage() {
               <div className="side-drawer-scroll">
                 <ValidationPanel result={validation} />
                 <button type="button" className="btn primary block" data-testid="check-simulation" onClick={() => void checkSimulation()} disabled={simulationCheck.state === "checking" || validation.blocking.length > 0}>
-                  {simulationCheck.state === "checking" ? "Compiling simulation…" : "Check simulation model"}
+                  {simulationCheck.state === "checking" ? "Compiling assembly…" : "Check assembly model"}
                 </button>
                 {simulationCheck.state !== "idle" && simulationCheck.message && (
                   <Alert kind={simulationCheck.state === "failed" ? "bad" : "ok"}>
-                    <b>{simulationCheck.state === "failed" ? "Simulation model failed" : "Simulation model ready"}</b>
+                    <b>{simulationCheck.state === "failed" ? "Assembly model failed" : "Assembly model compiled"}</b>
                     <div>{simulationCheck.message}</div>
                   </Alert>
                 )}

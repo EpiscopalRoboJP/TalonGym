@@ -269,3 +269,23 @@ def test_robot_draft_roundtrip_does_not_replace_shipped_preset():
     gone = client.delete(f"/api/v1/presets/robot/{preset_id}/draft")
     assert gone.status_code == 204
     assert client.get(f"/api/v1/presets/robot/{preset_id}/draft").status_code == 404
+
+
+def test_publishing_robot_clears_older_draft():
+    from talongym.api import db
+
+    client = TestClient(app)
+    preset_id = "test_published_robot_clears_draft"
+    source = client.get("/api/v1/presets/robot/mecanum_biobuzz_4cap").json()
+    document = {**source, "id": preset_id, "displayName": "Published robot"}
+    document.pop("_kind", None)
+    try:
+        draft = client.put(f"/api/v1/presets/robot/{preset_id}/draft", json={**document, "displayName": "Old draft"})
+        assert draft.status_code == 200
+        published = client.post("/api/v1/presets/robot", json=document)
+        assert published.status_code == 201, published.text
+        assert client.get(f"/api/v1/presets/robot/{preset_id}/draft").status_code == 404
+        assert client.get(f"/api/v1/presets/robot/{preset_id}").json()["displayName"] == "Published robot"
+    finally:
+        db.delete_robot_draft(preset_id)
+        db.delete_preset(preset_id)
