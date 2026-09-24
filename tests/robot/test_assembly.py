@@ -296,6 +296,7 @@ def test_gobilda_launcher_uses_catalog_output_motor_curve():
     assert flywheel["gearRatio"] == 1
     assert flywheel["loadInertiaKgM2"] == pytest.approx(4.2624e-05)
     assert not any(row["code"] == "launcher_motor_unverified" for row in result.warnings)
+    assert any(row["code"] == "scoring_geometry_unverified" for row in result.warnings)
 
 
 def test_rev_launcher_reports_unverified_output_curve():

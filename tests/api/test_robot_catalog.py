@@ -289,3 +289,15 @@ def test_publishing_robot_clears_older_draft():
     finally:
         db.delete_robot_draft(preset_id)
         db.delete_preset(preset_id)
+
+
+def test_starter_compile_exposes_unverified_physics_inputs():
+    client = TestClient(app)
+    document = client.get("/api/v1/presets/robot/gobilda_mecanum_starter").json()
+    document.pop("_kind", None)
+    response = client.post("/api/v1/catalog/assemblies/compile", json=document)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["physical"] is True
+    assert body["physicsInputsVerified"] is False
+    assert any(row["code"] == "scoring_geometry_unverified" for row in body["warnings"])

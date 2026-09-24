@@ -701,6 +701,20 @@ def compile_assembly_to_preset(
                 "severity": "warning",
                 "message": "Launcher output motor curve or gearbox ratio is not verified for this assembly; launcher physics must not be treated as calibrated.",
             },)
+        flywheel_id = str((flywheel_joint or {}).get("childPartId") or "")
+        muzzle = (preset.get("piecePath") or {}).get("muzzlePose") or {}
+        if flywheel_id in poses and muzzle:
+            wheel_center = poses[flywheel_id][:3, 3]
+            muzzle_center = np.array([float(muzzle.get(axis) or 0.0) for axis in ("x", "y", "z")])
+            distance = float(np.linalg.norm(wheel_center - muzzle_center))
+            wheel_radius = float((preset.get("piecePath") or {}).get("wheelRadiusIn") or 0.0)
+            if distance > max(4.0, 2.0 * wheel_radius + 2.0):
+                motor_warnings += ({
+                    "code": "scoring_geometry_unverified",
+                    "severity": "warning",
+                    "message": f"Muzzle is {distance:.1f} in from the catalog flywheel; scoring contact physics does not match this assembly.",
+                    "instanceId": flywheel_id,
+                },)
     return CompiledAssembly(
         preset=compiled.preset,
         compiled=compiled,
