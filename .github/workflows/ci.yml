@@ -36,6 +36,19 @@ jobs:
       - run: python -m pip install -e ".[dev,rl]"
       - run: python -m pytest
 
+  test-physics-cad:
+    name: Test physical simulation and CAD
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev,mujoco,cad]"
+      - name: Verify physical and CAD tests run
+        run: python -m pytest -m "require_mesh or require_cad" tests/sim tests/robot tests/assets tests/api
+
   web:
     name: Web (lint, typecheck, test, build)
     runs-on: ubuntu-latest
