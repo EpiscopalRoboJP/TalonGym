@@ -6,7 +6,7 @@ import pytest
 
 from talongym.presets.loader import load_preset
 from talongym.training.curriculum import curriculum_spawn, stage_info
-from talongym.training.diagnostics import summarize_episode
+from talongym.training.diagnostics import baseline_thresholds_met, summarize_episode
 
 
 def test_curriculum_is_legal_spawn_without_scaffolds():
@@ -56,6 +56,21 @@ def test_summarize_episode_accepts_physical_launch_and_score():
     assert health.healthy is True
 
 
+def test_leave_and_park_points_do_not_count_as_a_scoring_baseline():
+    frames = [{
+        "trueScore": 8,
+        "launchAttempts": 4,
+        "t": 30.0,
+        "robots": [{"id": "red_0", "lastVerb": "idle", "held": [], "collisionTimeS": 0.0}],
+        "pieces": [{"id": f"p{i}", "launchedBy": "red_0", "scored": False} for i in range(4)],
+    }]
+    health = summarize_episode(frames)
+    assert health.launches == 4
+    assert health.healthy is False
+    assert baseline_thresholds_met(health) is False
+    assert "no game-piece score" in health.warnings
+
+
 def test_summarize_episode_counts_wall_contact_duration_from_frames():
     frames = [
         {"t": 0.0, "trueScore": 3, "launchAttempts": 1, "robots": [{"id": "red_0", "lastVerb": "score", "collisionTimeS": 0.0}], "pieces": [{"id": "p1", "launchedBy": "red_0"}], "collision": {"wall": False}},
@@ -74,7 +89,7 @@ def test_scripted_baseline_launches_and_scores_from_launch_pose():
 
     health = assert_scripted_baseline_scores(seed=1)
     assert health.launches >= 3
-    assert health.true_score >= 3 or health.scored_pieces >= 1
+    assert health.true_score >= 20 or health.scored_pieces >= 1
 
 
 def test_scripted_baseline_stops_once_thresholds_met(monkeypatch):
@@ -115,6 +130,6 @@ def test_scripted_baseline_stops_once_thresholds_met(monkeypatch):
 
     health = assert_scripted_baseline_scores()
     assert health.launches >= 3
-    assert health.true_score >= 3 or health.scored_pieces >= 1
+    assert health.true_score >= 20 or health.scored_pieces >= 1
     assert steps["n"] == 4
     assert steps["n"] < 50

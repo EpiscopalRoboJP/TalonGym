@@ -13,7 +13,9 @@ from talongym.training.policies import scripted_auto
 
 DEFAULT_WALL_CONTACT_LIMIT_S = 8.0
 BASELINE_MIN_LAUNCHES = 3
-BASELINE_MIN_SCORE = 3.0
+# LEAVE and PARK can award 8 points without a single game piece reaching the HIVE.
+# A HIVE TIP is the first game-piece scoring event in the BIOBUZZ baseline.
+BASELINE_MIN_SCORE = 20.0
 
 
 class TrainingContractError(RuntimeError):
@@ -42,7 +44,11 @@ class EpisodeHealth:
 
     @property
     def healthy(self) -> bool:
-        return self.launches > 0 and self.wall_contact_s <= DEFAULT_WALL_CONTACT_LIMIT_S
+        return (
+            self.launches > 0
+            and (self.true_score >= BASELINE_MIN_SCORE or self.scored_pieces >= 1)
+            and self.wall_contact_s <= DEFAULT_WALL_CONTACT_LIMIT_S
+        )
 
     def as_metrics(self, prefix: str = "eval") -> dict[str, Any]:
         return {
@@ -83,6 +89,8 @@ def summarize_episode(frames: list[dict[str, Any]] | None) -> EpisodeHealth:
     warnings: list[str] = []
     if launches <= 0:
         warnings.append("zero physical launches")
+    elif float(last.get("trueScore") or 0.0) < BASELINE_MIN_SCORE and scored == 0:
+        warnings.append("no game-piece score")
     wall_s = 0.0
     prev_t: float | None = None
     for frame in rows:
@@ -165,7 +173,7 @@ def assert_scripted_baseline_scores(bundle: LoadedPresets | None = None, *, seed
     if at_spot.true_score < BASELINE_MIN_SCORE and at_spot.scored_pieces < 1:
         raise TrainingContractError(
             "scripted AUTO fired but scored nothing from the launch pose; "
-            "physical occupancy scoring is broken. "
+            "verify the assembled launcher, shot path, and goal occupancy. "
             + "; ".join(at_spot.warnings)
         )
     return at_spot
