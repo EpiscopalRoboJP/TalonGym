@@ -110,7 +110,7 @@
       },
       {
         "id": "launcher_motor",
-        "sku": "5203-2402-0019"
+        "sku": "5203-2402-0001"
       },
       {
         "id": "flywheel_wheel",
@@ -815,7 +815,7 @@
     "lengthIn": 18,
     "widthIn": 18,
     "heightIn": 14,
-    "massKg": 5.028999999999999,
+    "massKg": 5.837000000000001,
     "collisionShape": "aabb"
   },
   "motors": {

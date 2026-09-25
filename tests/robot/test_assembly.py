@@ -291,10 +291,19 @@ def test_gobilda_launcher_uses_catalog_output_motor_curve():
 
     result = compile_assembly_to_preset(load_preset("robot", "gobilda_mecanum_starter"))
     flywheel = next(row for row in result.preset["actuators"] if row["id"] == "flywheel")
-    assert flywheel["motor"]["freeSpeedRpm"] == 312
-    assert flywheel["targetRpm"] <= 312
+    assert flywheel["motor"]["freeSpeedRpm"] == 6000
+    assert flywheel["targetRpm"] <= 6000
     assert flywheel["gearRatio"] == 1
     assert flywheel["loadInertiaKgM2"] == pytest.approx(4.2624e-05)
+    from talongym.robot.dynamics import ActuatorModel
+
+    model = ActuatorModel(flywheel)
+    model.queue_command(1.0, 0.0)
+    for step in range(150):
+        model.advance_command(step * 0.01, 0.01)
+        model.integrate(12.0, 0.01)
+    actual_rpm = model.state.velocity_rad_s * 60.0 / (2.0 * np.pi)
+    assert actual_rpm >= 0.8 * flywheel["targetRpm"]
     assert not any(row["code"] == "launcher_motor_unverified" for row in result.warnings)
     assert any(row["code"] == "scoring_geometry_unverified" for row in result.warnings)
 

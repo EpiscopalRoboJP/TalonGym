@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import math
 from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any
@@ -207,6 +208,12 @@ def _rewire_scoring_actuators(
                     actuator["efficiency"] = 1.0
                     actuator["currentLimitA"] = min(float(actuator["currentLimitA"]), float(curve["stallCurrentA"]))
                     actuator["targetRpm"] = min(float(actuator.get("targetRpm") or free_speed), 0.8 * free_speed)
+                    # The scoring template's drag belongs to its reference motor. Use the
+                    # catalog motor's no-load current to estimate output drag instead.
+                    torque_per_amp = float(curve["stallTorqueNm"]) / float(curve["stallCurrentA"])
+                    free_omega = free_speed * math.tau / 60.0
+                    actuator["viscousFrictionNmPerRadS"] = torque_per_amp * float(curve["freeCurrentA"]) / free_omega
+                    actuator["coulombFrictionNm"] = 0.0
                     inertia = catalog_parts[rotating].get("inertiaKgM2")
                     if isinstance(inertia, list) and len(inertia) == 3:
                         actuator["loadInertiaKgM2"] = float(inertia[2])

@@ -142,7 +142,7 @@ def _attach_gobilda_scoring(document: dict[str, Any]) -> None:
         _instance("intake_wheel", _GOBILDA_INTAKE),
         _instance("conveyor_motor", motor_sku),
         _instance("conveyor_wheel", _GOBILDA_INTAKE),
-        _instance("launcher_motor", motor_sku),
+        _instance("launcher_motor", "5203-2402-0001"),
         _instance("flywheel_wheel", _GOBILDA_FLYWHEEL),
         _instance("hood_plate", _GOBILDA_HOOD),
     ]
