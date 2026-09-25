@@ -23,9 +23,9 @@ def _target(action: dict) -> tuple[float, float, float]:
 def test_empty_robot_parks_in_red_loading_zone_by_default():
     x, y, heading = _target(scripted_biobuzz(_obs(-56.0, -24.0), info=None))
     assert (x, y) == PARK_POSES[0][:2]
-    # red_park spans x -74.6..-54.6 / y 19.3..51.3; LEAVE needs |x| < 61.
-    assert -61 < x < -54.6 and 19.3 < y < 51.3
-    assert math.isclose(heading, math.pi / 2, abs_tol=1e-6)
+    # The chassis overlaps red_park while its center stays clear of the wall.
+    assert (x, y) == (-52.5, 23.0)
+    assert math.isclose(heading, 0.0, abs_tol=1e-6)
 
 
 def test_scripted_biobuzz_mirrors_targets_for_blue():

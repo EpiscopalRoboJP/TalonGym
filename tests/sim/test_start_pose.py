@@ -128,3 +128,13 @@ def test_unmoved_wall_start_does_not_leave():
     assert world._touching_perimeter(x, y, heading)
     occ = world._occupancy()
     assert "red_0" not in occ.get("leave_interior", set())
+
+
+def test_park_counts_partial_chassis_overlap():
+    world = _world()
+    world.reset(seed=0, static_teammate=False, full_noise=False)
+    actor = world.actor().body
+    actor.x, actor.y, actor.heading = -52.5, 23.0, 0.0
+    assert "red_0" in world._occupancy()["red_park"]
+    actor.x = -50.0
+    assert "red_0" not in world._occupancy()["red_park"]
