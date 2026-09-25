@@ -1109,7 +1109,7 @@
         "downloadEnabled": true,
         "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
       },
-      "massKg": 0.315,
+      "massKg": 0.437,
       "outputMotorCurve": {
         "nominalVoltageV": 12,
         "freeSpeedRpm": 312,
@@ -1117,11 +1117,6 @@
         "stallCurrentA": 9.2,
         "freeCurrentA": 0.25
       },
-      "inertiaKgM2": [
-        0.00012,
-        0.00012,
-        8e-05
-      ],
       "visualTransform": {
         "scaleToInches": 0.03937007874015748,
         "rotatedZupToYup": true,
@@ -1138,6 +1133,106 @@
           "lengthIn": 4.3307,
           "pose": {
             "z": -2.16535
+          }
+        }
+      ],
+      "tags": [
+        "motor",
+        "gearbox"
+      ],
+      "mounts": [
+        {
+          "id": "face",
+          "kind": "threaded_hole",
+          "standard": "gobilda_pattern",
+          "diameterMm": 4.0,
+          "spacingMm": 16.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 4.0,
+          "allowedHardware": [
+            "m4_screw"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0.0
+          },
+          "pattern": {
+            "type": "grid",
+            "pitchMm": 16.0,
+            "countU": 2,
+            "countV": 2
+          }
+        },
+        {
+          "id": "output",
+          "kind": "shaft",
+          "standard": "gobilda_8mm_rex",
+          "diameterMm": 8.0,
+          "axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "depthMm": 20.0,
+          "allowedHardware": [
+            "8mm_rex_hub"
+          ],
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "pattern": {
+            "type": "single",
+            "pitchMm": 8.0,
+            "countU": 1,
+            "countV": 1
+          }
+        }
+      ]
+    },
+    {
+      "sku": "5203-2402-0001",
+      "displayName": "5203 Series Yellow Jacket Motor (1:1, 6000 RPM, 8mm REX)",
+      "productUrl": "https://www.gobilda.com/5203-series-yellow-jacket-motor-1-1-ratio-24mm-length-8mm-rex-shaft-6000-rpm-3-3-5v-encoder/",
+      "cad": {
+        "sourceUrl": "https://www.gobilda.com/content/step_files/5203-2402-0001.zip",
+        "filename": "5203-2402-0001.zip",
+        "format": "zip",
+        "units": "mm",
+        "origin": "manufacturer",
+        "downloadEnabled": true,
+        "terms": "Official goBILDA STEP ZIP for team robot design; TalonGym caches a converted copy locally and does not rehost the source CAD."
+      },
+      "massKg": 0.391,
+      "outputMotorCurve": {
+        "nominalVoltageV": 12,
+        "freeSpeedRpm": 6000,
+        "stallTorqueNm": 0.144157755,
+        "stallCurrentA": 9.2,
+        "freeCurrentA": 0.25
+      },
+      "visualTransform": {
+        "scaleToInches": 0.03937007874015748,
+        "rotatedZupToYup": true,
+        "translationIn": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.7382,
+          "lengthIn": 3.1457,
+          "pose": {
+            "z": -1.57285
           }
         }
       ],
