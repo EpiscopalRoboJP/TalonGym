@@ -16,10 +16,10 @@ from talongym.sim.world import FOLLOWER_CLEARANCE_IN
 # Red-side poses per start slot; blue mirrors them. Slot 0's launch pose matches field.json
 # red_launch_spot. Slot 1 shoots from the far side of the HIVE so the two never share a spot.
 LAUNCH_POSES = ((-12.0, -40.0, math.pi / 2), (-12.0, 40.0, -math.pi / 2))
-# red_park spans x -74.6..-54.6 / y 19.3..51.3 and LEAVE needs the center within |x| < 61.
-# Two parks 26 in apart leave an 8 in gap between parked chassis. Slot 0 comes up from the
-# audience side and takes the lower one, slot 1 the upper, so their routes never cross.
-PARK_POSES = ((-57.5, 23.0, math.pi / 2), (-57.5, 49.0, math.pi / 2))
+# The red PARK tape spans x -70.6..-59.6 / y 23.75..46.75. A chassis only needs
+# partial overlap, so stopping farther infield leaves room for the asymmetric
+# scoring assembly to turn clear of the wall. The two parks remain 26 in apart.
+PARK_POSES = ((-52.5, 23.0, 0.0), (-52.5, 49.0, 0.0))
 # A teammate this close to a park pose is holding it (a static teammate never leaves its start slot).
 PARK_TAKEN_IN = 15.0
 # hive_frame_west / hive_frame_east footprints. The waypoint follower routes around these and

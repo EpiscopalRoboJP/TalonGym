@@ -1060,7 +1060,11 @@ class World:
             for rid, rs in self.robots.items():
                 if tid == "leave_interior" and self._touching_perimeter(rs.body.x, rs.body.y, rs.body.heading):
                     continue
-                if point_in_volume(el, sh, rs.body.x, rs.body.y, getattr(rs.body, "z", self.robot_hz), 0.0):
+                if "park" in (el.get("tags") or []) and isinstance(sh, AABB):
+                    occupied = self._robot_aabb(rs.body.x, rs.body.y, rs.body.heading).overlaps_aabb(sh)
+                else:
+                    occupied = point_in_volume(el, sh, rs.body.x, rs.body.y, getattr(rs.body, "z", self.robot_hz), 0.0)
+                if occupied:
                     occ[tid].add(rid)
             for p in self.pieces.values():
                 if p.held_by or p.scored:
