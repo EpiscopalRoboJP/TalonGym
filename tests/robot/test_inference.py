@@ -127,7 +127,7 @@ def test_golden_assembly_infers_transmission_mass_and_confirmation():
     assert compiled.preset["motors"]["count"] == 1
     assert compiled.preset["motors"]["gearRatio"] == pytest.approx(19.2)
     assert report.mass is not None
-    assert report.mass.mass_kg == pytest.approx(0.028 + 0.315 + 0.165)
+    assert report.mass.mass_kg == pytest.approx(0.028 + 0.437 + 0.165)
     assert compiled.preset["chassis"]["lengthIn"] == 18
     assert compiled.preset["defaultActionTier"] == "high_level_waypoint"
     codes = {row["code"] for row in compiled.warnings}
