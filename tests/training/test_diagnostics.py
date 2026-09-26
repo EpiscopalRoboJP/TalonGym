@@ -6,7 +6,7 @@ import pytest
 
 from talongym.presets.loader import load_preset
 from talongym.training.curriculum import curriculum_spawn, stage_info
-from talongym.training.diagnostics import baseline_thresholds_met, summarize_episode
+from talongym.training.diagnostics import baseline_concluded, baseline_thresholds_met, summarize_episode
 
 
 def test_curriculum_is_legal_spawn_without_scaffolds():
@@ -69,6 +69,35 @@ def test_leave_and_park_points_do_not_count_as_a_scoring_baseline():
     assert health.healthy is False
     assert baseline_thresholds_met(health) is False
     assert "no game-piece score" in health.warnings
+
+
+def test_magazine_ejections_do_not_count_as_commanded_launches():
+    frames = [{
+        "trueScore": 0,
+        "launchAttempts": 4,
+        "firedLaunchAttempts": 2,
+        "robots": [{"id": "red_0", "lastVerb": "score", "held": [], "collisionTimeS": 0.0}],
+        "pieces": [{"id": f"p{i}", "launchedBy": "red_0"} for i in range(4)],
+    }]
+    health = summarize_episode(frames)
+    assert health.launches == 2
+    assert health.uncommanded_ejections == 2
+    assert "2 uncommanded magazine ejection(s)" in health.warnings
+
+
+def test_baseline_stops_when_all_preloads_are_spent():
+    frames = [
+        {
+            "t": float(step),
+            "launchAttempts": 4,
+            "firedLaunchAttempts": 2,
+            "robots": [{"id": "red_0", "held": []}],
+            "pieces": [{"id": "p", "launchedBy": "red_0", "launchedAt": None if step == 4 else 1.0}],
+        }
+        for step in range(1, 5)
+    ]
+    assert baseline_concluded(summarize_episode(frames[:3])) is False
+    assert baseline_concluded(summarize_episode(frames)) is True
 
 
 def test_summarize_episode_counts_wall_contact_duration_from_frames():

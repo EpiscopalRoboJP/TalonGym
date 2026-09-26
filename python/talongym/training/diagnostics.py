@@ -26,6 +26,8 @@ class TrainingContractError(RuntimeError):
 class EpisodeHealth:
     true_score: float = 0.0
     launches: int = 0
+    uncommanded_ejections: int = 0
+    pending_launches: int = 0
     scored_pieces: int = 0
     missed_launches: int = 0
     wall_contact_s: float = 0.0
@@ -53,6 +55,7 @@ class EpisodeHealth:
     def as_metrics(self, prefix: str = "eval") -> dict[str, Any]:
         return {
             f"{prefix}LaunchCount": self.launches,
+            f"{prefix}UncommandedEjections": self.uncommanded_ejections,
             f"{prefix}ScoredPieces": self.scored_pieces,
             f"{prefix}WallContactS": self.wall_contact_s,
             f"{prefix}HeldTerminal": self.held_terminal,
@@ -84,13 +87,24 @@ def summarize_episode(frames: list[dict[str, Any]] | None) -> EpisodeHealth:
     scored = len({str(piece.get("id")) for piece in last.get("pieces") or [] if piece.get("scored")})
     launched = {str(piece.get("id")) for piece in last.get("pieces") or [] if piece.get("launchedBy") or piece.get("launchedAt") is not None}
     in_flight = {str(piece.get("id")) for piece in last.get("pieces") or [] if piece.get("inFlight")}
-    launches = max(len(launched_ids), len(launched | in_flight), int(last.get("launchAttempts") or 0))
+    pending_launches = sum(1 for piece in last.get("pieces") or [] if piece.get("launchedAt") is not None)
+    launches = (
+        int(last["firedLaunchAttempts"])
+        if "firedLaunchAttempts" in last
+        else max(len(launched_ids), len(launched | in_flight), int(last.get("launchAttempts") or 0))
+    )
+    uncommanded_ejections = (
+        max(0, int(last.get("launchAttempts") or 0) - launches)
+        if "firedLaunchAttempts" in last else 0
+    )
     pose = (float(actor.get("x") or 0.0), float(actor.get("y") or 0.0), float(actor.get("headingDeg") or 0.0))
     warnings: list[str] = []
     if launches <= 0:
         warnings.append("zero physical launches")
     elif float(last.get("trueScore") or 0.0) < BASELINE_MIN_SCORE and scored == 0:
         warnings.append("no game-piece score")
+    if uncommanded_ejections:
+        warnings.append(f"{uncommanded_ejections} uncommanded magazine ejection(s)")
     wall_s = 0.0
     prev_t: float | None = None
     for frame in rows:
@@ -109,6 +123,8 @@ def summarize_episode(frames: list[dict[str, Any]] | None) -> EpisodeHealth:
     return EpisodeHealth(
         true_score=float(last.get("trueScore") or 0.0),
         launches=launches,
+        uncommanded_ejections=uncommanded_ejections,
+        pending_launches=pending_launches,
         scored_pieces=scored,
         missed_launches=int(last.get("missedLaunches") or 0),
         wall_contact_s=wall_s,
@@ -127,6 +143,14 @@ def baseline_thresholds_met(health: EpisodeHealth) -> bool:
     return health.launches >= BASELINE_MIN_LAUNCHES and (
         health.true_score >= BASELINE_MIN_SCORE or health.scored_pieces >= 1
     )
+
+
+def baseline_concluded(health: EpisodeHealth) -> bool:
+    if baseline_thresholds_met(health):
+        return True
+    # With no preloads or shots left in their scoring window, the scripted
+    # preload baseline cannot recover by driving through the rest of AUTO.
+    return health.steps >= 4 and health.held_terminal == 0 and health.pending_launches == 0
 
 
 def record_and_summarize(
@@ -162,7 +186,7 @@ def assert_scripted_baseline_scores(bundle: LoadedPresets | None = None, *, seed
         bundle,
         seed=seed,
         options={"full_noise": False, "curriculum_spawn": "launch", "static_teammate": False},
-        stop_when=baseline_thresholds_met,
+        stop_when=baseline_concluded,
     )
     if at_spot.launches < BASELINE_MIN_LAUNCHES:
         raise TrainingContractError(
@@ -185,6 +209,8 @@ def mean_health(rows: list[EpisodeHealth]) -> EpisodeHealth:
     return EpisodeHealth(
         true_score=float(np.mean([row.true_score for row in rows])),
         launches=int(round(float(np.mean([row.launches for row in rows])))),
+        uncommanded_ejections=int(round(float(np.mean([row.uncommanded_ejections for row in rows])))),
+        pending_launches=int(round(float(np.mean([row.pending_launches for row in rows])))),
         scored_pieces=int(round(float(np.mean([row.scored_pieces for row in rows])))),
         missed_launches=int(round(float(np.mean([row.missed_launches for row in rows])))),
         wall_contact_s=float(np.mean([row.wall_contact_s for row in rows])),
