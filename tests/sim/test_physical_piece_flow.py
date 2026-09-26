@@ -148,6 +148,30 @@ def test_open_gate_rpm_and_aim_control_launch_force():
     assert high.flywheel_load_inch < 0.0
 
 
+def test_flywheel_contact_uses_assembled_wheel_pose():
+    actuators = {
+        "flywheel": {"rpm": 4500.0, "targetRpm": 4500.0},
+        "gate": {"position": 75.0, "travelLimit": [0.0, 75.0]},
+        "hood": {"position": 52.0},
+    }
+    assembled = mechanism_piece_force(
+        piece_local=(-3.0, 0.0, 12.0),
+        piece_vel_local=(0.0, 0.0, 0.0),
+        piece_radius=1.4,
+        piece_mass=0.1,
+        mechanism=_mech(actuators, piecePath=_path(flywheelPose={"x": -3.0, "y": 0.0, "z": 12.0})),
+    )
+    template = mechanism_piece_force(
+        piece_local=(-3.0, 0.0, 12.0),
+        piece_vel_local=(0.0, 0.0, 0.0),
+        piece_radius=1.4,
+        piece_mass=0.1,
+        mechanism=_mech(actuators),
+    )
+    assert assembled.flywheel_load_inch < 0.0
+    assert template.flywheel_load_inch == 0.0
+
+
 def test_intake_pulls_inward_only_when_spinning():
     spinning = mechanism_piece_force(
         piece_local=(9.5, 0.0, 2.0),
