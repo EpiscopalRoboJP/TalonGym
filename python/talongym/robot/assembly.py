@@ -703,6 +703,22 @@ def compile_assembly_to_preset(
     report = build_inference_report(instances, catalog_parts, by_child, bindings=bindings, poses=poses)
     inferred_warnings = validate_inferred_assembly(poses, instances, catalog_parts, by_child, report)
     preset = materialize_physical_preset(document, instances, catalog_parts, root_id, poses, by_child, report)
+    if _scoring_topology_requested(bindings, instances, catalog_parts):
+        from talongym.assets.mjcf_robot import kinematic_part_transforms
+
+        flywheel = next((row for row in preset.get("actuators") or [] if row.get("id") == "flywheel"), None)
+        flywheel_joint = next((row for row in preset.get("joints") or [] if flywheel and row.get("id") == flywheel.get("jointId")), None)
+        flywheel_id = str((flywheel_joint or {}).get("childPartId") or "")
+        robot_hz = float((preset.get("chassis") or {}).get("heightIn") or 0.0) / 2.0
+        part_transforms = kinematic_part_transforms(
+            preset, robot_x=0.0, robot_y=0.0, heading=0.0,
+            origin_z=robot_hz + 0.2, robot_hz=robot_hz,
+        )
+        wheel_pose = next((row for row in part_transforms if row["id"] == flywheel_id), None)
+        if wheel_pose is not None:
+            preset["piecePath"]["flywheelPose"] = {
+                axis: float(wheel_pose[axis]) for axis in ("x", "y", "z")
+            }
     compiled = compile_robot_preset(preset, competitive=competitive)
     document_warnings = tuple(document["warnings"]) if isinstance(document.get("warnings"), list) else ()
     overlap_warnings = connected_overlap_warnings(poses, instances, catalog_parts, connections)
@@ -724,8 +740,9 @@ def compile_assembly_to_preset(
             },)
         flywheel_id = str((flywheel_joint or {}).get("childPartId") or "")
         muzzle = (preset.get("piecePath") or {}).get("muzzlePose") or {}
-        if flywheel_id in poses and muzzle:
-            wheel_center = poses[flywheel_id][:3, 3]
+        wheel_pose = (preset.get("piecePath") or {}).get("flywheelPose") or {}
+        if wheel_pose and muzzle:
+            wheel_center = np.array([float(wheel_pose[axis]) for axis in ("x", "y", "z")])
             muzzle_center = np.array([float(muzzle.get(axis) or 0.0) for axis in ("x", "y", "z")])
             distance = float(np.linalg.norm(wheel_center - muzzle_center))
             wheel_radius = float((preset.get("piecePath") or {}).get("wheelRadiusIn") or 0.0)

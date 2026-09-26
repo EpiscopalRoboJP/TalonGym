@@ -347,9 +347,17 @@ def mechanism_piece_force(
     wheel_r = float(path.get("wheelRadiusIn") or 2.0)
     compression = float(path.get("compressionIn") or 0.25)
     efficiency = float(path.get("launchEfficiency") or 0.2)
-    flywheel_x = mx - dx_l * (wheel_r + 1.0)
-    flywheel_y = my - dy_l * (wheel_r + 1.0)
-    flywheel_z = mz - dz_l * (wheel_r + 1.0)
+    # Assembly presets provide the wheel's actual chassis-relative world-height
+    # center. Older physical presets retain the template-derived fallback.
+    wheel_pose = path.get("flywheelPose")
+    if isinstance(wheel_pose, dict):
+        flywheel_x = float(wheel_pose["x"])
+        flywheel_y = float(wheel_pose["y"])
+        flywheel_z = float(wheel_pose["z"])
+    else:
+        flywheel_x = mx - dx_l * (wheel_r + 1.0)
+        flywheel_y = my - dy_l * (wheel_r + 1.0)
+        flywheel_z = mz - dz_l * (wheel_r + 1.0)
     rel_x, rel_y, rel_z = px - flywheel_x, py - flywheel_y, pz - flywheel_z
     contact_r = wheel_r + radius + compression + 1.5
     dist = math.sqrt(rel_x * rel_x + rel_y * rel_y + rel_z * rel_z)

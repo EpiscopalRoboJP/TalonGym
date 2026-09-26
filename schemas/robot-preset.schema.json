@@ -565,6 +565,7 @@
         },
         "intakePose": { "$ref": "#/$defs/transform" },
         "muzzlePose": { "$ref": "#/$defs/transform" },
+        "flywheelPose": { "$ref": "#/$defs/transform" },
         "muzzleClearanceIn": { "type": "number", "minimum": 0 },
         "wheelRadiusIn": { "type": "number", "exclusiveMinimum": 0 },
         "launchEfficiency": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
