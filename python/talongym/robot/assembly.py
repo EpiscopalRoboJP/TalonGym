@@ -727,7 +727,7 @@ def compile_assembly_to_preset(
         motor_warnings = ({
             "code": "launcher_trajectory_unverified",
             "severity": "warning",
-            "message": "Launcher exit angle and speed still come from the reference template, not the assembled hood and motor; verify a physical scoring replay before training.",
+            "message": "Launcher exit angle, feed path, wheel radius, and speed efficiency still use template assumptions; commanded speed uses actual flywheel RPM but needs a physical scoring replay before training.",
         },)
         flywheel = next((row for row in preset.get("actuators") or [] if row.get("id") == "flywheel"), None)
         flywheel_joint = next((row for row in preset.get("joints") or [] if flywheel and row.get("id") == flywheel.get("jointId")), None)
