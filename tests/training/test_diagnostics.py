@@ -81,8 +81,8 @@ def test_magazine_ejections_do_not_count_as_commanded_launches():
     }]
     health = summarize_episode(frames)
     assert health.launches == 2
-    assert health.uncommanded_ejections == 2
-    assert "2 uncommanded magazine ejection(s)" in health.warnings
+    assert health.uncommanded_releases == 2
+    assert "2 uncommanded magazine release(s)" in health.warnings
 
 
 def test_baseline_stops_when_all_preloads_are_spent():

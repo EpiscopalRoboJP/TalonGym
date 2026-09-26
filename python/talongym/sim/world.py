@@ -235,6 +235,7 @@ class World:
         self.missed_launches: dict[str, int] = {}
         self.launch_attempts = 0
         self.fired_launch_attempts = 0
+        self.magazine_releases = 0
 
     def _apply_committed_cad_version(self) -> None:
         """Cache-bust Lab assets from the shipped manifest even when MuJoCo is not installed."""
@@ -499,6 +500,7 @@ class World:
         self.fire_counts = {}
         self.launch_attempts = 0
         self.fired_launch_attempts = 0
+        self.magazine_releases = 0
         self.gate_state = {gid: "closed" for gid in self.gate_ids}
         self.queues = {sid: [] for sid in self.seq_accs}
         self.accumulators = self.engine.init_accumulators()
@@ -645,6 +647,7 @@ class World:
         self.pending_piece_ops = []
         self.launch_attempts = 0
         self.fired_launch_attempts = 0
+        self.magazine_releases = 0
         self.backend.reset_batch(1)
         if mechanism_ready:
             self._apply_mechanism_ready()
@@ -1423,6 +1426,7 @@ class World:
                 if p.id in owner.held:
                     owner.held.remove(p.id)
                 p.held_by = None
+                self.magazine_releases += 1
                 speed = math.sqrt(p.vx * p.vx + p.vy * p.vy + p.vz * p.vz)
                 p.in_flight = speed > 24.0 and p.z > self.floor_y + p.radius
                 p.ballistic = p.in_flight
@@ -1908,6 +1912,7 @@ class World:
             "physicalPieces": physical,
             "launchAttempts": int(getattr(self, "launch_attempts", 0) or 0),
             "firedLaunchAttempts": self.fired_launch_attempts,
+            "magazineReleases": self.magazine_releases,
             "missedLaunches": int(self.missed_launches.get(actor.body.id) or 0),
             "mechanismCommands": {
                 ident: float(payload.get("command") or 0.0)
