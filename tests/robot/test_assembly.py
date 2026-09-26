@@ -305,7 +305,7 @@ def test_gobilda_launcher_uses_catalog_output_motor_curve():
     actual_rpm = model.state.velocity_rad_s * 60.0 / (2.0 * np.pi)
     assert actual_rpm >= 0.8 * flywheel["targetRpm"]
     assert not any(row["code"] == "launcher_motor_unverified" for row in result.warnings)
-    assert any(row["code"] == "scoring_geometry_unverified" for row in result.warnings)
+    assert not any(row["code"] == "scoring_geometry_unverified" for row in result.warnings)
 
 
 def test_rev_launcher_reports_unverified_output_curve():

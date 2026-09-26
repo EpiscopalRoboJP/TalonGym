@@ -163,6 +163,15 @@ def _rewire_scoring_actuators(
             if len(candidates) > 1:
                 raise AssemblyError("multiple flywheels need an unambiguous scoring binding")
             return None
+        if actuator_id == "gate":
+            return next(
+                (
+                    child_id for child_id in preferred
+                    if child_id in catalog_parts
+                    and str(by_child.get(child_id, {}).get("type") or "fixed") != "fixed"
+                ),
+                None,
+            )
         return next(
             (child_id for child_id in preferred if child_id in catalog_parts and "intake_roller" in catalog_parts[child_id].get("tags", [])),
             None,
@@ -192,7 +201,7 @@ def _rewire_scoring_actuators(
             continue
         actuator = copy.deepcopy(row)
         ident = str(actuator.get("id") or "")
-        rotating = rotating_child(ident) if ident in {"intake", "conveyor", "flywheel"} else None
+        rotating = rotating_child(ident) if ident in {"intake", "conveyor", "flywheel", "gate"} else None
         catalog_joint = by_child.get(rotating) if rotating else None
         if catalog_joint is not None:
             if str(catalog_joint.get("type") or "fixed") == "fixed":
@@ -699,11 +708,16 @@ def compile_assembly_to_preset(
     overlap_warnings = connected_overlap_warnings(poses, instances, catalog_parts, connections)
     motor_warnings: tuple[dict[str, Any], ...] = ()
     if _scoring_topology_requested(bindings, instances, catalog_parts):
+        motor_warnings = ({
+            "code": "launcher_trajectory_unverified",
+            "severity": "warning",
+            "message": "Launcher exit angle and speed still come from the reference template, not the assembled hood and motor; verify a physical scoring replay before training.",
+        },)
         flywheel = next((row for row in preset.get("actuators") or [] if row.get("id") == "flywheel"), None)
         flywheel_joint = next((row for row in preset.get("joints") or [] if flywheel and row.get("id") == flywheel.get("jointId")), None)
         source = catalog_parts.get(str((flywheel_joint or {}).get("parentPartId") or ""), {})
         if not source.get("outputMotorCurve"):
-            motor_warnings = ({
+            motor_warnings += ({
                 "code": "launcher_motor_unverified",
                 "severity": "warning",
                 "message": "Launcher output motor curve or gearbox ratio is not verified for this assembly; launcher physics must not be treated as calibrated.",

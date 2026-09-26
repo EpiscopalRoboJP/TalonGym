@@ -67,6 +67,13 @@ def test_starters_are_schema_1_2_scoring_assemblies(starter_id: str):
     actuator_joints = {row["id"]: row.get("jointId") for row in compiled.preset["actuators"]}
     assert actuator_joints.get("intake") in {row["id"] for row in compiled.preset["joints"]}
     assert actuator_joints.get("flywheel") in {row["id"] for row in compiled.preset["joints"]}
+    gate_joint = next(row for row in compiled.preset["joints"] if row["id"] == actuator_joints["gate"])
+    assert gate_joint["childPartId"] == "gate_servo"
+    assert {"launcher_bracket", "launcher_riser", "gate_servo"} <= ids
+    for ident in ("flywheel_wheel", "hood_plate", "gate_servo"):
+        assert compiled.instance_poses[ident]["z"] > 10.0
+    assert not any(row["code"] == "scoring_geometry_unverified" for row in compiled.warnings)
+    assert any(row["code"] == "launcher_trajectory_unverified" for row in compiled.warnings)
     assert compiled.compiled.physical is True
     from talongym.robot.catalog import get_part
     from talongym.robot.collision import validate_assembly_collisions
