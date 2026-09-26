@@ -83,6 +83,7 @@ class WorldStep:
     field_mechanism_targets: dict[str, float] = field(default_factory=dict)
     robot_mechanism_states: dict[str, dict[str, Any]] = field(default_factory=dict)
     piece_owners: dict[str, str] = field(default_factory=dict)
+    piece_feed_targets: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -238,6 +239,7 @@ def mechanism_piece_force(
     piece_mass: float,
     mechanism: dict[str, Any],
     owned: bool = False,
+    feed_enabled: bool = True,
 ) -> PieceInteraction:
     """Contact-like spatial forces from intake, conveyor, gate, and flywheel state.
 
@@ -277,7 +279,7 @@ def mechanism_piece_force(
     intake_target = max(abs(float(intake.get("targetRpm") or 300.0)), 1.0)
     conveyor_target = max(abs(float(conveyor.get("targetRpm") or 250.0)), 1.0)
     open_frac = gate_open_fraction(gate) if gate else 0.0
-    launch_scale = _smoothstep(open_frac, 0.35, 0.85)
+    launch_scale = _smoothstep(open_frac, 0.35, 0.85) if feed_enabled else 0.0
     rpm_frac = min(1.0, abs(flywheel_rpm) / flywheel_target)
 
     intake_pose = dict(path.get("intakePose") or {"x": half_x, "y": 0.0, "z": 2.0})

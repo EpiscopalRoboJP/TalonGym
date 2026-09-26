@@ -172,6 +172,28 @@ def test_flywheel_contact_uses_assembled_wheel_pose():
     assert template.flywheel_load_inch == 0.0
 
 
+def test_open_gate_does_not_feed_unselected_magazine_piece():
+    loc = _flywheel_local()
+    mechanism = _mech({
+        "flywheel": {"rpm": 4500.0, "targetRpm": 4500.0},
+        "gate": {"position": 75.0, "travelLimit": [0.0, 75.0]},
+        "hood": {"position": 52.0},
+    })
+    selected = mechanism_piece_force(
+        piece_local=loc, piece_vel_local=(0.0, 0.0, 0.0),
+        piece_radius=1.4, piece_mass=0.1, mechanism=mechanism,
+        owned=True, feed_enabled=True,
+    )
+    waiting = mechanism_piece_force(
+        piece_local=loc, piece_vel_local=(0.0, 0.0, 0.0),
+        piece_radius=1.4, piece_mass=0.1, mechanism=mechanism,
+        owned=True, feed_enabled=False,
+    )
+    assert selected.flywheel_load_inch < 0.0
+    assert waiting.flywheel_load_inch == 0.0
+    assert waiting.fx < selected.fx
+
+
 def test_intake_pulls_inward_only_when_spinning():
     spinning = mechanism_piece_force(
         piece_local=(9.5, 0.0, 2.0),
@@ -240,6 +262,7 @@ def _step(backend, robot: Body, piece: Body, mechanism: dict, dt: float = 0.02, 
             max_ang_accel=kwargs.get("max_ang_accel", 1.0),
             robot_mechanism_states={"red_0": mechanism},
             piece_owners=kwargs.get("piece_owners", {}),
+            piece_feed_targets={"red_0": piece.id},
         ),
         dt,
     )

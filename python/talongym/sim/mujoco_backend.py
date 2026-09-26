@@ -732,6 +732,7 @@ class MujocoFieldBackend:
                     piece_mass=mass,
                     mechanism=mechanism,
                     owned=owner_id == robot_id,
+                    feed_enabled=state.piece_feed_targets.get(robot_id) == piece.id,
                 )
                 if (
                     abs(interaction.fx)

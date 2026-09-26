@@ -144,7 +144,8 @@ def test_starter_scripted_launches_from_launch_pose(starter_id: str):
 
     bundle = load_bundle("biobuzz_2026_field_v1", starter_id, "biobuzz_2026_scoring_v1")
     health = assert_scripted_baseline_scores(bundle, seed=1)
-    assert health.launches >= 3
+    assert health.launches == 4
+    assert health.uncommanded_releases == 0
     assert health.true_score >= 20 or health.scored_pieces >= 1
     if starter_id.startswith("gobilda"):
         assert health.wall_contact_s <= 8.0
