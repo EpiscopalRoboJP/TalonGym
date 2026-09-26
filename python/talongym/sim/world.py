@@ -1739,6 +1739,11 @@ class World:
                         for p in self.pieces.values()
                         if p.held_by is not None
                     },
+                    piece_feed_targets={
+                        rid: rs.held[0]
+                        for rid, rs in self.robots.items()
+                        if rs.held and rs.last_verb == "score" and rs.score_timer <= self.dt
+                    },
                 ),
                 self.dt,
             )
