@@ -32,10 +32,15 @@ _GOBILDA_INTAKE = "3615-4008-0072"
 _GOBILDA_FLYWHEEL = "3615-4008-0096"
 _GOBILDA_HOOD = "1202-0001-0001"
 _GOBILDA_GATE = "2000-0025-0002"
+_GOBILDA_LAUNCHER_BRACKET = "1203-0001-0001"
+_GOBILDA_LAUNCHER_RISER = "1120-0013-0336"
+_GOBILDA_LAUNCHER_MOTOR = "5203-2402-0001"
 _REV_INTAKE = "REV-41-2034"
 _REV_FLYWHEEL = "REV-41-1267"
 _REV_HOOD = "REV-41-1305"
 _REV_GATE = "REV-41-1097"
+_REV_LAUNCHER_BRACKET = "REV-41-1480"
+_REV_LAUNCHER_RISER = "REV-41-1432"
 
 
 class StarterError(RuntimeError):
@@ -128,26 +133,26 @@ def _attach_gobilda_scoring(document: dict[str, Any]) -> None:
     assembly = document["assembly"]
     instances: list[dict[str, Any]] = assembly["instances"]
     connections: list[dict[str, Any]] = assembly["connections"]
-    ids = {row["id"] for row in instances}
     motor_sku = next(row["sku"] for row in instances if row["id"] == "motor_fl")
     length_sku = next(row["sku"] for row in instances if row["id"] == "left_rail")
     flange_u, _ = _pattern_counts(length_sku, "flange_a")
+    web_u, _ = _pattern_counts(length_sku, "web")
     left_used = _occupied_flange_holes(connections, "left_rail")
-    right_used = _occupied_flange_holes(connections, "right_rail")
     intake_u = _next_flange_pair(flange_u, left_used)
     conveyor_u = _next_flange_pair(flange_u, left_used, start=intake_u + 1)
-    launcher_u = _next_flange_pair(flange_u, right_used)
+    riser_u = web_u - 4
     extras = [
         _instance("intake_motor", motor_sku),
         _instance("intake_wheel", _GOBILDA_INTAKE),
         _instance("conveyor_motor", motor_sku),
         _instance("conveyor_wheel", _GOBILDA_INTAKE),
-        _instance("launcher_motor", "5203-2402-0001"),
+        _instance("launcher_bracket", _GOBILDA_LAUNCHER_BRACKET),
+        _instance("launcher_riser", _GOBILDA_LAUNCHER_RISER),
+        _instance("launcher_motor", _GOBILDA_LAUNCHER_MOTOR),
         _instance("flywheel_wheel", _GOBILDA_FLYWHEEL),
         _instance("hood_plate", _GOBILDA_HOOD),
+        _instance("gate_servo", _GOBILDA_GATE),
     ]
-    if "servo_front" not in ids:
-        extras.append(_instance("gate_servo", _GOBILDA_GATE))
     _extend_unique(instances, extras)
     connections.extend(
         [
@@ -155,7 +160,9 @@ def _attach_gobilda_scoring(document: dict[str, Any]) -> None:
             _conn("intake_wheel", "intake_motor", "output", None, "intake_wheel", "bore", None, joint_type="hinge"),
             _conn("conveyor_motor", "left_rail", "flange_a", (conveyor_u, 0), "conveyor_motor", "face", (0, 0), ((conveyor_u + 2, 0), (1, 0))),
             _conn("conveyor_wheel", "conveyor_motor", "output", None, "conveyor_wheel", "bore", None, joint_type="hinge"),
-            _conn("launcher_motor", "right_rail", "flange_a", (launcher_u, 0), "launcher_motor", "face", (0, 0), ((launcher_u + 2, 0), (1, 0))),
+            _conn("launcher_bracket", "left_rail", "web", (riser_u, 1), "launcher_bracket", "face_a", (0, 0), ((riser_u - 1, 1), (0, 1))),
+            _conn("launcher_riser", "launcher_bracket", "face_b", (0, 0), "launcher_riser", "web", (2, 1), ((0, 1), (1, 1))),
+            _conn("launcher_motor", "launcher_riser", "flange_a", (0, 0), "launcher_motor", "face", (0, 0), ((2, 0), (1, 0))),
             _conn(
                 "flywheel_wheel",
                 "launcher_motor",
@@ -166,13 +173,10 @@ def _attach_gobilda_scoring(document: dict[str, Any]) -> None:
                 None,
                 joint_type="hinge",
             ),
-            _conn("hood_plate", "front_rail", "web", (2, 0), "hood_plate", "pattern", (0, 0)),
+            _conn("hood_plate", "launcher_riser", "web", (38, 1), "hood_plate", "pattern", (0, 0), ((39, 1), (1, 0))),
+            _conn("gate_servo", "hood_plate", "pattern", (1, 1), "gate_servo", "tabs", (0, 0), joint_type="hinge"),
         ]
     )
-    if "servo_front" not in ids:
-        connections.append(
-            _conn("gate_servo", "hood_plate", "pattern", (1, 1), "gate_servo", "tabs", (0, 0), joint_type="hinge")
-        )
 
 
 def _attach_rev_scoring(document: dict[str, Any]) -> None:
@@ -191,6 +195,8 @@ def _attach_rev_scoring(document: dict[str, Any]) -> None:
         _instance("conveyor_up", "REV-41-1621"),
         _instance("conveyor_motor", motor_sku),
         _instance("conveyor_wheel", _REV_INTAKE),
+        _instance("launcher_bracket", _REV_LAUNCHER_BRACKET),
+        _instance("launcher_riser", _REV_LAUNCHER_RISER),
         _instance("launcher_up", "REV-41-1621"),
         _instance("launcher_motor", motor_sku),
         _instance("flywheel_wheel", _REV_FLYWHEEL),
@@ -224,7 +230,9 @@ def _attach_rev_scoring(document: dict[str, Any]) -> None:
             ),
             _conn("conveyor_motor", "conveyor_up", "motor_face", (0, 0), "conveyor_motor", "face", (0, 0)),
             _conn("conveyor_wheel", "conveyor_motor", "output", None, "conveyor_wheel", "bore", None, joint_type="hinge"),
-            _conn("launcher_up", "right_rail", "slot", (8, 0), "launcher_up", "extrusion", (0, 0), ((9, 0), (1, 0))),
+            _conn("launcher_bracket", "left_rail", "slot", (5, 0), "launcher_bracket", "face_a", (0, 0), ((4, 0), (1, 0))),
+            _conn("launcher_riser", "launcher_bracket", "face_b", (0, 0), "launcher_riser", "slot", (2, 0), ((0, 1), (3, 0))),
+            _conn("launcher_up", "launcher_riser", "slot", (48, 0), "launcher_up", "extrusion", (0, 0), ((49, 0), (1, 0))),
             _conn("launcher_motor", "launcher_up", "motor_face", (0, 0), "launcher_motor", "face", (0, 0)),
             _conn(
                 "flywheel_wheel",
@@ -236,7 +244,7 @@ def _attach_rev_scoring(document: dict[str, Any]) -> None:
                 None,
                 joint_type="hinge",
             ),
-            _conn("hood_plate", "front_rail", "slot", (2, 0), "hood_plate", "face_a", (0, 0)),
+            _conn("hood_plate", "launcher_riser", "slot", (45, 0), "hood_plate", "face_a", (0, 0), ((46, 0), (0, 1))),
         ]
     )
     if "gate_servo" not in ids:
@@ -270,7 +278,8 @@ def build_starter_document(starter_id: str) -> dict[str, Any]:
     if starter_id not in _RECIPE_FOR_STARTER:
         raise StarterError(f"unknown starter {starter_id}")
     recipe_id = _RECIPE_FOR_STARTER[starter_id]
-    document = instantiate_recipe(recipe_id)
+    parameters = {"lengthSku": "1120-0013-0336"} if recipe_id == "gobilda_tank" else None
+    document = instantiate_recipe(recipe_id, parameters)
     if recipe_id.startswith("gobilda"):
         _attach_gobilda_scoring(document)
     else:

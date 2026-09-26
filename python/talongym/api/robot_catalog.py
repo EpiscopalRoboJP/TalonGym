@@ -188,7 +188,7 @@ def catalog_compile_assembly(document: dict[str, Any]) -> dict[str, Any]:
         compiled = compile_assembly_to_preset(document, competitive=True)
     except (AssemblyError, CatalogError, RecipeError) as exc:
         raise _http_catalog_error(exc) from exc
-    unresolved_physics = {"launcher_motor_unverified", "scoring_geometry_unverified", "connected_proxy_overlap"}
+    unresolved_physics = {"launcher_motor_unverified", "scoring_geometry_unverified", "launcher_trajectory_unverified", "connected_proxy_overlap"}
     physics_inputs_verified = compiled.report.confirmed and not any(
         warning.get("code") in unresolved_physics for warning in compiled.warnings
     )

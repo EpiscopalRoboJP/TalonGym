@@ -109,6 +109,14 @@
         "sku": "3615-4008-0072"
       },
       {
+        "id": "launcher_bracket",
+        "sku": "1203-0001-0001"
+      },
+      {
+        "id": "launcher_riser",
+        "sku": "1120-0013-0336"
+      },
+      {
         "id": "launcher_motor",
         "sku": "5203-2402-0001"
       },
@@ -119,6 +127,10 @@
       {
         "id": "hood_plate",
         "sku": "1202-0001-0001"
+      },
+      {
+        "id": "gate_servo",
+        "sku": "2000-0025-0002"
       }
     ],
     "connections": [
@@ -696,12 +708,86 @@
         "jointType": "hinge"
       },
       {
+        "id": "launcher_bracket",
+        "parent": {
+          "instanceId": "left_rail",
+          "mountId": "web",
+          "patternIndex": [
+            38,
+            1
+          ]
+        },
+        "child": {
+          "instanceId": "launcher_bracket",
+          "mountId": "face_a",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "left_rail",
+            "mountId": "web",
+            "patternIndex": [
+              37,
+              1
+            ]
+          },
+          "child": {
+            "instanceId": "launcher_bracket",
+            "mountId": "face_a",
+            "patternIndex": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "id": "launcher_riser",
+        "parent": {
+          "instanceId": "launcher_bracket",
+          "mountId": "face_b",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "launcher_riser",
+          "mountId": "web",
+          "patternIndex": [
+            2,
+            1
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "launcher_bracket",
+            "mountId": "face_b",
+            "patternIndex": [
+              0,
+              1
+            ]
+          },
+          "child": {
+            "instanceId": "launcher_riser",
+            "mountId": "web",
+            "patternIndex": [
+              1,
+              1
+            ]
+          }
+        }
+      },
+      {
         "id": "launcher_motor",
         "parent": {
-          "instanceId": "right_rail",
+          "instanceId": "launcher_riser",
           "mountId": "flange_a",
           "patternIndex": [
-            6,
+            0,
             0
           ]
         },
@@ -715,10 +801,10 @@
         },
         "secondary": {
           "parent": {
-            "instanceId": "right_rail",
+            "instanceId": "launcher_riser",
             "mountId": "flange_a",
             "patternIndex": [
-              8,
+              2,
               0
             ]
           },
@@ -747,11 +833,11 @@
       {
         "id": "hood_plate",
         "parent": {
-          "instanceId": "front_rail",
+          "instanceId": "launcher_riser",
           "mountId": "web",
           "patternIndex": [
-            2,
-            0
+            38,
+            1
           ]
         },
         "child": {
@@ -761,7 +847,45 @@
             0,
             0
           ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "launcher_riser",
+            "mountId": "web",
+            "patternIndex": [
+              39,
+              1
+            ]
+          },
+          "child": {
+            "instanceId": "hood_plate",
+            "mountId": "pattern",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
         }
+      },
+      {
+        "id": "gate_servo",
+        "parent": {
+          "instanceId": "hood_plate",
+          "mountId": "pattern",
+          "patternIndex": [
+            1,
+            1
+          ]
+        },
+        "child": {
+          "instanceId": "gate_servo",
+          "mountId": "tabs",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "jointType": "hinge"
       }
     ]
   },
@@ -799,9 +923,12 @@
       "intake_wheel": "intake",
       "conveyor_motor": "drive_motor",
       "conveyor_wheel": "intake",
+      "launcher_bracket": "structure",
+      "launcher_riser": "structure",
       "launcher_motor": "drive_motor",
       "flywheel_wheel": "flywheel",
-      "hood_plate": "structure"
+      "hood_plate": "structure",
+      "gate_servo": "servo"
     }
   },
   "drivetrain": {
@@ -812,10 +939,10 @@
     "wheelbaseIn": 11.654
   },
   "chassis": {
-    "lengthIn": 18,
-    "widthIn": 18,
-    "heightIn": 14,
-    "massKg": 5.837000000000001,
+    "lengthIn": 15.984263937007873,
+    "widthIn": 17.633907086614172,
+    "heightIn": 15.275604881889766,
+    "massKg": 5.992999999999999,
     "collisionShape": "aabb"
   },
   "motors": {

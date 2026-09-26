@@ -654,7 +654,7 @@ export function RobotBuilderPage() {
       }
       const warningCount = result.warnings?.length || 0;
       if (latestDoc.current !== doc) return;
-      const unresolved = (result.warnings || []).filter((row) => ["launcher_motor_unverified", "scoring_geometry_unverified", "connected_proxy_overlap"].includes(row.code || ""));
+      const unresolved = (result.warnings || []).filter((row) => ["launcher_motor_unverified", "scoring_geometry_unverified", "launcher_trajectory_unverified", "connected_proxy_overlap"].includes(row.code || ""));
       setSimulationCheck({
         state: "passed",
         message: `${result.physical ? "Physical assembly compiled" : "Assembly compiled"}${result.report?.confirmed ? " with confirmed behavior" : " in waypoint mode"}. Editor/compiler poses agree within ${maxPositionError.toExponential(1)} in${warningCount ? ` · ${warningCount} warning(s)` : ""}. ${result.physicsInputsVerified ? "Physics inputs verified; simulation has not been run." : `Physics inputs need review${unresolved.length ? `: ${unresolved.map((row) => row.message).join(" ")}` : "."}`}`,

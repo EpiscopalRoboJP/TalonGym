@@ -153,6 +153,14 @@
         "sku": "REV-41-2034"
       },
       {
+        "id": "launcher_bracket",
+        "sku": "REV-41-1480"
+      },
+      {
+        "id": "launcher_riser",
+        "sku": "REV-41-1432"
+      },
+      {
         "id": "launcher_up",
         "sku": "REV-41-1621"
       },
@@ -1049,12 +1057,86 @@
         "jointType": "hinge"
       },
       {
-        "id": "launcher_up",
+        "id": "launcher_bracket",
         "parent": {
-          "instanceId": "right_rail",
+          "instanceId": "left_rail",
           "mountId": "slot",
           "patternIndex": [
-            8,
+            5,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "launcher_bracket",
+          "mountId": "face_a",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "left_rail",
+            "mountId": "slot",
+            "patternIndex": [
+              4,
+              0
+            ]
+          },
+          "child": {
+            "instanceId": "launcher_bracket",
+            "mountId": "face_a",
+            "patternIndex": [
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "launcher_riser",
+        "parent": {
+          "instanceId": "launcher_bracket",
+          "mountId": "face_b",
+          "patternIndex": [
+            0,
+            0
+          ]
+        },
+        "child": {
+          "instanceId": "launcher_riser",
+          "mountId": "slot",
+          "patternIndex": [
+            2,
+            0
+          ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "launcher_bracket",
+            "mountId": "face_b",
+            "patternIndex": [
+              0,
+              1
+            ]
+          },
+          "child": {
+            "instanceId": "launcher_riser",
+            "mountId": "slot",
+            "patternIndex": [
+              3,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "launcher_up",
+        "parent": {
+          "instanceId": "launcher_riser",
+          "mountId": "slot",
+          "patternIndex": [
+            48,
             0
           ]
         },
@@ -1068,10 +1150,10 @@
         },
         "secondary": {
           "parent": {
-            "instanceId": "right_rail",
+            "instanceId": "launcher_riser",
             "mountId": "slot",
             "patternIndex": [
-              9,
+              49,
               0
             ]
           },
@@ -1119,10 +1201,10 @@
       {
         "id": "hood_plate",
         "parent": {
-          "instanceId": "front_rail",
+          "instanceId": "launcher_riser",
           "mountId": "slot",
           "patternIndex": [
-            2,
+            45,
             0
           ]
         },
@@ -1133,6 +1215,24 @@
             0,
             0
           ]
+        },
+        "secondary": {
+          "parent": {
+            "instanceId": "launcher_riser",
+            "mountId": "slot",
+            "patternIndex": [
+              46,
+              0
+            ]
+          },
+          "child": {
+            "instanceId": "hood_plate",
+            "mountId": "face_a",
+            "patternIndex": [
+              0,
+              1
+            ]
+          }
         }
       },
       {
@@ -1201,6 +1301,8 @@
       "conveyor_up": "gearbox",
       "conveyor_motor": "drive_motor",
       "conveyor_wheel": "intake",
+      "launcher_bracket": "structure",
+      "launcher_riser": "structure",
       "launcher_up": "gearbox",
       "launcher_motor": "drive_motor",
       "flywheel_wheel": "flywheel",
@@ -1215,10 +1317,10 @@
     "wheelbaseIn": 14.803
   },
   "chassis": {
-    "lengthIn": 18.917360236220475,
+    "lengthIn": 19.980299606299212,
     "widthIn": 11.968476377952754,
-    "heightIn": 14.0,
-    "massKg": 3.864199999999999,
+    "heightIn": 18.799228346456694,
+    "massKg": 3.8511999999999995,
     "collisionShape": "aabb"
   },
   "motors": {
