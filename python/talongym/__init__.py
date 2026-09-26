@@ -7,5 +7,5 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 from talongym.paths import REPO_ROOT
 
-__version__ = "0.5.16"
+__version__ = "0.5.17"
 __all__ = ["REPO_ROOT", "__version__"]

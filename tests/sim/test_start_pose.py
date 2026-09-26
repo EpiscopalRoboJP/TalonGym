@@ -138,3 +138,15 @@ def test_park_counts_partial_chassis_overlap():
     assert "red_0" in world._occupancy()["red_park"]
     actor.x = -50.0
     assert "red_0" not in world._occupancy()["red_park"]
+
+
+def test_slow_magazine_drop_is_reported_without_counting_as_a_shot():
+    world = _world()
+    world.reset(seed=0, static_teammate=False, full_noise=False)
+    actor = world.actor()
+    assert actor.held
+    piece = world.pieces[actor.held[0]]
+    piece.x = actor.body.x + 100.0
+    world._update_piece_ownership()
+    assert world.snapshot()["magazineReleases"] == 1
+    assert world.snapshot()["firedLaunchAttempts"] == 0
