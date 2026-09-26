@@ -234,6 +234,7 @@ class World:
         self.pending_piece_ops: list[tuple[str, str | None, str | None]] = []
         self.missed_launches: dict[str, int] = {}
         self.launch_attempts = 0
+        self.fired_launch_attempts = 0
 
     def _apply_committed_cad_version(self) -> None:
         """Cache-bust Lab assets from the shipped manifest even when MuJoCo is not installed."""
@@ -497,6 +498,7 @@ class World:
         self.step_explains = []
         self.fire_counts = {}
         self.launch_attempts = 0
+        self.fired_launch_attempts = 0
         self.gate_state = {gid: "closed" for gid in self.gate_ids}
         self.queues = {sid: [] for sid in self.seq_accs}
         self.accumulators = self.engine.init_accumulators()
@@ -642,6 +644,7 @@ class World:
         self.vision_hits = []
         self.pending_piece_ops = []
         self.launch_attempts = 0
+        self.fired_launch_attempts = 0
         self.backend.reset_batch(1)
         if mechanism_ready:
             self._apply_mechanism_ready()
@@ -1476,6 +1479,7 @@ class World:
         p.attrs["launched_at"] = self.time_s
         p.attrs["launched_by"] = rs.body.id
         self.launch_attempts = int(getattr(self, "launch_attempts", 0) or 0) + 1
+        self.fired_launch_attempts += 1
         self.fire_counts[rs.body.id] = int(self.fire_counts.get(rs.body.id) or 0) + 1
 
     def _advance_ballistic(self, dt: float) -> None:
@@ -1903,6 +1907,7 @@ class World:
             "trueScore": self.true_score,
             "physicalPieces": physical,
             "launchAttempts": int(getattr(self, "launch_attempts", 0) or 0),
+            "firedLaunchAttempts": self.fired_launch_attempts,
             "missedLaunches": int(self.missed_launches.get(actor.body.id) or 0),
             "mechanismCommands": {
                 ident: float(payload.get("command") or 0.0)
