@@ -1475,6 +1475,16 @@ class World:
         pose["pitchDeg"] = pitch_deg
         mx, my, mz, yaw, pitch = pose_world(rs.body.x, rs.body.y, rs.body.heading, pose)
         speed = float(launcher.get("muzzleSpeedInPerS") or 180.0)
+        path = self.robot.get("piecePath") or {}
+        # Catalog assemblies carry the actual wheel pose. Use their current
+        # motor speed for exit speed instead of the reference template value.
+        if path.get("flywheelPose") and rs.mechanism is not None:
+            flywheel = rs.mechanism.actuators.get(str(path.get("flywheelActuatorId") or ""))
+            if flywheel is not None:
+                wheel_rpm = abs(flywheel.state.velocity_rad_s) * 60.0 / math.tau
+                wheel_radius = float(path.get("wheelRadiusIn") or 0.0)
+                efficiency = float(path.get("launchEfficiency") or 0.0)
+                speed = wheel_rpm * math.tau / 60.0 * wheel_radius * efficiency
         p.x, p.y, p.z = mx, my, max(mz, p.radius)
         p.vx, p.vy, p.vz = muzzle_velocity(speed, yaw, pitch)
         # Galilean launch velocity: a moving robot cannot emit a world-fixed shot.

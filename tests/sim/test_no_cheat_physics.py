@@ -203,6 +203,23 @@ def test_wrong_aim_launch_does_not_enter_up_cell():
     assert int(world.accumulators.get("launched_count") or 0) == 0
 
 
+def test_assembled_launch_speed_tracks_actual_flywheel_rpm():
+    world = _world()
+    rs = world.actor()
+    assert rs.mechanism is not None
+    world.robot["piecePath"]["flywheelPose"] = {"x": 7.0, "y": 0.0, "z": 12.0}
+    path = world.robot["piecePath"]
+    wheel = rs.mechanism.actuators["flywheel"]
+    wheel.state.velocity_rad_s = 3600.0 * math.tau / 60.0
+    piece = world.pieces[rs.held.pop(0)]
+    piece.held_by = None
+    world._launch_ballistic(rs, piece, world.launchers[0])
+    expected = 3600.0 * math.tau / 60.0 * path["wheelRadiusIn"] * path["launchEfficiency"]
+    actual = math.sqrt(piece.vx**2 + piece.vy**2 + piece.vz**2)
+    assert actual == pytest.approx(expected)
+    assert actual != pytest.approx(world.launchers[0]["muzzleSpeedInPerS"])
+
+
 def test_physical_score_path_does_not_pop_held_pieces_like_legacy_fsm():
     world = _world()
     pose = _park_away_from_hive(world)
