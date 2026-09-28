@@ -220,6 +220,23 @@ def test_assembled_launch_speed_tracks_actual_flywheel_rpm():
     assert actual != pytest.approx(world.launchers[0]["muzzleSpeedInPerS"])
 
 
+def test_reverse_flywheel_cannot_fire_assembled_launcher():
+    world = _world()
+    rs = world.actor()
+    assert rs.mechanism is not None
+    world.robot["piecePath"]["flywheelPose"] = {"x": 7.0, "y": 0.0, "z": 12.0}
+    flywheel = rs.mechanism.actuators["flywheel"]
+    flywheel.state.velocity_rad_s = -float(flywheel.config["targetRpm"]) * math.tau / 60.0
+    held = list(rs.held)
+    world._mechanisms(rs, "score", 0.05, [])
+    assert rs.held == held
+    assert rs.spinup_timer == 0.0
+    assert world.fired_launch_attempts == 0
+    with pytest.raises(ValueError, match="must spin forward"):
+        world._launch_ballistic(rs, world.pieces[held[0]], world.launchers[0])
+    assert not world.pieces[held[0]].in_flight
+
+
 def test_physical_score_path_does_not_pop_held_pieces_like_legacy_fsm():
     world = _world()
     pose = _park_away_from_hive(world)

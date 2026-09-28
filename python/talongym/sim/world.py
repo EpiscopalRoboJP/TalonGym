@@ -1348,9 +1348,9 @@ class World:
                     blocked = True
                 else:
                     target_rpm = float(flywheel.config.get("targetRpm") or 0.0)
-                    actual_rpm = abs(flywheel.state.velocity_rad_s) * 60.0 / (2.0 * math.pi)
+                    actual_rpm = flywheel.state.velocity_rad_s * 60.0 / math.tau
                     blocked = blocked or actual_rpm < FLYWHEEL_READY_FRAC * target_rpm
-                    rs.spinup_timer = actual_rpm / max(target_rpm, 1e-6)
+                    rs.spinup_timer = max(0.0, actual_rpm) / max(target_rpm, 1e-6)
             if blocked:
                 if rs.mechanism is None:
                     rs.spinup_timer = 0.0
@@ -1465,10 +1465,6 @@ class World:
     def _launch_ballistic(self, rs: RobotState, p: Piece, launcher: dict[str, Any] | None = None) -> None:
         if launcher is None:
             raise ValueError("physical launch requires a configured launcher")
-        p.in_flight = True
-        p.ballistic = True
-        p.scored = False
-        p.kick = True
         pose = dict(launcher.get("poseOnRobot") or {})
         yaw_deg, pitch_deg = launcher_aim(launcher)
         pose["headingDeg"] = yaw_deg
@@ -1481,10 +1477,16 @@ class World:
         if path.get("flywheelPose") and rs.mechanism is not None:
             flywheel = rs.mechanism.actuators.get(str(path.get("flywheelActuatorId") or ""))
             if flywheel is not None:
-                wheel_rpm = abs(flywheel.state.velocity_rad_s) * 60.0 / math.tau
+                wheel_rpm = flywheel.state.velocity_rad_s * 60.0 / math.tau
+                if wheel_rpm <= 0.0:
+                    raise ValueError("assembled launcher flywheel must spin forward to fire")
                 wheel_radius = float(path.get("wheelRadiusIn") or 0.0)
                 efficiency = float(path.get("launchEfficiency") or 0.0)
                 speed = wheel_rpm * math.tau / 60.0 * wheel_radius * efficiency
+        p.in_flight = True
+        p.ballistic = True
+        p.scored = False
+        p.kick = True
         p.x, p.y, p.z = mx, my, max(mz, p.radius)
         p.vx, p.vy, p.vz = muzzle_velocity(speed, yaw, pitch)
         # Galilean launch velocity: a moving robot cannot emit a world-fixed shot.
