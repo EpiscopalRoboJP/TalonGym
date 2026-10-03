@@ -328,18 +328,82 @@ def get_replay(replay_id: str) -> dict[str, Any] | None:
     return {"id": replay_id, "meta": json.loads(row["meta"]), "frames": json.loads(row["frames"])}
 
 
+def _names_for_run_ids(run_ids: list[str]) -> dict[str, str]:
+    unique = [rid for rid in dict.fromkeys(run_ids) if rid]
+    if not unique:
+        return {}
+    placeholders = ",".join("?" * len(unique))
+    with _session() as conn:
+        rows = conn.execute(f"SELECT id, config FROM runs WHERE id IN ({placeholders})", unique).fetchall()
+    names: dict[str, str] = {}
+    for row in rows:
+        config = json.loads(row["config"] or "{}")
+        name = clean_run_name(config.get("name") if isinstance(config, dict) else None)
+        if name:
+            names[str(row["id"])] = name
+    return names
+
+
+def attach_replay_run_name(item: dict[str, Any], names: dict[str, str] | None = None) -> dict[str, Any]:
+    presented = dict(item)
+    run_id = presented.get("runId")
+    if not run_id:
+        return presented
+    if names is None:
+        names = _names_for_run_ids([str(run_id)])
+    name = names.get(str(run_id))
+    if name:
+        presented["name"] = name
+    return presented
+
+
 def list_replays() -> list[dict[str, Any]]:
     with _session() as conn:
         rows = conn.execute("SELECT id, meta FROM replays ORDER BY created_at DESC").fetchall()
-    return [{"id": r["id"], **json.loads(r["meta"])} for r in rows]
+    items = [{"id": r["id"], **json.loads(r["meta"])} for r in rows]
+    names = _names_for_run_ids([str(item.get("runId") or "") for item in items])
+    return [attach_replay_run_name(item, names) for item in items]
+
+
+RUN_NAME_MAX = 80
+
+
+def clean_run_name(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = " ".join(value.split())[:RUN_NAME_MAX]
+    return text or None
+
+
+def set_run_name(run_id: str, name: str | None) -> dict[str, Any] | None:
+    row = get_run(run_id)
+    if row is None:
+        return None
+    config = dict(row.get("config") or {})
+    cleaned = clean_run_name(name)
+    if cleaned:
+        config["name"] = cleaned
+    else:
+        config.pop("name", None)
+    with _session() as conn:
+        conn.execute("UPDATE runs SET config=? WHERE id=?", (json.dumps(config), run_id))
+        conn.commit()
+    row["config"] = config
+    return row
+
+
+_TERMINAL_RUN_STATES = frozenset({"succeeded", "failed", "cancelled"})
 
 
 def save_run(run_id: str, config: dict, state: str, metrics: dict | None = None, log: str | None = None) -> None:
     with _session() as conn:
-        if state == "running":
-            row = conn.execute("SELECT state FROM runs WHERE id=?", (run_id,)).fetchone()
-            if row and row["state"] == "cancelling":
-                state = "cancelling"
+        row = conn.execute("SELECT state FROM runs WHERE id=?", (run_id,)).fetchone()
+        current = row["state"] if row else None
+        # A late cancel request must not resurrect a run the worker already finished.
+        if current in _TERMINAL_RUN_STATES and state not in _TERMINAL_RUN_STATES:
+            state = current
+        elif state == "running" and current == "cancelling":
+            state = "cancelling"
         conn.execute(
             "INSERT INTO runs(id, config, state, metrics, log) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state, metrics=excluded.metrics, log=excluded.log",
             (run_id, json.dumps(config), state, json.dumps(metrics or {}), log),

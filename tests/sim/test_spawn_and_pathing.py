@@ -11,6 +11,25 @@ from talongym.presets.loader import load_bundle
 from talongym.sim.world import World
 
 
+def _teleport_actor(env: FTCAutoEnv, x: float, y: float | None = None, vx: float = 0.0, vy: float = 0.0) -> None:
+    rs = env.world.actor()
+    rs.body.x = float(x)
+    if y is not None:
+        rs.body.y = float(y)
+    rs.body.vx = float(vx)
+    rs.body.vy = float(vy)
+    backend = env.world.backend
+    placed = getattr(backend, "_robot_placed", None)
+    if isinstance(placed, set):
+        placed.discard(rs.body.id)
+    write = getattr(backend, "_write_robot", None)
+    if callable(write):
+        write(rs.body)
+        mj = getattr(backend, "_mujoco", None)
+        if mj is not None:
+            mj.mj_forward(backend._mj, backend._data)
+
+
 def _world(seed: int = 0) -> World:
     bundle = load_bundle("biobuzz_2026_field_v1", "mecanum_biobuzz_4cap", "biobuzz_2026_scoring_v1")
     world = World(bundle, seed=seed, allow_missing_mesh=True)
@@ -118,10 +137,22 @@ def test_clipped_waypoint_does_not_farm_restricted_wall_still_shapes():
     assert env.world.accumulators.get("restricted_entry") is not True
     assert info["true_score"] > -20
 
+    rs = env.world.actor()
+    _teleport_actor(env, -40.0, vx=0.0)
+    _obs, _reward, _term, _trunc, _left_info = env.step(
+        {
+            "target_pose": np.array([rs.body.x, rs.body.y, rs.body.heading], dtype=np.float32),
+            "speed_frac": np.array([0.2], dtype=np.float32),
+            "mechanism": 0,
+        }
+    )
+    rs = env.world.actor()
+    assert not env.world._touching_perimeter(rs.body.x, rs.body.y, rs.body.heading)
+    assert env._left_start_wall is True
+
     half = float(env.world.field["fieldSizeIn"]["width"]) / 2.0
     rs = env.world.actor()
-    rs.body.x = -half + 0.2
-    rs.body.vx = -40.0
+    _teleport_actor(env, -half + 0.2, vx=-40.0)
     _obs, _reward, _term, _trunc, wall_info = env.step(
         {
             "target_pose": np.array([rs.body.x, rs.body.y, rs.body.heading], dtype=np.float32),

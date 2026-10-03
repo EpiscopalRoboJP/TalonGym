@@ -178,6 +178,7 @@ def train_ppo(
     frozen_policy: Any = None,
     should_stop: Callable[[], bool] | None = None,
     resume: bool = False,
+    extend: bool = False,
     demo: bool = False,
     eval_episodes: int | None = None,
     match_setup: dict[str, Any] | None = None,
@@ -210,7 +211,8 @@ def train_ppo(
             should_stop=should_stop,
             match_setup=match_setup,
         )
-    total_steps = max(1, int(total_steps))
+    requested_steps = max(1, int(total_steps))
+    total_steps = requested_steps
     progress = _Progress(total_steps)
     training = bundle.training
     algo_cfg = (training or {}).get("algorithm") or {}
@@ -469,6 +471,10 @@ def train_ppo(
     chunk = max(rollout_len, min(total_steps, 8192))
     chunk = max(rollout_len, (chunk // rollout_len) * rollout_len)
     done = int(getattr(model, "num_timesteps", 0) or 0) if loaded else 0
+    if loaded and extend:
+        total_steps = done + requested_steps
+        progress.total = max(1, total_steps)
+        emit(f"Continuing from {done} for {requested_steps} more env steps")
     progress.steps = done
     cancelled = False
     rollbacks = 0

@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx src/scene/cadAssets.test.ts && tsx src/scene/physicalReplay.test.ts && tsx src/scene/setupPreview.test.ts && tsx src/labHonesty.test.ts && tsx src/catalog.test.ts && tsx src/licenseNotice.test.ts",
+    "test": "tsx src/scene/cadAssets.test.ts && tsx src/scene/physicalReplay.test.ts && tsx src/scene/setupPreview.test.ts && tsx src/labHonesty.test.ts && tsx src/catalog.test.ts && tsx src/licenseNotice.test.ts && tsx src/runLabel.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

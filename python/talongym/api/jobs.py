@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -158,9 +159,64 @@ def resolve_frozen_opponent(
         return None
 
 
+def checkpoint_dir(run_id: str) -> Path:
+    return paths.VAR_DIR / "ckpts" / run_id
+
+
+def latest_checkpoint(run_id: str) -> Path | None:
+    path = checkpoint_dir(run_id) / "latest.zip"
+    return path if path.is_file() else None
+
+
 def start_training(config: dict[str, Any] | None = None) -> str:
-    config = config or {}
+    config = dict(config or {})
+    name = db.clean_run_name(config.get("name"))
+    if name:
+        config["name"] = name
+    else:
+        config.pop("name", None)
     run_id = db.new_id()
+    db.save_run(run_id, config, "queued")
+    db.enqueue_job(run_id, run_id, config, "queued")
+    threading.Thread(target=_train_worker, args=(run_id, config), daemon=True).start()
+    return run_id
+
+
+def continue_training(source_id: str, extra: dict[str, Any] | None = None) -> str:
+    """Start a new run that loads source latest.zip and trains additional env steps."""
+    extra = dict(extra or {})
+    source = db.get_run(source_id)
+    if source is None:
+        raise ValueError("not_found")
+    if source["state"] in {"queued", "running", "cancelling"}:
+        raise ValueError("busy")
+    src_latest = latest_checkpoint(source_id)
+    if src_latest is None:
+        raise ValueError("no_checkpoint")
+    config = dict(source.get("config") or {})
+    for key in ("budget", "nEnvs", "demo", "easy", "computeProfile", "algorithm"):
+        if extra.get(key) is not None:
+            config[key] = extra[key]
+    named = extra.get("name")
+    if named is not None:
+        cleaned = db.clean_run_name(named)
+    else:
+        base = db.clean_run_name(config.get("name")) or source_id
+        cleaned = db.clean_run_name(f"{base} continued")
+    if cleaned:
+        config["name"] = cleaned
+    else:
+        config.pop("name", None)
+    config["resume"] = True
+    config["extend"] = True
+    config["resumeFromRunId"] = source_id
+    run_id = db.new_id()
+    dest = checkpoint_dir(run_id)
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src_latest, dest / "latest.zip")
+    src_best = src_latest.parent / "best.zip"
+    if src_best.is_file():
+        shutil.copy2(src_best, dest / "best.zip")
     db.save_run(run_id, config, "queued")
     db.enqueue_job(run_id, run_id, config, "queued")
     threading.Thread(target=_train_worker, args=(run_id, config), daemon=True).start()
@@ -261,6 +317,7 @@ def _train_worker(run_id: str, config: dict[str, Any]) -> None:
             should_stop=lambda: is_cancelled(run_id),
             save_dir=paths.VAR_DIR / "ckpts" / run_id,
             resume=bool(config.get("resume")),
+            extend=bool(config.get("extend") or config.get("resumeFromRunId")),
             demo=demo,
             match_setup=config.get("matchSetup"),
         )
