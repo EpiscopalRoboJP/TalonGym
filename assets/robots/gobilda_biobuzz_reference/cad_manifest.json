@@ -1,0 +1,36 @@
+{
+  "referenceUrl": "https://www.gobilda.com/content/step_files/3200-2627-0004.zip",
+  "sourceKind": "cascadio-derived GLB",
+  "sourceSha256": "e32c160273dc715114437122545a0d410fcdfd565aad2195eff5c317ba095d0b",
+  "officialZipSha256": "43cdd0acebcce31afe8b0ed541df06c394ed1624ca8fbcc4cf42c52a774dc673",
+  "visualSha256": "c342280810f69445421505c828dc0089a17b43a267fc93b6754484963d5a2702",
+  "cadBoundsM": [
+    [
+      -0.2258958369493485,
+      -0.26000000536441803,
+      -0.051982216536998756
+    ],
+    [
+      0.22619584202766418,
+      0.19200000166893005,
+      0.2573596313595772
+    ]
+  ],
+  "visualBoundsIn": [
+    [
+      -8.897637860981499,
+      0.0007134828511183855,
+      -8.905282664211823
+    ],
+    [
+      8.897638006473152,
+      12.179513045652644,
+      8.893471440656088
+    ]
+  ],
+  "frame": "robot +X toward intake; Y-up GLB in inches; ground Y=0",
+  "cascadioToleranceMm": 1.0,
+  "sourceFaces": 7628217,
+  "visualFaces": 2728669,
+  "simplificationFaceRatio": 0.28
+}

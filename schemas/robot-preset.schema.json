@@ -504,6 +504,8 @@
           "items": { "type": "number" }
         },
         "targetRpm": { "type": "number", "minimum": 0 },
+        "readyRpm": { "type": "number", "minimum": 0 },
+        "velocityControlBandRpm": { "type": "number", "exclusiveMinimum": 0 },
         "kp": { "type": "number", "minimum": 0 },
         "kd": { "type": "number", "minimum": 0 },
         "thermal": {

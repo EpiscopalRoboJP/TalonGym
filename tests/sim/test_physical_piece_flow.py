@@ -172,6 +172,26 @@ def test_flywheel_contact_uses_assembled_wheel_pose():
     assert template.flywheel_load_inch == 0.0
 
 
+def test_rear_launcher_feeds_piece_toward_negative_robot_x():
+    path = _path(
+        muzzlePose={"x": -5.0, "y": 0.0, "z": 12.0, "pitchDeg": 37.0, "yawDeg": 180.0},
+        storageSlots=[{"x": 0.0, "y": 0.0, "z": 4.0}],
+    )
+    interaction = mechanism_piece_force(
+        piece_local=(0.0, 0.0, 4.0),
+        piece_vel_local=(0.0, 0.0, 0.0),
+        piece_radius=1.4,
+        piece_mass=0.1,
+        mechanism=_mech(
+            {"flywheel": {"rpm": 2678.0, "targetRpm": 2678.0},
+             "conveyor": {"rpm": 250.0, "targetRpm": 250.0},
+             "gate": {"position": 75.0, "travelLimit": [0.0, 75.0]}},
+            piecePath=path,
+        ),
+    )
+    assert interaction.fx < 0.0
+
+
 def test_open_gate_does_not_feed_unselected_magazine_piece():
     loc = _flywheel_local()
     mechanism = _mech({

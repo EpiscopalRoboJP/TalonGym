@@ -667,6 +667,9 @@ class FTCAutoEnv(gym.Env):
             "shaping": shaping,
             "robot_id": rs.body.id,
             "alliance": rs.body.alliance,
+            "launcher_heading_deg": float(
+                ((self.world.launchers[0] if self.world.launchers else {}).get("poseOnRobot") or {}).get("headingDeg") or 0.0
+            ),
             "collision_time_s": rs.collision_time_s,
             "first_contact_s": rs.first_contact_s,
             "entered_restricted": rs.entered_restricted,

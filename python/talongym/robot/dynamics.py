@@ -92,7 +92,12 @@ class ActuatorModel:
         if kind == "velocity_motor":
             target_rpm = float(self.config.get("targetRpm") or 0) * command
             target = target_rpm * RPM_TO_RAD_S
-            control_band = max(5.0, 0.15 * abs(target))
+            authored_band = self.config.get("velocityControlBandRpm")
+            control_band = (
+                max(5.0, float(authored_band) * RPM_TO_RAD_S)
+                if authored_band is not None
+                else max(5.0, 0.15 * abs(target))
+            )
             return float(np.clip((target - self.state.velocity_rad_s) / control_band, -1.0, 1.0))
         travel = self.config.get("travelLimit") or [0.0, 1.0]
         lo, hi = float(travel[0]), float(travel[1])

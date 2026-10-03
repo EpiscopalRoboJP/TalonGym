@@ -1,0 +1,818 @@
+{
+  "schemaVersion": "1.1.0",
+  "policyInterfaceVersion": "1.0.0",
+  "id": "gobilda_biobuzz_reference",
+  "displayName": "goBILDA BIOBUZZ mecanum StarterBot (CAD reference)",
+  "drivetrain": {
+    "type": "mecanum",
+    "trackWidthIn": 16.29921,
+    "wheelDiameterIn": 4.09449,
+    "wheelbaseIn": 10.3937,
+    "strafeMultiplier": 1.0
+  },
+  "chassis": {
+    "lengthIn": 17.79528,
+    "widthIn": 17.79889,
+    "heightIn": 12.17881,
+    "massKg": 9.5,
+    "collisionShape": "aabb"
+  },
+  "motors": {
+    "count": 4,
+    "freeSpeedRpm": 312,
+    "stallTorqueNm": 2.38302,
+    "currentLimitA": 9.2,
+    "gearRatio": 19.2,
+    "nominalVoltageV": 12
+  },
+  "constraints": {
+    "maxVelInPerS": 30,
+    "maxAccelInPerS2": 30,
+    "maxAngVelDegPerS": 60,
+    "maxAngAccelDegPerS2": 60
+  },
+  "battery": {
+    "sagEnabled": true,
+    "internalResistanceOhm": 0.1
+  },
+  "powerSystem": {
+    "openCircuitVoltageV": 13.0,
+    "internalResistanceOhm": 0.018,
+    "capacityAh": 3.0,
+    "initialStateOfCharge": 1.0,
+    "brownoutVoltageV": 9.0,
+    "maxCurrentA": 120,
+    "voltageNoiseStdV": 0.025,
+    "currentNoiseStdA": 0.1
+  },
+  "odometry": {
+    "encoderTicksPerRev": 537.7,
+    "positionNoiseStdIn": 0.3,
+    "headingNoiseStdDeg": 1.0,
+    "slipNoiseStd": 0.02
+  },
+  "sensors": [
+    {
+      "id": "imu",
+      "kind": "imu"
+    }
+  ],
+  "intakes": [
+    {
+      "id": "front_intake",
+      "poseOnRobot": {
+        "x": 7.48031,
+        "y": 0,
+        "z": 1.53543,
+        "headingDeg": 0
+      },
+      "widthIn": 15.11811,
+      "reachIn": 2.0,
+      "heightIn": 2.83465,
+      "cycleTimeS": 0.5,
+      "maxSpeedInPerS": 20,
+      "canRunWhileMoving": true
+    }
+  ],
+  "launchers": [
+    {
+      "id": "fixed_gridplate_guide",
+      "poseOnRobot": {
+        "x": -4.48819,
+        "y": 0,
+        "z": 12.51969,
+        "headingDeg": 180,
+        "pitchDeg": 37
+      },
+      "aimMode": "chassis_fixed",
+      "muzzleSpeedInPerS": 150,
+      "spinupTimeS": 0.5,
+      "cycleTimeS": 0.7,
+      "canLaunchWhileMoving": true
+    }
+  ],
+  "rigidParts": [
+    {
+      "id": "chassis",
+      "parentId": null,
+      "pose": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "massKg": 7.4,
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            15.11811,
+            1.88976,
+            1.88976
+          ],
+          "pose": {
+            "x": -1.33858,
+            "y": 6.14173,
+            "z": -4.04216
+          },
+          "friction": 0.8,
+          "restitution": 0.05
+        },
+        {
+          "kind": "box",
+          "sizeIn": [
+            15.11811,
+            1.88976,
+            1.88976
+          ],
+          "pose": {
+            "x": -1.33858,
+            "y": -6.14173,
+            "z": -4.04216
+          },
+          "friction": 0.8,
+          "restitution": 0.05
+        },
+        {
+          "kind": "box",
+          "sizeIn": [
+            0.47244,
+            10.3937,
+            1.88976
+          ],
+          "pose": {
+            "x": -8.66142,
+            "y": 0.0,
+            "z": -4.04216
+          },
+          "friction": 0.8,
+          "restitution": 0.05
+        },
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.88976,
+            10.3937,
+            0.47244
+          ],
+          "pose": {
+            "x": -4.80315,
+            "y": 0.0,
+            "z": -4.59334
+          },
+          "friction": 0.8,
+          "restitution": 0.05
+        },
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.88976,
+            1.88976,
+            10.3937
+          ],
+          "pose": {
+            "x": -4.80315,
+            "y": 2.67717,
+            "z": 0.83973
+          },
+          "friction": 0.8,
+          "restitution": 0.05
+        },
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.88976,
+            1.88976,
+            10.3937
+          ],
+          "pose": {
+            "x": -4.80315,
+            "y": -2.67717,
+            "z": 0.83973
+          },
+          "friction": 0.8,
+          "restitution": 0.05
+        }
+      ]
+    },
+    {
+      "id": "wheel_fl",
+      "parentId": "chassis",
+      "pose": {
+        "x": 4.33071,
+        "y": 8.14961,
+        "z": -4.04216
+      },
+      "massKg": 0.32,
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 2.04724,
+          "lengthIn": 1.41732,
+          "friction": 1.0,
+          "restitution": 0.05
+        }
+      ]
+    },
+    {
+      "id": "wheel_fr",
+      "parentId": "chassis",
+      "pose": {
+        "x": 4.33071,
+        "y": -8.14961,
+        "z": -4.04216
+      },
+      "massKg": 0.32,
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 2.04724,
+          "lengthIn": 1.41732,
+          "friction": 1.0,
+          "restitution": 0.05
+        }
+      ]
+    },
+    {
+      "id": "wheel_rl",
+      "parentId": "chassis",
+      "pose": {
+        "x": -6.06299,
+        "y": 8.14961,
+        "z": -4.04216
+      },
+      "massKg": 0.32,
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 2.04724,
+          "lengthIn": 1.41732,
+          "friction": 1.0,
+          "restitution": 0.05
+        }
+      ]
+    },
+    {
+      "id": "wheel_rr",
+      "parentId": "chassis",
+      "pose": {
+        "x": -6.06299,
+        "y": -8.14961,
+        "z": -4.04216
+      },
+      "massKg": 0.32,
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 2.04724,
+          "lengthIn": 1.41732,
+          "friction": 1.0,
+          "restitution": 0.05
+        }
+      ]
+    },
+    {
+      "id": "intake_roller",
+      "parentId": "chassis",
+      "pose": {
+        "x": 7.48031,
+        "y": 0.0,
+        "z": -4.55397
+      },
+      "massKg": 0.25,
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.41732,
+          "lengthIn": 0.94488,
+          "pose": {
+            "x": 0,
+            "y": -6.14173,
+            "z": 0
+          },
+          "friction": 1.2,
+          "restitution": 0.05
+        },
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.41732,
+          "lengthIn": 0.94488,
+          "pose": {
+            "x": 0,
+            "y": 6.14173,
+            "z": 0
+          },
+          "friction": 1.2,
+          "restitution": 0.05
+        }
+      ]
+    },
+    {
+      "id": "conveyor_roller",
+      "parentId": "chassis",
+      "pose": {
+        "x": 5.94488,
+        "y": -0.35433,
+        "z": -2.62484
+      },
+      "massKg": 0.3,
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 0.94488,
+          "lengthIn": 7.24409,
+          "friction": 1.2,
+          "restitution": 0.05
+        }
+      ]
+    },
+    {
+      "id": "flywheel",
+      "parentId": "chassis",
+      "pose": {
+        "x": -2.91339,
+        "y": -0.19685,
+        "z": 0.68225
+      },
+      "massKg": 0.105,
+      "inertiaKgM2": [
+        6e-05,
+        0.000108,
+        6e-05
+      ],
+      "collision": [
+        {
+          "kind": "cylinder",
+          "radiusIn": 1.88976,
+          "lengthIn": 0.94488,
+          "friction": 1.25,
+          "restitution": 0.12
+        }
+      ]
+    },
+    {
+      "id": "gridplate_guide",
+      "parentId": "chassis",
+      "pose": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "massKg": 0.19,
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            8.50394,
+            6.92913,
+            0.05906
+          ],
+          "pose": {
+            "x": -0.27559,
+            "y": 0.0,
+            "z": 3.39878,
+            "pitchDeg": 37
+          },
+          "friction": 0.45,
+          "restitution": 0.08
+        }
+      ]
+    },
+    {
+      "id": "release_gate",
+      "parentId": "chassis",
+      "pose": {
+        "x": -0.15748,
+        "y": -2.71654,
+        "z": 0.0917
+      },
+      "massKg": 0.12,
+      "collision": [
+        {
+          "kind": "box",
+          "sizeIn": [
+            1.0,
+            2.0,
+            0.3
+          ],
+          "friction": 0.5,
+          "restitution": 0.05
+        }
+      ]
+    }
+  ],
+  "joints": [
+    {
+      "id": "wheel_fl_joint",
+      "type": "hinge",
+      "parentPartId": "chassis",
+      "childPartId": "wheel_fl",
+      "anchorIn": {
+        "x": 4.33071,
+        "y": 8.14961,
+        "z": -4.04216
+      },
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "limit": [
+        -1000000,
+        1000000
+      ],
+      "damping": 0.001,
+      "frictionLoss": 0.001,
+      "backlash": 0
+    },
+    {
+      "id": "wheel_fr_joint",
+      "type": "hinge",
+      "parentPartId": "chassis",
+      "childPartId": "wheel_fr",
+      "anchorIn": {
+        "x": 4.33071,
+        "y": -8.14961,
+        "z": -4.04216
+      },
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "limit": [
+        -1000000,
+        1000000
+      ],
+      "damping": 0.001,
+      "frictionLoss": 0.001,
+      "backlash": 0
+    },
+    {
+      "id": "wheel_rl_joint",
+      "type": "hinge",
+      "parentPartId": "chassis",
+      "childPartId": "wheel_rl",
+      "anchorIn": {
+        "x": -6.06299,
+        "y": 8.14961,
+        "z": -4.04216
+      },
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "limit": [
+        -1000000,
+        1000000
+      ],
+      "damping": 0.001,
+      "frictionLoss": 0.001,
+      "backlash": 0
+    },
+    {
+      "id": "wheel_rr_joint",
+      "type": "hinge",
+      "parentPartId": "chassis",
+      "childPartId": "wheel_rr",
+      "anchorIn": {
+        "x": -6.06299,
+        "y": -8.14961,
+        "z": -4.04216
+      },
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "limit": [
+        -1000000,
+        1000000
+      ],
+      "damping": 0.001,
+      "frictionLoss": 0.001,
+      "backlash": 0
+    },
+    {
+      "id": "intake_joint",
+      "type": "hinge",
+      "parentPartId": "chassis",
+      "childPartId": "intake_roller",
+      "anchorIn": {
+        "x": 7.48031,
+        "y": 0.0,
+        "z": -4.55397
+      },
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "limit": [
+        -1000000,
+        1000000
+      ],
+      "damping": 0.001,
+      "frictionLoss": 0.001,
+      "backlash": 0
+    },
+    {
+      "id": "conveyor_joint",
+      "type": "hinge",
+      "parentPartId": "chassis",
+      "childPartId": "conveyor_roller",
+      "anchorIn": {
+        "x": 5.94488,
+        "y": -0.35433,
+        "z": -2.62484
+      },
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "limit": [
+        -1000000,
+        1000000
+      ],
+      "damping": 0.001,
+      "frictionLoss": 0.001,
+      "backlash": 0
+    },
+    {
+      "id": "flywheel_joint",
+      "type": "hinge",
+      "parentPartId": "chassis",
+      "childPartId": "flywheel",
+      "anchorIn": {
+        "x": -2.91339,
+        "y": -0.19685,
+        "z": 0.68225
+      },
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "limit": [
+        -1000000,
+        1000000
+      ],
+      "damping": 0.001,
+      "frictionLoss": 0.001,
+      "backlash": 0
+    },
+    {
+      "id": "guide_joint",
+      "type": "fixed",
+      "parentPartId": "chassis",
+      "childPartId": "gridplate_guide"
+    },
+    {
+      "id": "gate_joint",
+      "type": "hinge",
+      "parentPartId": "chassis",
+      "childPartId": "release_gate",
+      "anchorIn": {
+        "x": -0.15748,
+        "y": -2.71654,
+        "z": 0.0917
+      },
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "limit": [
+        0,
+        75
+      ],
+      "damping": 0.001,
+      "frictionLoss": 0.001,
+      "backlash": 0
+    }
+  ],
+  "actuators": [
+    {
+      "id": "intake",
+      "kind": "velocity_motor",
+      "jointId": "intake_joint",
+      "motor": {
+        "nominalVoltageV": 12,
+        "freeSpeedRpm": 312,
+        "stallTorqueNm": 2.1,
+        "stallCurrentA": 9.2,
+        "freeCurrentA": 0.25
+      },
+      "gearRatio": 1,
+      "efficiency": 0.8,
+      "rotorInertiaKgM2": 8e-05,
+      "loadInertiaKgM2": 0.00035,
+      "viscousFrictionNmPerRadS": 0.002,
+      "coulombFrictionNm": 0.01,
+      "currentLimitA": 8,
+      "controllerLatencyMs": 35,
+      "commandRatePerS": 8,
+      "targetRpm": 300
+    },
+    {
+      "id": "conveyor",
+      "kind": "velocity_motor",
+      "jointId": "conveyor_joint",
+      "motor": {
+        "nominalVoltageV": 12,
+        "freeSpeedRpm": 312,
+        "stallTorqueNm": 2.1,
+        "stallCurrentA": 9.2,
+        "freeCurrentA": 0.25
+      },
+      "gearRatio": 1,
+      "efficiency": 0.8,
+      "rotorInertiaKgM2": 8e-05,
+      "loadInertiaKgM2": 0.00025,
+      "viscousFrictionNmPerRadS": 0.002,
+      "coulombFrictionNm": 0.01,
+      "currentLimitA": 8,
+      "controllerLatencyMs": 45,
+      "commandRatePerS": 8,
+      "targetRpm": 250
+    },
+    {
+      "id": "flywheel",
+      "kind": "velocity_motor",
+      "jointId": "flywheel_joint",
+      "motor": {
+        "nominalVoltageV": 12,
+        "freeSpeedRpm": 6000,
+        "stallTorqueNm": 0.144158,
+        "stallCurrentA": 9.2,
+        "freeCurrentA": 0.25
+      },
+      "gearRatio": 1,
+      "efficiency": 0.9,
+      "rotorInertiaKgM2": 8e-05,
+      "loadInertiaKgM2": 0.000108,
+      "viscousFrictionNmPerRadS": 5e-05,
+      "coulombFrictionNm": 0.003,
+      "currentLimitA": 9.2,
+      "controllerLatencyMs": 25,
+      "commandRatePerS": 4,
+      "targetRpm": 2678.5714285714284,
+      "thermal": {
+        "ambientC": 25,
+        "shutdownC": 95,
+        "thermalResistanceCPerW": 2.5,
+        "thermalMassJPerC": 120
+      },
+      "readyRpm": 2571.4285714285716,
+      "velocityControlBandRpm": 50
+    },
+    {
+      "id": "gate",
+      "kind": "servo",
+      "jointId": "gate_joint",
+      "motor": {
+        "nominalVoltageV": 6,
+        "freeSpeedRpm": 60,
+        "stallTorqueNm": 1.2,
+        "stallCurrentA": 2.5,
+        "freeCurrentA": 0.15
+      },
+      "gearRatio": 1,
+      "efficiency": 0.7,
+      "rotorInertiaKgM2": 2e-05,
+      "loadInertiaKgM2": 0.0004,
+      "viscousFrictionNmPerRadS": 0.02,
+      "coulombFrictionNm": 0.03,
+      "currentLimitA": 2,
+      "controllerLatencyMs": 70,
+      "commandRatePerS": 3,
+      "travelLimit": [
+        0,
+        75
+      ],
+      "kp": 0.22,
+      "kd": 0.02
+    }
+  ],
+  "piecePath": {
+    "intakeActuatorId": "intake",
+    "conveyorActuatorId": "conveyor",
+    "flywheelActuatorId": "flywheel",
+    "hoodActuatorId": null,
+    "turretActuatorId": null,
+    "gateActuatorId": "gate",
+    "storageSlots": [
+      {
+        "x": 4.5,
+        "y": 0,
+        "z": 3.5
+      },
+      {
+        "x": 1.5,
+        "y": 0,
+        "z": 3.5
+      },
+      {
+        "x": -1.5,
+        "y": 0,
+        "z": 3.5
+      },
+      {
+        "x": -4.5,
+        "y": 0,
+        "z": 3.5
+      }
+    ],
+    "intakePose": {
+      "x": 7.48031,
+      "y": 0,
+      "z": 1.53543,
+      "yawDeg": 0
+    },
+    "muzzlePose": {
+      "x": -4.48819,
+      "y": 0,
+      "z": 12.51969,
+      "pitchDeg": 37,
+      "yawDeg": 180
+    },
+    "muzzleClearanceIn": 0.25,
+    "wheelRadiusIn": 1.88976,
+    "launchEfficiency": 0.235,
+    "compressionIn": 0.25,
+    "dragCoefficient": 0.47,
+    "magnusCoefficient": 0.12,
+    "coefficientVariation": 0.08,
+    "flywheelPose": {
+      "x": -2.91339,
+      "y": -0.19685,
+      "z": 6.77165
+    }
+  },
+  "mechanismSensors": [
+    {
+      "id": "flywheel_rpm",
+      "kind": "rpm",
+      "actuatorId": "flywheel",
+      "sampleRateHz": 50,
+      "quantization": 1,
+      "noiseStd": 4,
+      "dropoutRate": 0.002,
+      "latencyMs": 20
+    },
+    {
+      "id": "flywheel_current",
+      "kind": "motor_current",
+      "actuatorId": "flywheel",
+      "sampleRateHz": 50,
+      "quantization": 0.05,
+      "noiseStd": 0.08,
+      "dropoutRate": 0,
+      "latencyMs": 20
+    },
+    {
+      "id": "battery_voltage",
+      "kind": "battery_voltage",
+      "sampleRateHz": 50,
+      "quantization": 0.01,
+      "noiseStd": 0.025,
+      "dropoutRate": 0,
+      "latencyMs": 20
+    }
+  ],
+  "mechanisms": {
+    "capacity": 4,
+    "intakeCycleTimeS": 0.4,
+    "scoreCycleTimeS": 0.7,
+    "canIntakeWhileMoving": true,
+    "canScoreWhileMoving": true,
+    "launchCapable": true,
+    "climbCapable": false,
+    "fsmId": "intake_hold_launch"
+  },
+  "defaultActionTier": "high_level_waypoint",
+  "visualAsset": "robots/gobilda_biobuzz_reference/robot.glb",
+  "warnings": [
+    {
+      "code": "reference_mass_unverified",
+      "severity": "warning",
+      "message": "The 9.5 kg assembled mass and individual non-product masses are estimates; weigh the built robot before using acceleration or stability predictions."
+    },
+    {
+      "code": "launcher_contact_unverified",
+      "severity": "warning",
+      "message": "CAD fixes the wheel, guide, and exit direction; 37-degree pitch is an assembled-plate estimate. Ball compression, loaded RPM, and speed efficiency require shot measurements."
+    },
+    {
+      "code": "intake_aggregate_model",
+      "severity": "warning",
+      "message": "Two independently servo-driven front intake wheels are represented by one synchronous physics actuator."
+    },
+    {
+      "code": "preload_slot_fit_unverified",
+      "severity": "warning",
+      "message": "goBILDA documents four-POLLEN storage, but the simulator's four slot coordinates and ball retention have not been measured in the assembled chute."
+    }
+  ]
+}

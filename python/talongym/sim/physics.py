@@ -325,8 +325,15 @@ def mechanism_piece_force(
             target_x = float(muzzle.get("x") or ix)
             target_z = float(muzzle.get("z") or slot_z)
             speed = 36.0 * max(belt, 0.45)
-            desired_vx = max(speed, (target_x - px) * 12.0)
-            if px < target_x - 2.5:
+            # Feed from the magazine toward the actual launcher. The goBILDA
+            # reference intake faces +X, while its fixed guide exits at -X.
+            # Older presets exit at +X; neither direction is hard-coded here.
+            feed_direction = math.copysign(
+                1.0,
+                target_x - magazine_x if abs(target_x - magazine_x) > 0.2 else target_x - ix,
+            )
+            desired_vx = feed_direction * max(speed, abs(target_x - px) * 12.0)
+            if feed_direction * (target_x - px) > 2.5:
                 desired_vz = (slot_z + 1.0 - pz) * 8.0
             else:
                 desired_vz = (target_z - pz) * 12.0

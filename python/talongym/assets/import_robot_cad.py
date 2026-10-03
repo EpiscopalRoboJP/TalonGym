@@ -56,6 +56,20 @@ def resolve_robot_asset(rel: str) -> Path:
         dest.relative_to(root)
     except ValueError as exc:
         raise RobotCadError(f"bad asset path {rel}") from exc
+    if dest.is_file():
+        return dest
+    # The manufacturer reference is distributed with the repository. Keep
+    # user uploads isolated in var; never let an arbitrary asset path escape
+    # through this fallback.
+    if len(rel_path.parts) == 3 and rel_path.parts[:2] == ("robots", "gobilda_biobuzz_reference") and rel_path.name in {
+        "robot.glb", "cad_manifest.json"
+    }:
+        from talongym.paths import ASSETS_DIR
+
+        packaged_root = (ASSETS_DIR / "robots" / "gobilda_biobuzz_reference").resolve()
+        packaged = (packaged_root / rel_path.name).resolve()
+        if packaged.is_file() and packaged.parent == packaged_root:
+            return packaged
     return dest
 
 

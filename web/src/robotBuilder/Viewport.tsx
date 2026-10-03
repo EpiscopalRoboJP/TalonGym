@@ -210,14 +210,15 @@ function PointerBridge({
   return null;
 }
 
-function FramingCamera({ span }: { span: number }) {
+function FramingCamera({ span, targetY }: { span: number; targetY: number }) {
   const { camera } = useThree();
   useEffect(() => {
-    camera.position.set(span * 0.9, span * 0.75, span * 0.9);
+    camera.position.set(span * 0.9, targetY + span * 0.75, span * 0.9);
+    camera.lookAt(0, targetY, 0);
     camera.near = 0.1;
     camera.far = Math.max(240, span * 8);
     camera.updateProjectionMatrix();
-  }, [camera, span]);
+  }, [camera, span, targetY]);
   return null;
 }
 
@@ -314,7 +315,7 @@ function MountOverlay({
 
 type CameraView = "iso" | "front" | "right" | "top";
 
-function CameraActions({ span }: { span: number }) {
+function CameraActions({ span, targetY }: { span: number; targetY: number }) {
   const { camera } = useThree();
   const snapRef = useRef<(view: CameraView) => void>(() => undefined);
   snapRef.current = (view: CameraView) => {
@@ -325,8 +326,8 @@ function CameraActions({ span }: { span: number }) {
       right: [distance, distance * 0.18, 0],
       top: [0, distance, distance * 0.35],
     };
-    camera.position.set(...positions[view]);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(positions[view][0], positions[view][1] + targetY, positions[view][2]);
+    camera.lookAt(0, targetY, 0);
     camera.updateProjectionMatrix();
   };
   const bridge = useRef((view: CameraView) => snapRef.current(view));
@@ -336,7 +337,7 @@ function CameraActions({ span }: { span: number }) {
   return null;
 }
 
-function CameraPersistence({ draftId }: { draftId: string }) {
+function CameraPersistence({ draftId, targetY }: { draftId: string; targetY: number }) {
   const { camera } = useThree();
   const frames = useRef(0);
   useEffect(() => {
@@ -346,12 +347,12 @@ function CameraPersistence({ draftId }: { draftId: string }) {
         | null;
       if (saved && [saved.x, saved.y, saved.z].every(Number.isFinite)) {
         camera.position.set(saved.x, saved.y, saved.z);
-        camera.lookAt(0, 0, 0);
+        camera.lookAt(0, targetY, 0);
       }
     } catch {
       localStorage.removeItem(`talongym:builder-camera:${draftId}`);
     }
-  }, [camera, draftId]);
+  }, [camera, draftId, targetY]);
   useFrame(() => {
     frames.current += 1;
     if (frames.current % 30 !== 0) return;
@@ -413,6 +414,7 @@ export function BuilderViewport({
   onFreePose: (instanceId: string, pose: Transform3) => void;
 }) {
   const assembly = doc.assembly;
+  const cameraTargetY = (doc.chassis?.heightIn || 10) / 2;
   const span = useMemo(() => {
     let max = Math.max(doc.chassis?.lengthIn || 18, doc.chassis?.widthIn || 18, 18);
     for (const pose of Object.values(poses)) {
@@ -503,10 +505,10 @@ export function BuilderViewport({
           if (event.button === 0) onSelect(null);
         }}
       >
-        <PerspectiveCamera makeDefault fov={40} position={[span * 0.9, span * 0.75, span * 0.9]} />
-        <FramingCamera span={span} />
-        <CameraActions span={span} />
-        <CameraPersistence draftId={doc.id} />
+        <PerspectiveCamera makeDefault fov={40} position={[span * 0.9, cameraTargetY + span * 0.75, span * 0.9]} />
+        <FramingCamera span={span} targetY={cameraTargetY} />
+        <CameraActions span={span} targetY={cameraTargetY} />
+        <CameraPersistence draftId={doc.id} targetY={cameraTargetY} />
         <color attach="background" args={[theme.scene]} />
         <ambientLight intensity={0.78} />
         <directionalLight position={[40, 80, 30]} intensity={1.15} />
@@ -564,6 +566,7 @@ export function BuilderViewport({
         <MountDebugProjection markers={markers} />
         <OrbitControls
           makeDefault
+          target={[0, cameraTargetY, 0]}
           enabled={!dragging}
           enableDamping={false}
           enablePan

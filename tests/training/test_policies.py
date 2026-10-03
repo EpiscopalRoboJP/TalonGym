@@ -45,6 +45,17 @@ def test_loaded_robot_fires_only_on_launch_spot():
     assert there["mechanism"] == 2
 
 
+def test_rear_facing_launcher_turns_chassis_before_firing():
+    lx, ly, lh = LAUNCH_POSES[0]
+    info = {"robot_id": "red_0", "launcher_heading_deg": 180}
+    at_old_heading = scripted_biobuzz(_obs(lx, ly, lh, held=4), info=info)
+    assert at_old_heading["mechanism"] == 0
+    new_heading = _target(at_old_heading)[2]
+    assert math.isclose(abs(new_heading - lh), math.pi, abs_tol=1e-6)
+    aimed = scripted_biobuzz(_obs(lx, ly, new_heading, held=4), info=info)
+    assert aimed["mechanism"] == 2
+
+
 def test_loaded_robot_leaves_for_park_when_time_runs_out():
     lx, ly, lh = LAUNCH_POSES[0]
     action = scripted_biobuzz(_obs(lx, ly, lh, held=2, t_left=3.0), info={"robot_id": "red_0"})

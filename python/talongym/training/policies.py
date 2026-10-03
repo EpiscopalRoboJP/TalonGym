@@ -81,6 +81,10 @@ def scripted_biobuzz(obs: dict[str, np.ndarray], info: dict[str, Any] | None = N
     slot = 1 if str(info.get("robot_id", "")).endswith("_1") else 0
     mate = _teammate_xy(obs)
     launch = _mirror_for_alliance(*LAUNCH_POSES[slot], alliance)
+    # The chassis heading must compensate for a fixed launcher facing toward
+    # the rear, as on goBILDA's 2026-27 mecanum StarterBot.
+    launcher_offset = math.radians(float(info.get("launcher_heading_deg") or 0.0))
+    launch = (launch[0], launch[1], wrap_angle(launch[2] - launcher_offset))
     park = _park_pose(slot, alliance, mate)
     boxes = list(HIVE_FRAMES)
     if mate is not None:

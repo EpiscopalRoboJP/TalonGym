@@ -38,6 +38,17 @@ def test_robot_asset_rejects_traversal():
         resolve_robot_asset("/etc/passwd")
 
 
+def test_packaged_gobilda_visual_is_available_without_runtime_cache(monkeypatch, tmp_path):
+    from talongym import paths
+
+    monkeypatch.setattr(paths, "VAR_DIR", tmp_path)
+    visual = resolve_robot_asset("robots/gobilda_biobuzz_reference/robot.glb")
+    assert visual.is_file()
+    assert visual.read_bytes()[:4] == b"glTF"
+    assert visual.is_relative_to(paths.ASSETS_DIR)
+    assert not resolve_robot_asset("robots/gobilda_biobuzz_reference/other.glb").is_file()
+
+
 def test_schema_accepts_visual_mesh_fields():
     robot = dict(load_preset("robot", "mecanum_meepmeep_defaults"))
     robot["visualAsset"] = "robots/team_bot/visual.glb"

@@ -1,6 +1,6 @@
 # 2026–27 starter launcher CAD reference
 
-These are manufacturer starter assemblies, not a CAD model of Team 17986 or Team 27268's actual robot. The four scoring starters currently checked into TalonGym are synthetic overlays. Their geometry and shot trajectory must not be presented as either manufacturer's assembled launcher or as calibrated scoring physics.
+These are manufacturer starter assemblies, not a CAD model of Team 17986 or Team 27268's actual robot. The older four catalog scoring starters are synthetic overlays. Their geometry and shot trajectory must not be presented as either manufacturer's assembled launcher or as calibrated scoring physics. The separate `gobilda_biobuzz_reference` preset below uses the complete manufacturer assembly CAD, but its shot physics still require measured calibration.
 
 ## goBILDA BIOBUZZ StarterBot (mecanum)
 
@@ -10,6 +10,14 @@ These are manufacturer starter assemblies, not a CAD model of Team 17986 or Team
 - Step 55 puts the hub on the motor shaft with approximately **1 mm clearance** between the Hyper Hub and adjacent screw heads.
 - The cutting guide on page 7 makes **Large Gridplate H, 216 × 176 mm**, from the [1.5 mm polycarbonate gridplate](https://www.gobilda.com/ftc-starter-kit-2026-2027-season/). Step 57 fixes that plate above the wheel with six zip ties. It is not SKU 1202-0001-0001, the angle mount used as `hood_plate` in the TalonGym overlay.
 - A 1 mm-deflection tessellation of the complete STEP gives an approximate **452 × 452 × 309 mm** overall assembly envelope. This is a whole-robot measurement, not a launcher envelope.
+
+### CAD-backed mecanum preset
+
+`presets/robots/gobilda_biobuzz_reference.json` represents the complete 2026–27 mecanum StarterBot and uses the packaged `assets/robots/gobilda_biobuzz_reference/robot.glb`. The GLB is made from the full official STEP assembly, retains every component's placement, rotates Z-up CAD into the simulator's Y-up visual frame, and places the lowest wheel tread on the floor. `cad_manifest.json` records the original and reduced mesh bounds, face counts, and source hash. Rebuild it with `python -m talongym.assets.gobilda_reference --source-zip <official ZIP>` using the CAD dependencies; the conversion intentionally bypasses the user upload limit for this trusted, 419 MB source assembly. The packaged asset loads even with an empty runtime cache.
+
+The physical preset uses the CAD's 104 mm drive wheel diameter, 414 mm track, and 264 mm wheelbase. The intake is on the robot's +X end and the fixed launcher exits toward −X; scripted aiming turns the chassis to account for that orientation. The Hogback wheel radius is 48 mm, and the attached 1:1 Yellow Jacket is modeled from the published 6,000 RPM free speed and 1.47 kg·cm stall torque. The [official example code ZIP](https://www.gobilda.com/content/downloads/3200-2627-0004_example-code.zip) targets 1,250 encoder ticks/s (about 2,679 RPM with 28 ticks/revolution) and feeds above 1,200 ticks/s (about 2,571 RPM), which are the preset's flywheel target and feed threshold. The official [resource guide](https://www.gobilda.com/ftc-starterbot-with-mecanum-wheels-resource-guide-2026-2027/) describes carrying and shooting four POLLEN; the simulator therefore has four preload positions.
+
+The wheel/motor locations, drive dimensions, component sizes, and rendered assembly are source-backed. The 9.5 kg total mass, virtual POLLEN slot coordinates, parasitic flywheel drag, launcher contact efficiency, and 37° virtual muzzle direction are estimates. In particular, the guide slope is not a measured ball exit angle. The baseline scripted four-piece firing check releases pieces but does not score in the simulated upper HIVE. Do not use its scoring rate as a competition prediction until an assembled robot is weighed and multiple video-tracked shots measure loaded wheel speed, ball exit speed and angle, shot dispersion, and real scoring positions. Refit those parameters against held-out shots, then repeat the field collision and scoring checks. The preset's explicit warnings remain until that validation is done.
 
 ## REV DUO BIOBUZZ Starter Bot
 

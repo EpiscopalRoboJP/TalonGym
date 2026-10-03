@@ -439,12 +439,12 @@ export function RobotActor({
   const emissiveIntensity = highlight === "foul" ? 0.55 : highlight === "contact" ? 0.35 : 0;
   const previewParts = useMemo(
     () =>
-      (hideBody ? [] : (design?.rigidParts || [])).filter((part) => {
+      (hideBody || (cadUrl && cadReady) ? [] : (design?.rigidParts || [])).filter((part) => {
         if (part.id === "_catalog") return false;
         const ghost = part.id === "intake_roller" || part.id === "conveyor_roller" || part.id === "flywheel" || part.id === "hood" || part.id === "release_gate";
         return !ghost || Boolean(part.collision?.length);
       }),
-    [hideBody, design?.rigidParts],
+    [hideBody, cadUrl, cadReady, design?.rigidParts],
   );
   const hideChassisLump = chassisLumpHidden({ hideBody, rigidParts: design?.rigidParts });
   const showBox = !hideChassisLump && (!cadUrl || !cadReady || showHull || Boolean(highlight));
@@ -495,11 +495,11 @@ export function RobotActor({
               </group>
             );
           })}
-      {!hideChassisLump &&
+      {!hideChassisLump && !cadReady &&
         (design?.intakes || []).map((intake) => (
           <IntakeGizmo key={intake.id} intake={intake} chassisHeight={height} />
         ))}
-      {!hideChassisLump &&
+      {!hideChassisLump && !cadReady &&
         (design?.launchers || []).map((launcher) => (
           <LauncherGizmo key={launcher.id} launcher={launcher} chassisHeight={height} />
         ))}

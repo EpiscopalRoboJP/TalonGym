@@ -43,6 +43,12 @@ _COLLISION_XML_CACHE: dict[tuple[str, float, float, float, str], tuple[str, Any,
 def clear_collision_xml_cache() -> None:
     _COLLISION_XML_CACHE.clear()
 FLYWHEEL_READY_FRAC = 0.8
+
+
+def _ready_rpm(config: dict[str, Any]) -> float:
+    target = float(config.get("targetRpm") or 0.0)
+    explicit = config.get("readyRpm")
+    return float(explicit) if explicit is not None else FLYWHEEL_READY_FRAC * target
 # FTC perimeter panels' inner face sits this far inside fieldSizeIn; spawns stay clear of it.
 PERIMETER_FACE_INSET_IN = 1.4
 # Waypoint-follower routes keep the chassis this far beyond its half-width from obstacles: a square
@@ -1036,8 +1042,7 @@ class World:
         hood_id = str(path.get("hoodActuatorId") or "hood")
         flywheel = rs.mechanism.actuators.get(flywheel_id)
         if flywheel is not None:
-            target_rpm = float(flywheel.config.get("targetRpm") or 0.0)
-            flywheel.state.velocity_rad_s = FLYWHEEL_READY_FRAC * target_rpm * RPM_TO_RAD_S
+            flywheel.state.velocity_rad_s = _ready_rpm(flywheel.config) * RPM_TO_RAD_S
             flywheel.state.requested_command = 1.0
             flywheel.state.delayed_command = 1.0
             flywheel.state.command = 1.0
@@ -1253,9 +1258,8 @@ class World:
             if flywheel_id in commands:
                 commands[flywheel_id] = 1.0
                 actuator = rs.mechanism.actuators[flywheel_id]
-                target_rpm = float(actuator.config.get("targetRpm") or 0.0)
                 actual_rpm = abs(actuator.state.velocity_rad_s) * 60.0 / (2.0 * math.pi)
-                if actual_rpm >= FLYWHEEL_READY_FRAC * target_rpm:
+                if actual_rpm >= _ready_rpm(actuator.config):
                     conveyor_id = str(path.get("conveyorActuatorId") or "")
                     if conveyor_id in commands:
                         commands[conveyor_id] = 1.0
@@ -1362,7 +1366,7 @@ class World:
                 else:
                     target_rpm = float(flywheel.config.get("targetRpm") or 0.0)
                     actual_rpm = flywheel.state.velocity_rad_s * 60.0 / math.tau
-                    blocked = blocked or actual_rpm < FLYWHEEL_READY_FRAC * target_rpm
+                    blocked = blocked or actual_rpm < _ready_rpm(flywheel.config)
                     rs.spinup_timer = max(0.0, actual_rpm) / max(target_rpm, 1e-6)
             if blocked:
                 if rs.mechanism is None:
