@@ -12,9 +12,6 @@ ENV_PROFILE = "TALONGYM_COMPUTE_PROFILE"
 ENV_DEVICE = "TALONGYM_TORCH_DEVICE"
 ENV_SIM_WORKERS = "TALONGYM_SIM_WORKERS"
 ENV_EVAL_WORKERS = "TALONGYM_EVAL_WORKERS"
-# Keep in sync with requirements.txt.
-TORCH_CUDA_INDEX = "https://download.pytorch.org/whl/cu130"
-
 PROFILE_N_ENVS = {
     "lightweight_cpu": 8,
     "workstation": 256,
@@ -141,14 +138,16 @@ def torch_status() -> dict[str, Any]:
         "nvidiaGpu": gpu,
         "hint": None,
     }
-    fix = f"Reinstall with: python -m pip install --force-reinstall --no-deps torch --extra-index-url {TORCH_CUDA_INDEX}"
+    from talongym.training.dependencies import install_command
+
+    fix = "See https://pytorch.org/get-started/locally/ for the PyTorch command matching your OS and hardware."
     try:
         import torch
     except ImportError as exc:
         status["error"] = f"{type(exc).__name__}: {exc}"
         missing = getattr(exc, "name", None) == "torch"
         status["hint"] = (
-            "torch is not installed; training needs it. Install with: python -m pip install -r requirements.txt"
+            f"torch is not installed; training needs it. Install the RL extra with: {install_command('rl')}"
             if missing
             else f"torch is installed but broken (likely an interrupted install). {fix}"
         )
@@ -172,7 +171,7 @@ def torch_status() -> dict[str, Any]:
         else:
             status["hint"] = (
                 f"{gpu} is too old for this torch build (CUDA {status['cudaBuild']}); training uses CPU. "
-                "Install an older CUDA build, e.g. --index-url https://download.pytorch.org/whl/cu126"
+                "Select a compatible CUDA build at https://pytorch.org/get-started/locally/"
             )
     return status
 

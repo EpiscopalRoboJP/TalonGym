@@ -12,6 +12,26 @@ python -m pip install -e ".[dev,rl]"
 
 That extra set is the laptop/workstation path: tests (`dev`) plus RecurrentPPO (`rl`: torch, stable-baselines3, sb3-contrib).
 
+### Windows 10/11
+
+Install Python 3.12 from [python.org](https://www.python.org/downloads/windows/) and enable the Python launcher during setup. From the repository root in PowerShell, create and use the virtual environment directly (this does not require activating it):
+
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -e ".[dev,rl,mujoco]"
+```
+
+This installs the contributor tools, RecurrentPPO dependencies, and MuJoCo used by the shipped BIOBUZZ 3D field. For a CPU-only machine, this is the complete setup. Confirm the packages and device selection with:
+
+```powershell
+.venv\Scripts\python.exe -c "import torch, stable_baselines3, sb3_contrib; print('torch', torch.__version__, 'CUDA available:', torch.cuda.is_available())"
+.venv\Scripts\python.exe -m talongym detect
+.venv\Scripts\python.exe -m pytest tests/training/test_ppo_smoke.py
+```
+
+For an NVIDIA GPU, choose **Windows / Pip / Python / CUDA** in the official [PyTorch installer selector](https://pytorch.org/get-started/locally/). Use its package arguments with `.venv\Scripts\python.exe -m pip install` (for example, preserve the generated `--index-url` option). Then install the project extras using the command above; pip will keep the compatible Torch build already in the environment. `torch.cuda.is_available()` should print `True` when the driver and selected CUDA build are compatible.
+
 | Extra | Install when | Provides |
 |-------|----------------|----------|
 | `dev` | Always for contributors | pytest |

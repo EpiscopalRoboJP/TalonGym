@@ -27,6 +27,7 @@ import {
   type RobotPreset,
   type RunRow,
   type StartSlot,
+  type TrainingDependencies,
 } from "../api";
 import {
   Empty,
@@ -224,6 +225,8 @@ export function TrainPage() {
     ROBOT_IDS.map(defaultRobotSetup),
   );
   const [compute, setCompute] = useState<ComputeInfo | null>(null);
+  const [trainingDependencies, setTrainingDependencies] =
+    useState<TrainingDependencies | null>(null);
   const [trueSeries, setTrueSeries] = useState<number[]>([]);
   const [evalSeries, setEvalSeries] = useState<number[]>([]);
   const [shapeSeries, setShapeSeries] = useState<number[]>([]);
@@ -250,6 +253,9 @@ export function TrainPage() {
     getJson<ComputeInfo>("/compute")
       .then(setCompute)
       .catch(() => undefined);
+    getJson<TrainingDependencies>("/compute/dependencies")
+      .then(setTrainingDependencies)
+      .catch(() => undefined);
     getJson<DefaultsBundle>("/defaults")
       .then((d) => {
         if (d.fieldId) setFieldId(d.fieldId);
@@ -266,6 +272,35 @@ export function TrainPage() {
     // Initial load only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (trainingDependencies?.install.status !== "running") return;
+    let active = true;
+    const timer = window.setInterval(() => {
+      getJson<TrainingDependencies>("/compute/dependencies")
+        .then((status) => {
+          if (active) setTrainingDependencies(status);
+        })
+        .catch(() => undefined);
+    }, 1500);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [trainingDependencies?.install.status]);
+
+  async function installTrainingDependencies() {
+    try {
+      const install = await postJson<TrainingDependencies["install"]>(
+        "/compute/dependencies/install",
+      );
+      setTrainingDependencies((current) =>
+        current ? { ...current, install } : { installed: false, missing: [], install },
+      );
+    } catch {
+      // postJson emits the shared API error toast.
+    }
+  }
 
   useEffect(() => {
     if (runId) openRun(runId);
@@ -642,6 +677,7 @@ export function TrainPage() {
   const easyBlurb = compute
     ? `Detected ${compute.profile}: ${compute.hardware.cpuCount} cores${compute.hardware.ramGb != null ? `, ${compute.hardware.ramGb.toFixed(0)} GB RAM` : ""}${compute.hardware.cuda ? ", CUDA" : ""}. Runs ${compute.nEnvs} envs with the season's easy config.`
     : BUDGETS.easy.blurb;
+  const installingDependencies = trainingDependencies?.install.status === "running";
 
   return (
     <main className="page layout-train">
@@ -656,7 +692,7 @@ export function TrainPage() {
                 className="btn primary"
                 style={{ flex: 1 }}
                 onClick={start}
-                disabled={starting || busy}
+                disabled={starting || busy || installingDependencies}
               >
                 <Icon name="play" size={14} />{" "}
                 {starting ? "Starting…" : "Start run"}
@@ -721,6 +757,37 @@ export function TrainPage() {
                 {profile === "easy" ? easyBlurb : BUDGETS[profile].blurb}
               </span>
             </div>
+            {trainingDependencies && (
+              <div className="stack" data-testid="training-dependencies">
+                {trainingDependencies.installed ? (
+                  <p className="note" role="status">
+                    RecurrentPPO and MuJoCo training dependencies are ready.
+                  </p>
+                ) : (
+                  <>
+                    <p className="field-hint">
+                      Training needs {trainingDependencies.missing.join(", ")}.
+                      {trainingDependencies.install.status !== "idle" && (
+                        <> {trainingDependencies.install.message}</>
+                      )}
+                    </p>
+                    <button
+                      type="button"
+                      className="btn"
+                      data-testid="install-training-dependencies"
+                      onClick={installTrainingDependencies}
+                      disabled={installingDependencies}
+                    >
+                      {installingDependencies
+                        ? "Installing training dependencies…"
+                        : trainingDependencies.install.status === "failed"
+                          ? "Retry dependency install"
+                          : "Install training dependencies"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
             <PresetSelect
               id="train-bundle"
               label="Training preset"

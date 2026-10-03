@@ -19,7 +19,22 @@ from talongym.training.compute import recommended_sim_workers
 try:
     from stable_baselines3.common.vec_env.base_vec_env import VecEnv
 except ImportError:  # pragma: no cover - train_ppo already requires [rl]
-    VecEnv = object  # type: ignore[misc,assignment]
+    class VecEnv:  # type: ignore[no-redef]
+        """Small compatibility base for importing vec_env without the RL extra."""
+
+        def __init__(self, num_envs: int, observation_space: spaces.Space, action_space: spaces.Space) -> None:
+            self.num_envs = int(num_envs)
+            self.observation_space = observation_space
+            self.action_space = action_space
+            self.reset_infos: list[dict[str, Any]] = []
+            self._seeds: list[int | None] = [None] * self.num_envs
+            self._options: list[dict[str, Any] | None] = [None] * self.num_envs
+
+        def _reset_seeds(self) -> None:
+            self._seeds = [None] * self.num_envs
+
+        def _reset_options(self) -> None:
+            self._options = [None] * self.num_envs
 
 
 _WORKER_ERROR = "__talongym_worker_error__"

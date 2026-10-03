@@ -30,6 +30,7 @@ from talongym.training.curriculum import (
     stage_info,
     teammate_for,
 )
+from talongym.training.dependencies import install_command
 from talongym.training.policies import scripted_auto
 
 
@@ -280,7 +281,7 @@ def train_ppo(
                 on_rollout(frames)
             return {"algo": "scripted", "frames": frames, "steps": 0, "metrics": metrics}
         raise RuntimeError(
-            "RecurrentPPO requires `.venv/bin/python -m pip install -e '.[rl]'` "
+            f"RecurrentPPO requires `{install_command('rl')}` "
             f"(torch, stable-baselines3, sb3-contrib) in {sys.executable}: {exc}"
         ) from exc
 

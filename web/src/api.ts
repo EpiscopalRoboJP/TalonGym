@@ -157,6 +157,12 @@ export type ComputeInfo = {
   envVar: string;
 };
 
+export type TrainingDependencies = {
+  installed: boolean;
+  missing: string[];
+  install: { status: "idle" | "running" | "succeeded" | "failed"; message: string };
+};
+
 export type DefaultsBundle = {
   fieldId: string;
   robotId: string;

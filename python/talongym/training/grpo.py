@@ -14,6 +14,7 @@ from talongym.env.ftc_auto import FTCAutoEnv
 from talongym.eval.harness import bootstrap_ci
 from talongym.presets.loader import LoadedPresets, load_bundle
 from talongym.training.curriculum import objective_value, resolved_action_tier
+from talongym.training.dependencies import install_command
 from talongym.training.ppo import RecurrentPolicyAdapter, record_policy_episode
 
 
@@ -64,7 +65,7 @@ def train_grpo(
         from talongym.training.privileged import PrivilegedObsWrapper
     except ImportError as exc:
         raise RuntimeError(
-            "GRPO requires `.venv/bin/python -m pip install -e '.[rl]'` "
+            f"GRPO requires `{install_command('rl')}` "
             f"in {sys.executable}: {exc}"
         ) from exc
 

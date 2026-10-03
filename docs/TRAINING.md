@@ -83,7 +83,7 @@ The dashboard shows:
 - Live downsampled rollout, curriculum stage, entropy, approx KL, FPS
 - Cancel — cooperative stop (`cancelling` until the worker acknowledges `cancelled`); partial checkpoint may still be on disk
 
-If a run sits on **collecting rollouts** with FPS frozen for many minutes, the sim workers hung (older builds could deadlock on large step payloads). Cancel, restart Lab with `.venv/bin/python -m talongym lab`, and start a new run.
+If a run sits on **collecting rollouts** with FPS frozen for many minutes, the sim workers hung (older builds could deadlock on large step payloads). Cancel, restart Lab with the same Python interpreter used to install TalonGym (for example, `.venv\Scripts\python.exe -m talongym lab` on Windows), and start a new run.
 
 Runs persist in SQLite. Open a past run from the list to reconnect the WebSocket.
 

@@ -92,6 +92,24 @@ def test_cuda_arch_check_rejects_gpus_the_torch_build_has_no_kernels_for():
     assert _arch_supports_capability([], (6, 1))
 
 
+def test_missing_torch_hint_points_to_rl_extra(monkeypatch):
+    import builtins
+
+    from talongym.training.compute import torch_status
+
+    original_import = builtins.__import__
+
+    def import_without_torch(name, *args, **kwargs):
+        if name == "torch":
+            raise ModuleNotFoundError("No module named 'torch'", name="torch")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_torch)
+    status = torch_status()
+    assert ".[rl]" in status["hint"]
+    assert "requirements.txt" not in status["hint"]
+
+
 def test_sim_workers_leave_a_core_and_never_exceed_n_envs(monkeypatch):
     monkeypatch.delenv(ENV_SIM_WORKERS, raising=False)
     assert recommended_sim_workers(1, {"cpuCount": 16}) == 1

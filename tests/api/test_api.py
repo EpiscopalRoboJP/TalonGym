@@ -33,6 +33,34 @@ def test_health_and_presets():
     assert ids == {"biobuzz_2026_field_v1"}
 
 
+def test_training_dependency_status_and_install_endpoint(monkeypatch):
+    import importlib
+
+    app_module = importlib.import_module("talongym.api.app")
+
+    monkeypatch.setattr(
+        app_module.training_dependencies,
+        "training_dependency_status",
+        lambda: {
+            "installed": False,
+            "missing": ["torch"],
+            "install": {"status": "idle", "message": "not installed"},
+        },
+    )
+    monkeypatch.setattr(
+        app_module.training_dependencies,
+        "start_training_dependency_install",
+        lambda: {"status": "running", "message": "Installing"},
+    )
+    client = TestClient(app)
+    status = client.get("/api/v1/compute/dependencies")
+    assert status.status_code == 200
+    assert status.json()["missing"] == ["torch"]
+    started = client.post("/api/v1/compute/dependencies/install")
+    assert started.status_code == 200
+    assert started.json()["status"] == "running"
+
+
 def test_defaults_get_and_put():
     client = TestClient(app)
     got = client.get("/api/v1/defaults")

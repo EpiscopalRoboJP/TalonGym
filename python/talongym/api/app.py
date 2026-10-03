@@ -27,6 +27,7 @@ from talongym.presets.loader import PresetError, is_shipped_preset, validate_doc
 from talongym.sim.physics import default_backend
 from talongym.training.policies import scripted_auto
 from talongym.training.ppo import load_trained_policy, record_policy_episode
+from talongym.training import dependencies as training_dependencies
 
 
 @asynccontextmanager
@@ -139,6 +140,16 @@ def compute_info() -> dict[str, Any]:
     from talongym.training.compute import describe_compute
 
     return describe_compute(get_defaults().get("trainingId"))
+
+
+@app.get(f"{API}/compute/dependencies")
+def compute_dependencies() -> dict[str, Any]:
+    return training_dependencies.training_dependency_status()
+
+
+@app.post(f"{API}/compute/dependencies/install")
+def install_compute_dependencies() -> dict[str, str]:
+    return training_dependencies.start_training_dependency_install()
 
 
 @app.get(f"{API}/defaults")

@@ -17,8 +17,10 @@ def test_train_ppo_requires_rl_or_runs(monkeypatch):
     try:
         import sb3_contrib  # noqa: F401
     except ImportError:
-        with pytest.raises(RuntimeError, match="RecurrentPPO"):
+        with pytest.raises(RuntimeError, match="RecurrentPPO") as error:
             train_ppo(total_steps=128, n_envs=1, allow_scripted=False)
+        assert "-m pip install -e \".[rl]\"" in str(error.value)
+        assert ".venv/bin/python" not in str(error.value)
         return
     seen: list[dict] = []
     result = train_ppo(
