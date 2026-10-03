@@ -719,6 +719,14 @@ def compile_assembly_to_preset(
             preset["piecePath"]["flywheelPose"] = {
                 axis: float(wheel_pose[axis]) for axis in ("x", "y", "z")
             }
+        wheel_part = catalog_parts.get(flywheel_id, {})
+        wheel_radii = [
+            float(shape["radiusIn"])
+            for shape in wheel_part.get("collision") or []
+            if shape.get("kind") == "cylinder"
+        ]
+        if wheel_radii:
+            preset["piecePath"]["wheelRadiusIn"] = max(wheel_radii)
     compiled = compile_robot_preset(preset, competitive=competitive)
     document_warnings = tuple(document["warnings"]) if isinstance(document.get("warnings"), list) else ()
     overlap_warnings = connected_overlap_warnings(poses, instances, catalog_parts, connections)
@@ -727,7 +735,7 @@ def compile_assembly_to_preset(
         motor_warnings = ({
             "code": "launcher_trajectory_unverified",
             "severity": "warning",
-            "message": "Launcher exit angle, feed path, wheel radius, and speed efficiency still use template assumptions; commanded speed uses actual flywheel RPM but needs a physical scoring replay before training.",
+            "message": "Launcher exit angle, feed path, and speed efficiency still use template assumptions; wheel radius follows the catalog part, but firing tests are needed before training.",
         },)
         flywheel = next((row for row in preset.get("actuators") or [] if row.get("id") == "flywheel"), None)
         flywheel_joint = next((row for row in preset.get("joints") or [] if flywheel and row.get("id") == flywheel.get("jointId")), None)

@@ -938,6 +938,13 @@
     "trackWidthIn": 12.913,
     "wheelbaseIn": 11.654
   },
+  "warnings": [
+    {
+      "code": "starter_launcher_reference_mismatch",
+      "severity": "warning",
+      "message": "This scoring overlay is not the goBILDA 2026-27 StarterBot launcher: the official build uses one 96 mm Hogback wheel on a Hyper Hub and a cut polycarbonate guide, while this preset uses a Boot Wheel and angle bracket."
+    }
+  ],
   "chassis": {
     "lengthIn": 15.984263937007873,
     "widthIn": 17.633907086614172,

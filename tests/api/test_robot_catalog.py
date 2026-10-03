@@ -301,3 +301,4 @@ def test_starter_compile_exposes_unverified_physics_inputs():
     assert body["physical"] is True
     assert body["physicsInputsVerified"] is False
     assert any(row["code"] == "launcher_trajectory_unverified" for row in body["warnings"])
+    assert any(row["code"] == "starter_launcher_reference_mismatch" for row in body["warnings"])

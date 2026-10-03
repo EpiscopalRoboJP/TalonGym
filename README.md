@@ -2,7 +2,7 @@
 
 A **training and strategy-discovery aid** for FIRST Tech Challenge (FTC) autonomous periods. Teams configure a field, robot, and scoring-rules preset; train a control policy on the BIOBUZZ™ MuJoCo mesh field; inspect *why* a strategy scored; and export a Road Runner 1.0 Actions snippet they paste into an AUTO OpMode.
 
-**Status:** 0.5.21 alpha. APIs and presets still move. Licensed **GPL-3.0-or-later**. TalonGym is not affiliated with, endorsed by, or sponsored by FIRST.
+**Status:** 0.5.22 alpha. APIs and presets still move. Licensed **GPL-3.0-or-later**. TalonGym is not affiliated with, endorsed by, or sponsored by FIRST.
 
 TalonGym is built by **FTC Team 17986 904 Robo Eagles** and **FTC Team 27268 Talon Strike**.
 
@@ -45,6 +45,8 @@ Throughput and time-to-policy numbers are **Phase 0 benchmark gates**, not claim
 - FTC field coordinate system: https://ftc-docs.firstinspires.org/en/latest/game_specific_resources/field_coordinate_system/field-coordinate-system.html
 - Road Runner 1.0 Actions: https://rr.brott.dev/docs/v1-0/actions/
 - MeepMeep: https://github.com/acmerobotics/meepmeep
+
+The [2026–27 launcher CAD reference](docs/launcher_reference_2026.md) records manufacturer dimensions and the remaining differences in the shipped scoring starters. Their shot trajectory is still uncalibrated.
 
 Point values and geometry in presets are **data**. If a Team Update changes them, bump the preset’s `manualRevision` rather than editing engine code.
 

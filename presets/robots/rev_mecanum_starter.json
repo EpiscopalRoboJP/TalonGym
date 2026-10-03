@@ -1319,6 +1319,13 @@
     "trackWidthIn": 8.189,
     "wheelbaseIn": 14.803
   },
+  "warnings": [
+    {
+      "code": "starter_launcher_reference_mismatch",
+      "severity": "warning",
+      "message": "This scoring overlay is not the REV 2026-27 Starter Bot launcher: the official build uses two 90 mm Grip Wheels on one 252 mm hex shaft and a bent polycarbonate floor, while this preset has one wheel and a bracket."
+    }
+  ],
   "chassis": {
     "lengthIn": 18,
     "widthIn": 18,

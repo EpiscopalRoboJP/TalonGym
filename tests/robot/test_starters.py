@@ -74,6 +74,13 @@ def test_starters_are_schema_1_2_scoring_assemblies(starter_id: str):
         assert compiled.instance_poses[ident]["z"] > 10.0
     assert not any(row["code"] == "scoring_geometry_unverified" for row in compiled.warnings)
     assert any(row["code"] == "launcher_trajectory_unverified" for row in compiled.warnings)
+    assert any(row["code"] == "starter_launcher_reference_mismatch" for row in compiled.warnings)
+    flywheel_sku = next(row["sku"] for row in document["assembly"]["instances"] if row["id"] == "flywheel_wheel")
+    from talongym.robot.catalog import get_part
+
+    wheel = get_part(flywheel_sku)
+    wheel_radius = next(shape["radiusIn"] for shape in wheel["collision"] if shape["kind"] == "cylinder")
+    assert compiled.preset["piecePath"]["wheelRadiusIn"] == pytest.approx(wheel_radius)
     from talongym.assets.mjcf_robot import kinematic_part_transforms
 
     robot_hz = compiled.preset["chassis"]["heightIn"] / 2.0

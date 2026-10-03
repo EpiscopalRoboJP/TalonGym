@@ -301,6 +301,23 @@ def build_starter_document(starter_id: str) -> dict[str, Any]:
         "drivetrain": drivetrain,
         "instanceRoles": roles,
     }
+    if starter_id.startswith("gobilda"):
+        reference_gap = (
+            "This scoring overlay is not the goBILDA 2026-27 StarterBot launcher: "
+            "the official build uses one 96 mm Hogback wheel on a Hyper Hub and a cut "
+            "polycarbonate guide, while this preset uses a Boot Wheel and angle bracket."
+        )
+    else:
+        reference_gap = (
+            "This scoring overlay is not the REV 2026-27 Starter Bot launcher: "
+            "the official build uses two 90 mm Grip Wheels on one 252 mm hex shaft "
+            "and a bent polycarbonate floor, while this preset has one wheel and a bracket."
+        )
+    document["warnings"] = [{
+        "code": "starter_launcher_reference_mismatch",
+        "severity": "warning",
+        "message": reference_gap,
+    }]
     compiled = compile_assembly_to_preset(document, competitive=True)
     for key in ("chassis", "motors", "constraints", "sensors", "mechanisms", "defaultActionTier"):
         value = compiled.preset.get(key)
