@@ -1,7 +1,7 @@
 import pytest
 
 from talongym.presets.loader import load_preset, validate_document
-from talongym.training.reward import RewardTracker, resolve_reward_config, volume_ids_for_tag
+from talongym.training.reward import RewardTracker, resolve_reward_config, volume_ids_for_tag, wall_hit_for_shaping
 
 PARK_ELEMENTS = [
     {
@@ -48,6 +48,7 @@ def test_scoring_reward_used_when_training_omits():
     assert kinds == ["trueScoreDelta", "collisionPenalty", "earlyVolumeBonus"]
     penalty = next(t for t in cfg["terms"] if t["kind"] == "collisionPenalty")
     assert penalty["wall"] == 0.02
+    assert penalty["piece"] == 0.02
     bonus = next(t for t in cfg["terms"] if t["kind"] == "earlyVolumeBonus")
     assert bonus["volumeTag"] == "park"
     assert bonus["requireAccumulator"] == "parked_auto"
@@ -236,3 +237,43 @@ def test_collision_penalty_shapes_wall_hits_only():
     )
     assert clean_extra == 0.0
     assert clean == 0.0
+
+
+def test_collision_penalty_shapes_piece_hits_after_leave():
+    tracker = RewardTracker(
+        {"terms": [{"kind": "trueScoreDelta"}, {"kind": "collisionPenalty", "wall": 0.02, "piece": 0.02}]}
+    )
+    reward, extra = tracker.step(
+        true_delta=3.0,
+        phase_end=False,
+        accumulators={},
+        true_score=3.0,
+        phase_duration=30.0,
+        wall_hit=True,
+        piece_hit=True,
+    )
+    assert extra == pytest.approx(-0.04)
+    assert reward == pytest.approx(2.96)
+
+
+def test_spawn_wall_contact_is_not_shaped_until_the_robot_leaves():
+    assert wall_hit_for_shaping(wall_hit=True, left_start_wall=False) is False
+    assert wall_hit_for_shaping(wall_hit=True, left_start_wall=True) is True
+    assert wall_hit_for_shaping(wall_hit=False, left_start_wall=True) is False
+
+
+def test_piece_hits_shape_without_leaving_the_start_wall():
+    tracker = RewardTracker(
+        {"terms": [{"kind": "trueScoreDelta"}, {"kind": "collisionPenalty", "wall": 0.02, "piece": 0.02}]}
+    )
+    reward, extra = tracker.step(
+        true_delta=0.0,
+        phase_end=False,
+        accumulators={},
+        true_score=0.0,
+        phase_duration=30.0,
+        wall_hit=wall_hit_for_shaping(wall_hit=True, left_start_wall=False),
+        piece_hit=True,
+    )
+    assert extra == pytest.approx(-0.02)
+    assert reward == pytest.approx(-0.02)

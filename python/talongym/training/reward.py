@@ -17,6 +17,11 @@ KNOWN_TERM_KINDS = frozenset(
 DEFAULT_REWARD: dict[str, Any] = {"terms": [{"kind": "trueScoreDelta"}]}
 
 
+def wall_hit_for_shaping(*, wall_hit: bool, left_start_wall: bool) -> bool:
+    """G304 spawn contact is not shaped; hive/interior hits after leaving the wall are."""
+    return bool(wall_hit) and bool(left_start_wall)
+
+
 def normalize_reward_config(raw: dict[str, Any] | None) -> dict[str, Any]:
     terms = [dict(term) for term in ((raw or {}).get("terms") or [])]
     for term in terms:

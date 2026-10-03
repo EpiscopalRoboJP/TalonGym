@@ -18,7 +18,10 @@ from talongym.paths import ASSETS_DIR
 
 IN_G = 386.0886  # 9.80665 m/s^2 in inches/s^2
 CAD_MJCF_MARKER = "talongym_cad_field"
-CAD_MJCF_VERSION = "1.2.0"
+CAD_MJCF_VERSION = "1.3.0"
+# Mesh CAD contacts can spike; auto nconmax sits on a knife-edge (nefc mis-allocation).
+MJCF_NCONMAX = 4096
+MJCF_MEMORY = "64M"
 
 # Geom groups used for contact classification (not name substrings).
 GEOM_GROUP_FIELD = 0
@@ -721,6 +724,7 @@ def _wrap_mjcf(
     head = f"  <!-- {marker} -->\n" if marker else ""
     return f"""<mujoco model="talongym_field">
 {head}  {compiler}
+  <size nconmax="{MJCF_NCONMAX}" memory="{MJCF_MEMORY}"/>
   <option gravity="0 {-IN_G:.4f} 0" timestep="0.002" integrator="implicitfast" cone="pyramidal"/>
   <default>
     <geom condim="3" solref="0.02 1" solimp="0.9 0.95 0.001"/>

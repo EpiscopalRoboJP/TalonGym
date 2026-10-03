@@ -76,6 +76,21 @@ class RunBody(BaseModel):
     computeProfile: str | None = None
     algorithm: dict[str, Any] | None = None
     matchSetup: MatchSetupBody | None = None
+    name: str | None = None
+
+
+class ContinueRunBody(BaseModel):
+    name: str | None = None
+    budget: dict[str, int] | None = None
+    nEnvs: int | None = None
+    demo: bool | None = None
+    easy: bool | None = None
+    computeProfile: str | None = None
+    algorithm: dict[str, Any] | None = None
+
+
+class PatchRunBody(BaseModel):
+    name: str | None = None
 
 
 class EvalBody(BaseModel):
@@ -235,6 +250,14 @@ def delete_robot_draft(preset_id: str) -> None:
     db.delete_robot_draft(preset_id)
 
 
+def _present_run(row: dict[str, Any]) -> dict[str, Any]:
+    presented = dict(row)
+    config = presented.get("config") if isinstance(presented.get("config"), dict) else {}
+    presented["name"] = config.get("name")
+    presented["hasCheckpoint"] = jobs.latest_checkpoint(str(presented.get("id") or "")) is not None
+    return presented
+
+
 @app.post(f"{API}/runs", status_code=202)
 def start_run(body: RunBody) -> dict[str, str]:
     run_id = jobs.start_training(body.model_dump())
@@ -243,7 +266,7 @@ def start_run(body: RunBody) -> dict[str, str]:
 
 @app.get(f"{API}/runs")
 def runs() -> list[dict[str, Any]]:
-    return db.list_runs()
+    return [_present_run(row) for row in db.list_runs()]
 
 
 @app.get(f"{API}/runs/{{run_id}}")
@@ -252,9 +275,41 @@ def get_run(run_id: str) -> dict[str, Any]:
     if not row:
         raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": run_id}})
     artifacts = db.list_artifacts(run_id)
-    row["artifactIds"] = [a["id"] for a in artifacts]
-    row["artifacts"] = artifacts
-    return row
+    presented = _present_run(row)
+    presented["artifactIds"] = [a["id"] for a in artifacts]
+    presented["artifacts"] = artifacts
+    return presented
+
+
+@app.patch(f"{API}/runs/{{run_id}}")
+def patch_run(run_id: str, body: PatchRunBody) -> dict[str, Any]:
+    row = db.set_run_name(run_id, body.name)
+    if not row:
+        raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": run_id}})
+    return _present_run(row)
+
+
+@app.post(f"{API}/runs/{{run_id}}/continue", status_code=202)
+def continue_run(run_id: str, body: ContinueRunBody | None = None) -> dict[str, str]:
+    extra = (body.model_dump(exclude_unset=True) if body is not None else {})
+    try:
+        new_id = jobs.continue_training(run_id, extra)
+    except ValueError as exc:
+        code = str(exc)
+        if code == "not_found":
+            raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": run_id}}) from exc
+        if code == "busy":
+            raise HTTPException(
+                409,
+                {"error": {"code": "RUN_BUSY", "message": "Wait for the run to finish or cancel it before continuing."}},
+            ) from exc
+        if code == "no_checkpoint":
+            raise HTTPException(
+                409,
+                {"error": {"code": "NO_CHECKPOINT", "message": "This run has no latest.zip to continue from."}},
+            ) from exc
+        raise
+    return {"runId": new_id}
 
 
 @app.get(f"{API}/runs/{{run_id}}/artifacts")
@@ -276,8 +331,9 @@ def cancel_run(run_id: str) -> dict[str, str]:
     row = db.get_run(run_id) or row
     if row["state"] in {"queued", "running", "cancelling"}:
         db.save_run(run_id, row["config"], "cancelling", row.get("metrics") or {}, row.get("log"))
-        jobs.emit(run_id, {"type": "status", "payload": {"state": "cancelling"}})
-        return {"state": "cancelling"}
+        fresh = db.get_run(run_id) or row
+        jobs.emit(run_id, {"type": "status", "payload": {"state": fresh["state"]}})
+        return {"state": fresh["state"]}
     return {"state": row["state"]}
 
 
@@ -311,14 +367,16 @@ def get_replay(replay_id: str) -> dict[str, Any]:
         raise HTTPException(404, {"error": {"code": "NOT_FOUND", "message": replay_id}})
     meta = row["meta"]
     frames = row["frames"]
-    return {
-        "id": replay_id,
-        "duration": frames[-1]["t"] if frames else 0,
-        "hz": 25,
-        "nFrames": len(frames),
-        "trueScore": frames[-1].get("trueScore") if frames else 0,
-        **meta,
-    }
+    return db.attach_replay_run_name(
+        {
+            "id": replay_id,
+            "duration": frames[-1]["t"] if frames else 0,
+            "hz": 25,
+            "nFrames": len(frames),
+            "trueScore": frames[-1].get("trueScore") if frames else 0,
+            **meta,
+        }
+    )
 
 
 @app.get(f"{API}/replays/{{replay_id}}/chunks")
@@ -388,7 +446,14 @@ def start_eval(body: EvalBody) -> dict[str, Any]:
         objective=body.objective,
     )
     frames = report.pop("bestFrames", [])
-    replay_id = db.save_replay(frames, {"source": "eval", "trueScore": report.get("bestScore")}) if frames else None
+    replay_id = (
+        db.save_replay(
+            frames,
+            {"source": "eval", "trueScore": report.get("bestScore"), "runId": body.runId},
+        )
+        if frames
+        else None
+    )
     report["replayId"] = replay_id
     report["policy"] = body.policy
     report["runId"] = body.runId
@@ -647,7 +712,7 @@ def mount_frontend(application: FastAPI) -> None:
             candidate = (dist / full_path).resolve()
             if full_path and candidate.is_relative_to(dist.resolve()) and candidate.is_file():
                 return FileResponse(candidate)
-            return FileResponse(dist / "index.html")
+            return FileResponse(dist / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 mount_frontend(app)

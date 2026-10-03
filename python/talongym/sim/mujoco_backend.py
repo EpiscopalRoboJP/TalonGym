@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from talongym.assets.mjcf_field import GEOM_GROUP_FIELD, GEOM_GROUP_PIECE, GEOM_GROUP_ROBOT
+from talongym.assets.mjcf_field import GEOM_GROUP_FIELD, GEOM_GROUP_PIECE, GEOM_GROUP_ROBOT, MJCF_MEMORY, MJCF_NCONMAX
 from talongym.sim.physics import (
     NM_TO_INCH_TORQUE,
     Body,
@@ -148,18 +148,38 @@ def mj_omega_to_ftc(wx: float, wy: float, wz: float) -> tuple[float, float, floa
     return float(wx), float(-wz), float(wy)
 
 
+def _constraint_memory_bytes() -> int:
+    raw = str(MJCF_MEMORY).strip().upper()
+    if raw.endswith("G"):
+        return int(float(raw[:-1]) * 1024 ** 3)
+    if raw.endswith("M"):
+        return int(float(raw[:-1]) * 1024 ** 2)
+    if raw.endswith("K"):
+        return int(float(raw[:-1]) * 1024)
+    return int(raw)
+
+
+def _is_constraint_overflow(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return "nefc mis-allocation" in msg or "insufficient arena" in msg or "arena overflow" in msg
+
+
 def _compile_mj_model(xml: str, xml_path: Path | None):
     import hashlib
 
     import mujoco
 
-    key = str(xml_path.resolve()) if xml_path is not None else hashlib.sha256(xml.encode("utf-8")).hexdigest()
+    path_key = str(xml_path.resolve()) if xml_path is not None else hashlib.sha256(xml.encode("utf-8")).hexdigest()
+    key = f"{path_key}:nconmax={MJCF_NCONMAX}:mem={MJCF_MEMORY}"
     model = _MJ_MODEL_CACHE.get(key)
     if model is None:
-        if xml_path is not None:
-            model = mujoco.MjModel.from_xml_path(str(xml_path))
-        else:
-            model = mujoco.MjModel.from_xml_string(xml)
+        spec = mujoco.MjSpec.from_file(str(xml_path)) if xml_path is not None else mujoco.MjSpec.from_string(xml)
+        ncon = int(spec.nconmax)
+        spec.nconmax = MJCF_NCONMAX if ncon < 0 else max(ncon, MJCF_NCONMAX)
+        mem = int(spec.memory)
+        need = _constraint_memory_bytes()
+        spec.memory = need if mem < 0 else max(mem, need)
+        model = spec.compile()
         _MJ_MODEL_CACHE[key] = model
     return mujoco, model
 
@@ -611,14 +631,31 @@ class MujocoFieldBackend:
             return self._body_name_by_id[bid]
         return ""
 
-    def _contact_flags(self, robot_ids: set[str], piece_ids: set[str]) -> ContactSet:
+    def _contact_flags(
+        self,
+        robot_ids: set[str],
+        piece_ids: set[str],
+        piece_owners: dict[str, str] | None = None,
+    ) -> ContactSet:
         flags = ContactSet()
         live_robots = set(robot_ids)
+        held = set((piece_owners or {}).keys())
+        held_body_ids = {
+            self._piece_body[slot]
+            for pid, slot in self._id_to_slot.items()
+            if pid in held and 0 <= slot < len(self._piece_body)
+        }
+
+        def _robot_id(name: str) -> str | None:
+            if name in live_robots:
+                return name
+            for rid in live_robots:
+                if name.startswith(f"{rid}_"):
+                    return rid
+            return None
 
         def _is_live_robot(name: str) -> bool:
-            if name in live_robots:
-                return True
-            return any(name.startswith(f"{rid}_") for rid in live_robots)
+            return _robot_id(name) is not None
 
         ncon = int(self._data.ncon)
         for i in range(ncon):
@@ -631,12 +668,22 @@ class MujocoFieldBackend:
             hits_live_robot = _is_live_robot(b1) or _is_live_robot(b2)
             hits_piece = GEOM_GROUP_PIECE in {grp1, grp2}
             hits_field = GEOM_GROUP_FIELD in {grp1, grp2}
+            rid1, rid2 = _robot_id(b1), _robot_id(b2)
             if hits_live_robot and hits_field:
                 flags.wall = True
-            if grp1 == GEOM_GROUP_ROBOT and grp2 == GEOM_GROUP_ROBOT and _is_live_robot(b1) and _is_live_robot(b2) and b1 != b2:
+            if (
+                grp1 == GEOM_GROUP_ROBOT
+                and grp2 == GEOM_GROUP_ROBOT
+                and rid1 is not None
+                and rid2 is not None
+                and rid1 != rid2
+            ):
                 flags.robot = True
-            if hits_piece and (hits_field or hits_live_robot):
-                flags.piece = True
+            # Piece-floor rest is not a ram. Held magazine balls must not count either.
+            if hits_piece and hits_live_robot:
+                piece_bid = int(self._mj.geom_bodyid[g1 if grp1 == GEOM_GROUP_PIECE else g2])
+                if piece_bid not in held_body_ids:
+                    flags.piece = True
         return flags
 
     def _robot_pose_ftc(self, robot_id: str) -> tuple[float, float, float, float, float, float] | None:
@@ -870,6 +917,8 @@ class MujocoFieldBackend:
                 )
         max_accel = float(state.max_accel)
         max_ang_accel = float(state.max_ang_accel)
+        qpos0 = self._data.qpos.copy()
+        overflow = False
         for _ in range(nsub):
             self._data.qfrc_applied[:] = 0.0
             self._data.xfrc_applied[:] = 0.0
@@ -893,7 +942,18 @@ class MujocoFieldBackend:
             for dof, torque in actuator_torques:
                 self._data.qfrc_applied[dof] += torque
             self._apply_piece_flow_forces(state)
-            self._mujoco.mj_step(self._mj, self._data)
+            try:
+                self._mujoco.mj_step(self._mj, self._data)
+            except self._mujoco.FatalError as exc:
+                if not _is_constraint_overflow(exc):
+                    raise
+                overflow = True
+                self._data.qpos[:] = qpos0
+                self._data.qvel[:] = 0.0
+                self._data.qfrc_applied[:] = 0.0
+                self._data.xfrc_applied[:] = 0.0
+                self._mujoco.mj_forward(self._mj, self._data)
+                break
             for mechanism_id, (qpos, dof) in self._field_mechanism_joints.items():
                 target = float(state.field_mechanism_targets.get(mechanism_id, 0.0))
                 if abs(target) < 1e-9:
@@ -905,7 +965,13 @@ class MujocoFieldBackend:
             self._read_robot(body)
         for piece in state.pieces:
             self._read_piece(piece)
-        flags = self._contact_flags({b.id for b in state.robots if b.dynamic}, live_piece_ids)
+        flags = self._contact_flags(
+            {b.id for b in state.robots if b.dynamic},
+            live_piece_ids,
+            piece_owners=state.piece_owners,
+        )
+        if overflow:
+            flags.wall = True
         for body in state.robots:
             if not body.dynamic:
                 continue

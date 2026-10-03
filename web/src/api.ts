@@ -102,6 +102,16 @@ export async function putJson<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export async function patchJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) await fail(res, path);
+  return res.json() as Promise<T>;
+}
+
 export async function postText(path: string, body: unknown = {}): Promise<string> {
   const res = await fetch(`${API}${path}`, {
     method: "POST",
@@ -974,4 +984,46 @@ export type RunRow = {
   state: string;
   metrics: Record<string, unknown>;
   config: Record<string, unknown>;
+  name?: string | null;
+  hasCheckpoint?: boolean;
 };
+
+export function runLabel(row: Pick<RunRow, "id" | "name" | "config">): string {
+  const named = typeof row.name === "string" && row.name.trim() ? row.name.trim() : "";
+  if (named) return named;
+  const fromConfig = row.config && typeof row.config.name === "string" ? row.config.name.trim() : "";
+  return fromConfig || row.id;
+}
+
+const REPLAY_SOURCE_LABEL: Record<string, string> = {
+  demo: "Scripted demo",
+  train: "Training run",
+  eval: "Evaluation",
+};
+
+export type ReplayListRow = {
+  id: string;
+  name?: string | null;
+  runId?: string | null;
+  source?: string | null;
+  algo?: string | null;
+  trueScore?: number;
+};
+
+/** Prefer the training run's name, then its run id, then the replay source. */
+export function replayLabel(row: Pick<ReplayListRow, "id" | "name" | "runId" | "source">): string {
+  const named = typeof row.name === "string" && row.name.trim() ? row.name.trim() : "";
+  if (named) return named;
+  if (row.runId) return row.runId;
+  return REPLAY_SOURCE_LABEL[row.source || ""] || row.source || row.id;
+}
+
+export function replayMetaLine(row: ReplayListRow): string {
+  const title = replayLabel(row);
+  const bits: string[] = [];
+  if (row.runId && title !== row.runId) bits.push(row.runId);
+  else if (title !== row.id) bits.push(row.id);
+  if (row.source === "eval") bits.push("evaluation");
+  if (row.algo) bits.push(row.algo);
+  return bits.join(" · ");
+}

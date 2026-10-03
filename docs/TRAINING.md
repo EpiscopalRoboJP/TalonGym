@@ -56,7 +56,7 @@ The loop:
 2. Wraps with `EncoderOnlyObsAssertWrapper` so privileged motif/match vars cannot leak into the actor.
 3. Resets from a legal G304 spawn with full domain randomization when the training curriculum is empty.
 4. Saves `var/ckpts/latest.zip` every chunk and `var/ckpts/best.zip` only when the held-out **objective** improves **and** the eval is healthy (at least one physical launch, wall contact within 8 s).
-5. Prints `true=` (episode true-score mean) and `eval=` (held-out true-score mean), plus launch count and wall-contact time. Use `eval`, not reward extras.
+5. Prints `true=` (episode true-score mean) and `eval=` (held-out true-score mean), plus launch count and wall-contact time. Use `eval`, not reward extras. `true=` stays blank until at least one training episode finishes (30 s × controlHz steps); that is later than the first few PPO chunks.
 
 A short run is a smoke test. Lightweight presets declare `budget.totalEnvSteps` of 5e6 and a 4-hour wall-clock cap; pass a larger `--steps` for an overnight CLI job.
 
@@ -82,6 +82,8 @@ The dashboard shows:
 - **Reward extras** — configured season terms other than true score; not used for ranking
 - Live downsampled rollout, curriculum stage, entropy, approx KL, FPS
 - Cancel — cooperative stop (`cancelling` until the worker acknowledges `cancelled`); partial checkpoint may still be on disk
+
+If a run sits on **collecting rollouts** with FPS frozen for many minutes, the sim workers hung (older builds could deadlock on large step payloads). Cancel, restart Lab with `.venv/bin/python -m talongym lab`, and start a new run.
 
 Runs persist in SQLite. Open a past run from the list to reconnect the WebSocket.
 
@@ -120,7 +122,7 @@ BIOBUZZ AUTO has no motif. `motif_known_at_t0` remains a generic unlock for a fu
 
 PPO maximizes `true_score_delta` plus optional extras from `reward.terms`. Resolution: `training.reward` if present, else `scoring.reward`, else true score only. Extra terms are logged as `info["shaping"]` and never used for `best.zip`.
 
-BIOBUZZ scoring ships `trueScoreDelta` plus `earlyVolumeBonus` on field tag `park` (requires `parked_auto`, excludes `leave_park_points`, scale 0.1). New seasons fill `reward` in scoring JSON; do not hardcode poses in Python.
+BIOBUZZ scoring ships `trueScoreDelta` plus `collisionPenalty` on wall/hive contact **after** the robot has left the G304 start wall (spawn grinding is not shaped, so slamming the hive is worse than sitting still), and `earlyVolumeBonus` on field tag `park` (requires `parked_auto`, excludes `leave_park_points`, scale 0.1). New seasons fill `reward` in scoring JSON; do not hardcode poses in Python.
 
 Default robot is `gobilda_mecanum_starter` (schema 1.2 catalog scoring assembly). Sister starters: `gobilda_tank_starter`, `rev_mecanum_starter`, `rev_tank_starter`. Drivebase recipes stay chassis-only until you add intake/flywheel parts and confirm scoring topology.
 
@@ -133,6 +135,8 @@ Shipped presets use `high_level_waypoint`: target pose (inches / rad), speed fra
 [`python/talongym/training/policies.py`](../python/talongym/training/policies.py) is a HIVE TIP + LEAVE + PARK reference for BIOBUZZ **tests and evaluation**, not a training clone. `train_ppo` does not run it. Compare trained checkpoints against it on [EVALUATION.md](EVALUATION.md).
 
 A zero-launch `best.zip` is a simulator or robot-contract defect, not a PPO hyperparameter issue. Lab run `1d66d5d4b63e` used a catalog robot (`test1`) that compiled without a 4-piece magazine, so eval true score 3.0 was LEAVE from parking into walls with no flywheel fire (0 launches, 4 held at park, 0.68 s wall). Replayed on `mecanum_biobuzz_4cap` it stays unhealthy. The repaired default `gobilda_mecanum_starter` scripted baseline launches 4 pieces (wall 0.12 s). Hive CAD still intercepts many up-CELL shots, so LEAVE 3.0 with launches is success; 3.0 with zero launches is not. `var/defaults.json` overlaying `mecanum_biobuzz_4cap` also hid the shipped starter — reset Lab defaults to `gobilda_mecanum_starter` for CLI jobs.
+
+A worker `FatalError: mj_makeConstraint: nefc mis-allocation` is a MuJoCo contact-arena overflow (robot jammed into CAD). Training should recover that step as wall contact; if a run still dies on it, restart Lab so workers load the enlarged `nconmax` budget.
 
 ## Experimental RLlib (not a scale path)
 
