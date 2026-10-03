@@ -331,8 +331,9 @@ def cancel_run(run_id: str) -> dict[str, str]:
     row = db.get_run(run_id) or row
     if row["state"] in {"queued", "running", "cancelling"}:
         db.save_run(run_id, row["config"], "cancelling", row.get("metrics") or {}, row.get("log"))
-        jobs.emit(run_id, {"type": "status", "payload": {"state": "cancelling"}})
-        return {"state": "cancelling"}
+        fresh = db.get_run(run_id) or row
+        jobs.emit(run_id, {"type": "status", "payload": {"state": fresh["state"]}})
+        return {"state": fresh["state"]}
     return {"state": row["state"]}
 
 

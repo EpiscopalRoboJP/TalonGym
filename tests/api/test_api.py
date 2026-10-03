@@ -170,6 +170,17 @@ def test_start_run_passes_training_id(monkeypatch):
     assert "roadrunner" in kinds
 
 
+def test_save_run_does_not_demote_a_finished_run():
+    from talongym.api import db
+
+    run_id = db.new_id()
+    db.save_run(run_id, {"presets": {}}, "cancelled", {"envSteps": 3}, "done")
+    db.save_run(run_id, {"presets": {}}, "cancelling", {"envSteps": 3}, "late cancel")
+    row = db.get_run(run_id)
+    assert row is not None
+    assert row["state"] == "cancelled"
+
+
 def test_cancel_run(monkeypatch):
     def fake_train(**kwargs):
         should_stop = kwargs.get("should_stop")
@@ -185,7 +196,7 @@ def test_cancel_run(monkeypatch):
     _wait_run(client, run_id, {"running", "queued", "cancelling"})
     cancel = client.post(f"/api/v1/runs/{run_id}/cancel")
     assert cancel.status_code == 200
-    assert cancel.json()["state"] == "cancelling"
+    assert cancel.json()["state"] in {"cancelling", "cancelled"}
     mid = client.get(f"/api/v1/runs/{run_id}")
     assert mid.status_code == 200
     assert mid.json()["state"] in {"cancelling", "cancelled"}

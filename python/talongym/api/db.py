@@ -390,12 +390,18 @@ def set_run_name(run_id: str, name: str | None) -> dict[str, Any] | None:
     return row
 
 
+_TERMINAL_RUN_STATES = frozenset({"succeeded", "failed", "cancelled"})
+
+
 def save_run(run_id: str, config: dict, state: str, metrics: dict | None = None, log: str | None = None) -> None:
     with _session() as conn:
-        if state == "running":
-            row = conn.execute("SELECT state FROM runs WHERE id=?", (run_id,)).fetchone()
-            if row and row["state"] == "cancelling":
-                state = "cancelling"
+        row = conn.execute("SELECT state FROM runs WHERE id=?", (run_id,)).fetchone()
+        current = row["state"] if row else None
+        # A late cancel request must not resurrect a run the worker already finished.
+        if current in _TERMINAL_RUN_STATES and state not in _TERMINAL_RUN_STATES:
+            state = current
+        elif state == "running" and current == "cancelling":
+            state = "cancelling"
         conn.execute(
             "INSERT INTO runs(id, config, state, metrics, log) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state, metrics=excluded.metrics, log=excluded.log",
             (run_id, json.dumps(config), state, json.dumps(metrics or {}), log),
